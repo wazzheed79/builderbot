@@ -428,6 +428,20 @@ export default function Home() {
             <span className="font-bold text-slate-800 text-sm">TradeMate</span>
             <span>— AI Quoting & Invoicing for Trades</span>
           </div>
+          <div className="flex items-center gap-6 font-medium">
+            <Link href="/pricing" className="hover:text-blue-600 transition">
+              Pricing Plans
+            </Link>
+            <Link href="/quotes" className="hover:text-blue-600 transition">
+              Quotes
+            </Link>
+            <Link href="/dashboard" className="hover:text-blue-600 transition">
+              Dashboard
+            </Link>
+            <Link href="/settings" className="hover:text-blue-600 transition">
+              Settings
+            </Link>
+          </div>
           <p>© 2026 TradeMate. Created by Michael Boylen for UK Trades.</p>
         </div>
       </footer>

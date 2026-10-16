@@ -8,12 +8,12 @@ import {
   FileText,
   Users,
   PlusCircle,
-  Home,
   Sparkles,
   Settings,
   LogIn,
   LogOut,
   CloudCheck,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import DemoBanner from "./DemoBanner";
@@ -26,6 +26,7 @@ export default function AppNav() {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Quotes", href: "/quotes", icon: FileText },
     { name: "Customers", href: "/customers", icon: Users },
+    { name: "Pricing", href: "/pricing", icon: CreditCard },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
@@ -138,18 +139,6 @@ export default function AppNav() {
       {/* Mobile Bottom Navigation Bar (Thumb friendly for site work) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg px-2 py-1.5 pb-safe">
         <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
-          <Link
-            href="/"
-            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-xs font-medium transition ${
-              pathname === "/"
-                ? "text-blue-600 font-semibold"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Home className="w-5 h-5 mb-0.5" />
-            <span>Home</span>
-          </Link>
-
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -157,14 +146,14 @@ export default function AppNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-xs font-medium transition ${
+                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[11px] font-medium transition ${
                   isActive
                     ? "text-blue-600 font-semibold"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <Icon className="w-5 h-5 mb-0.5" />
-                <span>{item.name}</span>
+                <span className="truncate">{item.name}</span>
               </Link>
             );
           })}

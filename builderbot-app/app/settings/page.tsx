@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Building2,
   Phone,
@@ -16,6 +17,8 @@ import {
   AlertTriangle,
   RotateCcw,
   Upload,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import {
   BusinessProfile,
@@ -555,6 +558,42 @@ export default function SettingsPage() {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section 5: Subscription Plan & Stripe Billing */}
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              <h2 className="font-bold text-lg text-slate-900">Subscription & Stripe Billing</h2>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+              <Sparkles className="w-3 h-3 text-blue-600" />
+              Free Starter Active
+            </span>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-base text-slate-900">TradeMate Free Starter</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                  5 quotes / mo
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+                Upgrade to <strong>Pro (£9.99/mo)</strong> to unlock unlimited quoting, remove all TradeMate watermarks, collect customer debit/credit card deposits via Stripe, and upload your high-resolution company branding.
+              </p>
+            </div>
+
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition active:scale-[0.98] shrink-0"
+            >
+              <span>View Plans & Upgrade</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
 
