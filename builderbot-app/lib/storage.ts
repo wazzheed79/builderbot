@@ -564,3 +564,146 @@ export function getDashboardMetrics() {
     recentQuotes: quotes.slice(0, 8),
   };
 }
+
+export interface ActivityItem {
+  id: string;
+  type: "quote_accepted" | "quote_viewed" | "quote_sent" | "quote_rejected" | "customer_created";
+  title: string;
+  description: string;
+  timestamp: string;
+  relativeTime: string;
+  link?: string;
+}
+
+export function getCustomerQuotes(customerIdOrName: string): Quote[] {
+  const quotes = getQuotes();
+  const lower = customerIdOrName.toLowerCase();
+  return quotes.filter(
+    (q) =>
+      q.customerId === customerIdOrName ||
+      q.clientName.toLowerCase() === lower
+  );
+}
+
+export function getCustomerMetrics(customerIdOrName: string) {
+  const quotes = getCustomerQuotes(customerIdOrName);
+  const accepted = quotes.filter((q) => q.status === "Accepted");
+  const pending = quotes.filter((q) => q.status === "Sent" || q.status === "Viewed");
+  const totalBilled = roundMoney(quotes.reduce((acc, q) => acc + q.total, 0));
+  const totalWon = roundMoney(accepted.reduce((acc, q) => acc + q.total, 0));
+  const totalPending = roundMoney(pending.reduce((acc, q) => acc + q.total, 0));
+  const decided = quotes.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
+  const winRate = decided > 0 ? Math.round((accepted.length / decided) * 100) : 0;
+
+  return {
+    totalQuotes: quotes.length,
+    totalBilled,
+    totalWon,
+    totalPending,
+    winRate,
+    quotes,
+  };
+}
+
+export function getRecentActivityFeed(): ActivityItem[] {
+  const quotes = getQuotes();
+  const customers = getCustomers();
+  const activities: ActivityItem[] = [];
+
+  for (const q of quotes) {
+    if (q.acceptedAt) {
+      activities.push({
+        id: `${q.id}-accepted`,
+        type: "quote_accepted",
+        title: `Quote ${q.id} Accepted`,
+        description: `${q.acceptedSignatureName || q.clientName} signed £${q.total.toFixed(2)} (${q.title})`,
+        timestamp: q.acceptedAt,
+        relativeTime: formatRelativeTime(q.acceptedAt),
+        link: `/q/${q.token || q.id}`,
+      });
+    }
+
+    if (q.viewedAt) {
+      activities.push({
+        id: `${q.id}-viewed`,
+        type: "quote_viewed",
+        title: `Quote ${q.id} Viewed`,
+        description: `${q.clientName} opened quote link (${q.title})`,
+        timestamp: q.viewedAt,
+        relativeTime: formatRelativeTime(q.viewedAt),
+        link: `/q/${q.token || q.id}`,
+      });
+    }
+
+    if (q.status === "Sent") {
+      const sentTime = q.createdAt ? `${q.createdAt}T10:00:00Z` : new Date().toISOString();
+      activities.push({
+        id: `${q.id}-sent`,
+        type: "quote_sent",
+        title: `Quote ${q.id} Sent`,
+        description: `Issued £${q.total.toFixed(2)} quote to ${q.clientName}`,
+        timestamp: sentTime,
+        relativeTime: formatRelativeTime(sentTime),
+        link: `/q/${q.token || q.id}`,
+      });
+    }
+
+    if (q.rejectedAt) {
+      activities.push({
+        id: `${q.id}-rejected`,
+        type: "quote_rejected",
+        title: `Quote ${q.id} Declined`,
+        description: `${q.clientName} declined: ${q.rejectedReason || "No reason given"}`,
+        timestamp: q.rejectedAt,
+        relativeTime: formatRelativeTime(q.rejectedAt),
+        link: `/q/${q.token || q.id}`,
+      });
+    }
+  }
+
+  for (const c of customers) {
+    const custTime = c.createdAt ? `${c.createdAt}T08:00:00Z` : new Date().toISOString();
+    activities.push({
+      id: `${c.id}-created`,
+      type: "customer_created",
+      title: "New Customer Added",
+      description: `${c.name} added to trade directory`,
+      timestamp: custTime,
+      relativeTime: formatRelativeTime(custTime),
+      link: `/customers/${c.id}`,
+    });
+  }
+
+  // Sort newest first
+  return activities
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 10);
+}
+
+function formatRelativeTime(isoString: string): string {
+  if (!isoString) return "Recently";
+  try {
+    const timestamp = new Date(isoString).getTime();
+    if (isNaN(timestamp)) return "Recently";
+
+    // Safe fallback for SSR / static prerender
+    if (typeof window === "undefined") {
+      return new Date(isoString).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    }
+
+    const diffMs = Date.now() - timestamp;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHrs = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+
+    if (diffMin < 2) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return new Date(isoString).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  } catch {
+    return "Recently";
+  }
+}

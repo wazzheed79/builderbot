@@ -15,6 +15,7 @@ import {
   Edit2,
   CheckCircle2,
   X,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   Customer,
@@ -176,7 +177,13 @@ export default function CustomersPage() {
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-bold text-base text-slate-900">{customer.name}</h3>
+                    <Link
+                      href={`/customers/${customer.id}`}
+                      className="font-bold text-base text-slate-900 hover:text-blue-600 transition inline-flex items-center gap-1 group"
+                    >
+                      <span>{customer.name}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition" />
+                    </Link>
                     {customer.company && (
                       <p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-0.5">
                         <Building className="w-3 h-3 text-slate-400" />
@@ -239,13 +246,21 @@ export default function CustomersPage() {
                     £{totalRevenue.toFixed(2)}
                   </span>
                 </div>
-                <Link
-                  href={`/quotes?customerId=${customer.id}`}
-                  className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-lg transition"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Create Quote</span>
-                </Link>
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/customers/${customer.id}`}
+                    className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+                  >
+                    <span>Profile</span>
+                  </Link>
+                  <Link
+                    href={`/quotes?customerId=${customer.id}`}
+                    className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-lg transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Quote</span>
+                  </Link>
+                </div>
               </div>
             </div>
           );
