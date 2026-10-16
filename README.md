@@ -36,3 +36,6 @@ Create and send a professional quote in under two minutes.
 ## Quote Workflow
 
 Draft -> Sent -> Accepted -> Rejected -> Expired
+
+## 🤖 AI Agent Collaboration
+This project is built collaboratively with AI agents. See [AGENTS.md](AGENTS.md) for architecture, guidelines, progress tracker, and ideas for contributing agents.
