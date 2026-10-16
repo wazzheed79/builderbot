@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -8,9 +8,7 @@ import {
   Phone,
   Mail,
   MapPin,
-  FileText,
   Search,
-  ExternalLink,
   Building,
   ClipboardList,
   Trash2,
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   Customer,
+  Quote,
   getCustomers,
   saveCustomer,
   deleteCustomer,
@@ -27,8 +26,8 @@ import {
 } from "@/lib/storage";
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [quotes, setQuotes] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers());
+  const [quotes, setQuotes] = useState<Quote[]>(() => getQuotes());
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -46,10 +45,6 @@ export default function CustomersPage() {
     setCustomers(getCustomers());
     setQuotes(getQuotes());
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);

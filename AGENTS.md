@@ -43,7 +43,7 @@ stateDiagram-v2
 
 ## 🚦 Agent Conventions & Guidelines
 1. **Mobile-First Van Experience**: Tradespeople use this in their vans with work gloves or dirty hands. Large tap targets (min 44px), voice-ready, zero unnecessary forms.
-2. **Auto-Push Policy**: Whenever a task or feature is completed and verified, stage all files, commit with a concise descriptive message, and push directly to GitHub.
+2. **Review-First Verification Policy**: Do not auto-push to GitHub without explicit user review. All changes must be tested, linted, verified, and presented to the user for confirmation before committing and pushing.
 3. **Deterministic Prerender Compatibility**: In Next.js 16 Partial Prerendering, wrap dynamic hook consumers (`usePathname()`, `useSearchParams()`, `params`) in `<Suspense>` and avoid calling non-deterministic APIs (`Math.random()`, `new Date()`) directly in JSX during static builds.
 4. **Data Sync**: When adding new fields to `Customer` or `Quote`, update `lib/storage.ts` and sync across the Customer Directory, Quote Builder, Customer Acceptance view, and Dashboard.
 
@@ -63,6 +63,10 @@ stateDiagram-v2
 - [x] **Customer Acceptance Page (`/q/[id]`)**: Full public client-facing page with contractor accreditation badges, digital signature capture, acceptance confirmation, and decline feedback linked to storage.
 - [x] **Live Dashboard Metrics (`app/dashboard/page.tsx`)**: Real-time KPI metrics (Quotes Sent, Won Contract Value, Win Rate %, Pending Value) dynamically calculated from stored quotes.
 - [x] **Repository & CI/CD**: Verified with clean Next.js 16 build and pushed to GitHub (`wazzheed79/builderbot`).
+- [x] **Business Profile & Branding System (`app/settings/page.tsx`, `lib/storage.ts`)**: User-editable profile for company details, trading name, bank details for wire deposits, and legitimate trade accreditations (eliminated hardcoded Apex Plumbing and fake Gas Safe numbers).
+- [x] **Real Server-Side Gemini AI Endpoints (`app/api/quote/generate`, `app/api/quote/expand`)**: Official `@google/genai` SDK integration with `gemini-2.5-flash` and strict JSON schemas, providing intelligent itemization, market rates, and contract-ready scopes with fallback.
+- [x] **Supabase Multi-Device Cloud Sync (`lib/supabase.ts`, `app/api/quote/[id]`, `supabase/schema.sql`)**: Postgres tables with RLS and public token resolution allowing clients on any smartphone or browser to view, accept, and sign quotes remotely.
+- [x] **Clean Zero-Warning Production Build**: Resolved all 14 ESLint errors and Next.js 16 partial prerendering issues.
 
 ---
 
@@ -80,11 +84,11 @@ stateDiagram-v2
 - [x] Labour & Materials Margin Calculator
 - [x] Customer Shareable Link & Digital Acceptance Page (`/q/[id]`)
 - [x] Live Dashboard KPI Metrics (Win rate, Won value, Pipeline)
-- [ ] **PDF Branding & Generation** (Custom logo upload, trade accreditation seals, terms & conditions)
+- [x] **Business Profile & Branding System** (Custom trade accreditations, bank deposit instructions, terms & conditions)
 
 ### Phase 2: Trade Intelligence & Speed
-- [ ] **Supabase Database & Auth Integration** (Cloud sync for multi-device tradespeople)
-- [ ] **Real Gemini API Endpoint** (Server Action / API route parsing real voice audio and text into JSON)
+- [x] **Supabase Database Cloud Architecture** (Multi-device public tokens, schemas, and live API route)
+- [x] **Real Gemini API Endpoints** (Official `@google/genai` SDK parsing voice and notes into structured JSON)
 - [ ] **Customer Profile Detail Page** (Deep dive into customer's lifetime quotes, notes, and photos)
 
 ### Phase 3: Conversions & Pipeline

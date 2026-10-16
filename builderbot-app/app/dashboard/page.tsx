@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -11,39 +11,21 @@ import {
   Users,
   ChevronRight,
   ArrowUpRight,
-  CheckCircle2,
-  DollarSign,
 } from "lucide-react";
 import {
   getDashboardMetrics,
   getCustomers,
-  Quote,
 } from "@/lib/storage";
 
 export default function DashboardPage() {
-  const [metrics, setMetrics] = useState({
-    totalQuotesCount: 3,
-    acceptedQuotesCount: 1,
-    pendingQuotesCount: 2,
-    totalAcceptedValue: 1161.6,
-    totalPendingValue: 3420.0,
-    winRate: 33,
-    recentQuotes: [] as Quote[],
-  });
-  const [customerCount, setCustomerCount] = useState(3);
-
-  useEffect(() => {
-    const data = getDashboardMetrics();
-    const custs = getCustomers();
-    setMetrics(data);
-    setCustomerCount(custs.length);
-  }, []);
+  const [metrics] = useState(() => getDashboardMetrics());
+  const [customerCount] = useState(() => getCustomers().length);
 
   const stats = [
     {
       title: "Quotes Sent",
-      value: metrics.totalQuotesCount.toString(),
-      change: `${metrics.pendingQuotesCount} awaiting decision`,
+      value: metrics.sentQuotesCount.toString(),
+      change: `${metrics.sentQuotesCount} awaiting decision`,
       icon: FileText,
       color: "text-blue-600 bg-blue-50 border-blue-200",
     },
@@ -57,7 +39,7 @@ export default function DashboardPage() {
     {
       title: "Pending Quotes",
       value: `£${metrics.totalPendingValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: `${metrics.pendingQuotesCount} active in pipeline`,
+      change: `${metrics.sentQuotesCount} active in pipeline`,
       icon: Clock,
       color: "text-amber-600 bg-amber-50 border-amber-200",
     },
@@ -171,7 +153,7 @@ export default function DashboardPage() {
                           ? "bg-emerald-100 text-emerald-800"
                           : q.status === "Sent"
                           ? "bg-blue-100 text-blue-800"
-                          : q.status === "Declined"
+                          : q.status === "Rejected"
                           ? "bg-rose-100 text-rose-800"
                           : "bg-slate-100 text-slate-700"
                       }`}

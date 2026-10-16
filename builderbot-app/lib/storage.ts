@@ -1,3 +1,10 @@
+import {
+  syncQuoteToCloud,
+  syncCustomerToCloud,
+  syncProfileToCloud,
+  updateCloudQuoteStatus,
+} from "./supabase";
+
 export interface Customer {
   id: string;
   name: string;
@@ -20,6 +27,7 @@ export interface LineItem {
 
 export interface Quote {
   id: string;
+  token: string;
   customerId?: string;
   clientName: string;
   clientCompany?: string;
@@ -35,8 +43,89 @@ export interface Quote {
   total: number;
   depositPercent: number;
   deposit: number;
-  status: "Draft" | "Sent" | "Accepted" | "Declined";
+  status: "Draft" | "Sent" | "Accepted" | "Rejected" | "Expired";
+  acceptedSignatureName?: string;
+  acceptedAt?: string;
+  rejectedReason?: string;
+  rejectedAt?: string;
   createdAt: string;
+}
+
+export interface BusinessProfile {
+  companyName: string;
+  tradingName?: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  website?: string;
+  address: string;
+  trade: string;
+  vatRegistered: boolean;
+  vatNumber?: string;
+  bankName?: string;
+  bankSortCode?: string;
+  bankAccountNumber?: string;
+  accreditations: string[];
+  defaultDepositPercent: number;
+  paymentTermsDays: number;
+  quoteValidityDays: number;
+  termsAndConditions?: string;
+}
+
+export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
+  companyName: "Premier Trade Services",
+  tradingName: "",
+  ownerName: "Alex Morgan",
+  phone: "+44 7700 900345",
+  email: "quotes@premiertrade.co.uk",
+  website: "www.premiertrade.co.uk",
+  address: "Unit 4, Trade Enterprise Park, Bristol, BS2 8QJ",
+  trade: "General Building & Renovation",
+  vatRegistered: true,
+  vatNumber: "GB 987 6543 21",
+  bankName: "Barclays Commercial",
+  bankSortCode: "20-14-33",
+  bankAccountNumber: "84729104",
+  accreditations: [],
+  defaultDepositPercent: 20,
+  paymentTermsDays: 7,
+  quoteValidityDays: 30,
+  termsAndConditions:
+    "1. All materials remain property of the contractor until paid in full.\n2. Workmanship guaranteed for 12 months from completion date.\n3. Deposit required before procurement of materials.",
+};
+
+const PROFILE_KEY = "builderbot_business_profile";
+
+export function getBusinessProfile(): BusinessProfile {
+  if (typeof window === "undefined") return DEFAULT_BUSINESS_PROFILE;
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return DEFAULT_BUSINESS_PROFILE;
+    return { ...DEFAULT_BUSINESS_PROFILE, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_BUSINESS_PROFILE;
+  }
+}
+
+export function saveBusinessProfile(profile: BusinessProfile): BusinessProfile {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  }
+  syncProfileToCloud(profile).catch(() => {});
+  return profile;
+}
+
+export function roundMoney(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+export function generateToken(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let token = "q_";
+  for (let i = 0; i < 16; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
 }
 
 const DEFAULT_CUSTOMERS: Customer[] = [
@@ -75,6 +164,7 @@ const DEFAULT_CUSTOMERS: Customer[] = [
 const DEFAULT_QUOTES: Quote[] = [
   {
     id: "BB-1042",
+    token: "q_demo_bathroom",
     customerId: "cust-1",
     clientName: "Sarah Jenkins",
     clientCompany: "Private Homeowner",
@@ -137,6 +227,7 @@ const DEFAULT_QUOTES: Quote[] = [
   },
   {
     id: "BB-1041",
+    token: "q_demo_electrical",
     customerId: "cust-2",
     clientName: "David Miller",
     clientCompany: "Miller Property Investments",
@@ -179,10 +270,13 @@ const DEFAULT_QUOTES: Quote[] = [
     depositPercent: 20,
     deposit: 232.32,
     status: "Accepted",
+    acceptedSignatureName: "David Miller",
+    acceptedAt: "2026-10-15T14:30:00Z",
     createdAt: "2026-10-15",
   },
   {
     id: "BB-1040",
+    token: "q_demo_boiler",
     customerId: "cust-3",
     clientName: "Oakfield Management Ltd",
     clientCompany: "Commercial Property",
@@ -204,7 +298,7 @@ const DEFAULT_QUOTES: Quote[] = [
       {
         id: "2",
         type: "labor",
-        description: "Gas Safe registered commercial technician inspection & flush",
+        description: "Commercial technician inspection & heating flush",
         quantity: 14,
         unit: "hrs",
         rate: 65.0,
@@ -212,7 +306,7 @@ const DEFAULT_QUOTES: Quote[] = [
       {
         id: "3",
         type: "service",
-        description: "Gas Safety Certificate (CP12) & emissions compliance sign-off",
+        description: "Safety Inspection Certificate & emissions compliance sign-off",
         quantity: 1,
         unit: "cert",
         rate: 95.0,
@@ -242,7 +336,7 @@ export function getCustomers(): Customer[] {
       return DEFAULT_CUSTOMERS;
     }
     return JSON.parse(raw);
-  } catch (e) {
+  } catch {
     return DEFAULT_CUSTOMERS;
   }
 }
@@ -268,6 +362,7 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
     if (typeof window !== "undefined") localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(updated));
   }
 
+  syncCustomerToCloud(saved).catch(() => {});
   return saved;
 }
 
@@ -290,48 +385,97 @@ export function getQuotes(): Quote[] {
       return DEFAULT_QUOTES;
     }
     return JSON.parse(raw);
-  } catch (e) {
+  } catch {
     return DEFAULT_QUOTES;
   }
 }
 
-export function getQuoteById(id: string): Quote | undefined {
+export function getQuoteById(idOrToken: string): Quote | undefined {
+  if (!idOrToken) return undefined;
   const quotes = getQuotes();
-  return quotes.find((q) => q.id.toLowerCase() === id.toLowerCase()) || quotes[0];
+  const lower = idOrToken.toLowerCase();
+  return quotes.find((q) => q.id.toLowerCase() === lower || q.token.toLowerCase() === lower);
 }
 
-export function saveQuote(quote: Omit<Quote, "id" | "createdAt"> & { id?: string }): Quote {
+export function saveQuote(
+  quote: Omit<Quote, "id" | "token" | "createdAt"> & { id?: string; token?: string; createdAt?: string }
+): Quote {
   const current = getQuotes();
   let saved: Quote;
 
+  // Round currency to pence
+  const subtotal = roundMoney(quote.subtotal);
+  const vat = roundMoney(quote.vat);
+  const total = roundMoney(quote.total);
+  const deposit = roundMoney(quote.deposit);
+
   if (quote.id) {
+    // Updating existing quote
     saved = {
-      ...(quote as Quote),
-      createdAt: (quote as Quote).createdAt || new Date().toISOString().split("T")[0],
+      ...quote,
+      id: quote.id,
+      token: quote.token || generateToken(),
+      subtotal,
+      vat,
+      total,
+      deposit,
+      createdAt: quote.createdAt || new Date().toISOString().split("T")[0],
     };
     const updated = current.map((q) => (q.id === quote.id ? saved : q));
     if (typeof window !== "undefined") localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
   } else {
-    const nextNumber = 1040 + current.length + 1;
+    // New quote: find max number to avoid duplicates after deletion
+    let maxNum = 1040;
+    for (const q of current) {
+      const match = q.id.match(/^BB-(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+    const nextId = `BB-${maxNum + 1}`;
+
     saved = {
       ...quote,
-      id: `BB-${nextNumber}`,
+      id: nextId,
+      token: quote.token || generateToken(),
+      subtotal,
+      vat,
+      total,
+      deposit,
       createdAt: new Date().toISOString().split("T")[0],
     };
     const updated = [saved, ...current];
     if (typeof window !== "undefined") localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
   }
 
+  syncQuoteToCloud(saved).catch(() => {});
   return saved;
 }
 
-export function updateQuoteStatus(id: string, status: Quote["status"]): Quote | undefined {
+export function updateQuoteStatus(
+  idOrToken: string,
+  status: Quote["status"],
+  metadata?: { signatureName?: string; reason?: string }
+): Quote | undefined {
   const current = getQuotes();
   let target: Quote | undefined;
 
+  const lower = idOrToken.toLowerCase();
+  const now = new Date().toISOString();
+
   const updated = current.map((q) => {
-    if (q.id.toLowerCase() === id.toLowerCase()) {
-      target = { ...q, status };
+    if (q.id.toLowerCase() === lower || q.token.toLowerCase() === lower) {
+      target = {
+        ...q,
+        status,
+        ...(status === "Accepted" && metadata?.signatureName
+          ? { acceptedSignatureName: metadata.signatureName, acceptedAt: now }
+          : {}),
+        ...(status === "Rejected" && metadata?.reason
+          ? { rejectedReason: metadata.reason, rejectedAt: now }
+          : {}),
+      };
       return target;
     }
     return q;
@@ -341,6 +485,7 @@ export function updateQuoteStatus(id: string, status: Quote["status"]): Quote | 
     localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
   }
 
+  updateCloudQuoteStatus(idOrToken, status, metadata).catch(() => {});
   return target;
 }
 
@@ -353,20 +498,27 @@ export function deleteQuote(id: string): void {
 export function getDashboardMetrics() {
   const quotes = getQuotes();
 
-  const totalQuotesSent = quotes.length;
+  const sentQuotes = quotes.filter((q) => q.status === "Sent");
   const acceptedQuotes = quotes.filter((q) => q.status === "Accepted");
-  const pendingQuotes = quotes.filter((q) => q.status === "Sent" || q.status === "Draft");
+  const rejectedQuotes = quotes.filter((q) => q.status === "Rejected");
+  const draftQuotes = quotes.filter((q) => q.status === "Draft");
 
-  const totalAcceptedValue = acceptedQuotes.reduce((acc, q) => acc + q.total, 0);
-  const totalPendingValue = pendingQuotes.reduce((acc, q) => acc + q.total, 0);
-  const winRate = totalQuotesSent > 0 ? Math.round((acceptedQuotes.length / totalQuotesSent) * 100) : 0;
+  const totalAcceptedValue = roundMoney(acceptedQuotes.reduce((acc, q) => acc + q.total, 0));
+  const totalPendingValue = roundMoney(sentQuotes.reduce((acc, q) => acc + q.total, 0));
+  const totalDraftValue = roundMoney(draftQuotes.reduce((acc, q) => acc + q.total, 0));
+
+  const decidedQuotesCount = acceptedQuotes.length + rejectedQuotes.length;
+  const winRate = decidedQuotesCount > 0 ? Math.round((acceptedQuotes.length / decidedQuotesCount) * 100) : 0;
 
   return {
-    totalQuotesCount: totalQuotesSent,
+    totalQuotesCount: quotes.length,
+    sentQuotesCount: sentQuotes.length,
     acceptedQuotesCount: acceptedQuotes.length,
-    pendingQuotesCount: pendingQuotes.length,
+    rejectedQuotesCount: rejectedQuotes.length,
+    draftQuotesCount: draftQuotes.length,
     totalAcceptedValue,
     totalPendingValue,
+    totalDraftValue,
     winRate,
     recentQuotes: quotes.slice(0, 5),
   };

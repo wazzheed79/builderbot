@@ -10,6 +10,7 @@ import {
   PlusCircle,
   Home,
   Sparkles,
+  Settings,
 } from "lucide-react";
 
 export default function AppNav() {
@@ -19,7 +20,12 @@ export default function AppNav() {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Quotes", href: "/quotes", icon: FileText },
     { name: "Customers", href: "/customers", icon: Users },
+    { name: "Settings", href: "/settings", icon: Settings },
   ];
+
+  if (pathname.startsWith("/q/")) {
+    return null;
+  }
 
   return (
     <>
@@ -82,7 +88,7 @@ export default function AppNav() {
 
       {/* Mobile Bottom Navigation Bar (Thumb friendly for site work) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg px-2 py-1.5 pb-safe">
-        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
           <Link
             href="/"
             className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-xs font-medium transition ${

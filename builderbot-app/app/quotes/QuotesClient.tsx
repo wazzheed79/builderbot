@@ -8,36 +8,27 @@ import {
   Plus,
   Trash2,
   FileText,
-  Send,
-  Download,
   Share2,
   CheckCircle2,
   RotateCcw,
   Wrench,
   User,
-  MapPin,
-  Calendar,
-  AlertCircle,
   HelpCircle,
   Mic,
   MicOff,
   Calculator,
-  Sliders,
   Eye,
   ArrowRight,
-  TrendingUp,
-  Percent,
-  Check,
-  Building,
   Save,
 } from "lucide-react";
 import {
   Customer,
   LineItem,
-  Quote,
   getCustomers,
   saveQuote,
-  getQuotes,
+  roundMoney,
+  getBusinessProfile,
+  BusinessProfile,
 } from "@/lib/storage";
 
 interface QuoteTemplate {
@@ -48,14 +39,64 @@ interface QuoteTemplate {
   items: LineItem[];
 }
 
+interface SpeechRecognitionResultItem {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: {
+    isFinal: boolean;
+    [index: number]: SpeechRecognitionResultItem;
+  };
+}
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+}
+
 export default function QuotesClient() {
   const searchParams = useSearchParams();
   const customerIdParam = searchParams.get("customerId");
 
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  // Load Customers cleanly with lazy state initializer
+  const [customers] = useState<Customer[]>(() => getCustomers());
 
-  // 1. High Priority Quote Templates
+  const initialCustomer = customerIdParam
+    ? customers.find((c) => c.id === customerIdParam)
+    : undefined;
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(
+    initialCustomer?.id ?? ""
+  );
+
+  // Active Quote tracking (prevents duplicate re-saving)
+  const [activeQuoteId, setActiveQuoteId] = useState<string | null>(null);
+  const [activeToken, setActiveToken] = useState<string | null>(null);
+
+  // Client Details (Starts clean, or populates if customerId passed)
+  const [clientName, setClientName] = useState(initialCustomer?.name ?? "");
+  const [clientCompany, setClientCompany] = useState(initialCustomer?.company ?? "");
+  const [clientAddress, setClientAddress] = useState(initialCustomer?.address ?? "");
+  const [clientPhone, setClientPhone] = useState(initialCustomer?.phone ?? "");
+  const [clientEmail, setClientEmail] = useState(initialCustomer?.email ?? "");
+
+  const [quoteTitle, setQuoteTitle] = useState("");
+  const [notesInput, setNotesInput] = useState("");
+
+  // High Priority Quote Templates
   const templates: QuoteTemplate[] = [
     {
       name: "Bathroom Installation",
@@ -83,7 +124,7 @@ export default function QuotesClient() {
         {
           id: "t1-3",
           type: "material",
-          description: "Low Profile Stone Resin Shower Tray (1200x800mm) + Fast-flow Waste",
+          description: "Low Profile Stone Resin Shower Tray (1200x800mm)",
           quantity: 1,
           unit: "unit",
           rate: 195.0,
@@ -116,7 +157,7 @@ export default function QuotesClient() {
         {
           id: "t2-1",
           type: "material",
-          description: "Solid Oak 40mm Stave Worktops (3x 3m lengths) + Danish Oil Sealant",
+          description: "Solid Oak 40mm Stave Worktops (3x 3m lengths) + Sealant",
           quantity: 3,
           unit: "lengths",
           rate: 220.0,
@@ -221,14 +262,6 @@ export default function QuotesClient() {
         },
         {
           id: "t4-3",
-          type: "material",
-          description: "Sharp Screeding Sand (2 Bulk Bags) + Kiln Dried Jointing Sand",
-          quantity: 2,
-          unit: "bags",
-          rate: 62.0,
-        },
-        {
-          id: "t4-4",
           type: "labor",
           description: "Groundworks team excavation, sub-base compaction & block laying",
           quantity: 32,
@@ -236,7 +269,7 @@ export default function QuotesClient() {
           rate: 48.0,
         },
         {
-          id: "t4-5",
+          id: "t4-4",
           type: "service",
           description: "Grab wagon soil removal & compactor plate machinery hire",
           quantity: 1,
@@ -250,12 +283,12 @@ export default function QuotesClient() {
       category: "Heating",
       title: "Combi Boiler Upgrade & Power Flush",
       notes:
-        "Decommission existing inefficient boiler. Supply and fit Worcester Bosch Greenstar 30kW combi boiler with horizontal flue, inline magnetic filter, full chemical powerflush of 8 radiators, and digital wireless thermostat.",
+        "Decommission existing inefficient boiler. Supply and fit high-efficiency 30kW combi boiler with horizontal flue, inline magnetic filter, full chemical powerflush of radiators, and wireless room thermostat.",
       items: [
         {
           id: "t5-1",
           type: "material",
-          description: "Worcester Bosch 30kW Condensing Combi Boiler + Telescopic Flue Kit",
+          description: "A-rated 30kW Condensing Combi Boiler + Telescopic Flue Kit",
           quantity: 1,
           unit: "unit",
           rate: 1150.0,
@@ -263,31 +296,23 @@ export default function QuotesClient() {
         {
           id: "t5-2",
           type: "material",
-          description: "MagnaClean Professional 22mm Magnetic Filter + Scale Reducer",
+          description: "22mm Central Heating Magnetic System Filter + Scale Reducer",
           quantity: 1,
           unit: "set",
           rate: 140.0,
         },
         {
           id: "t5-3",
-          type: "material",
-          description: "Fernox F1 Protector & F3 Cleaner chemical packs",
-          quantity: 2,
-          unit: "bottles",
-          rate: 32.0,
-        },
-        {
-          id: "t5-4",
           type: "labor",
-          description: "Gas Safe registered boiler swap, pipe alterations & heating flush",
+          description: "Certified boiler replacement, pipe alterations & heating powerflush",
           quantity: 14,
           unit: "hrs",
           rate: 65.0,
         },
         {
-          id: "t5-5",
+          id: "t5-4",
           type: "service",
-          description: "Gas Safe building control registration & benchmark certification",
+          description: "Building control notification & benchmark commissioning registration",
           quantity: 1,
           unit: "cert",
           rate: 60.0,
@@ -295,19 +320,6 @@ export default function QuotesClient() {
       ],
     },
   ];
-
-  // Client Details
-  const [activeQuoteId, setActiveQuoteId] = useState("BB-1042");
-  const [clientName, setClientName] = useState("Sarah Jenkins");
-  const [clientCompany, setClientCompany] = useState("Private Homeowner");
-  const [clientAddress, setClientAddress] = useState("24 Orchard Way, Bristol, BS8 4EJ");
-  const [clientPhone, setClientPhone] = useState("+44 7911 123456");
-  const [clientEmail, setClientEmail] = useState("sarah.jenkins@example.com");
-
-  const [quoteTitle, setQuoteTitle] = useState("En-suite Bathroom Renovation");
-  const [notesInput, setNotesInput] = useState(
-    "Replace old electric shower with thermostatic mixer shower, replace radiator with chrome heated towel rail, fit low profile tray and test."
-  );
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<"items" | "calculator">("items");
@@ -322,35 +334,17 @@ export default function QuotesClient() {
 
   // Voice Recording state
   const [isRecording, setIsRecording] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(true);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
+  const [profile] = useState<BusinessProfile>(() => getBusinessProfile());
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [vatEnabled, setVatEnabled] = useState(true);
-  const [depositPercent, setDepositPercent] = useState(20);
+  const [vatEnabled, setVatEnabled] = useState(() => getBusinessProfile().vatRegistered ?? true);
+  const [depositPercent, setDepositPercent] = useState(() => getBusinessProfile().defaultDepositPercent ?? 20);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Line items
-  const [items, setItems] = useState<LineItem[]>(templates[0].items);
-
-  // Load Customers on Mount
-  useEffect(() => {
-    const loadedCustomers = getCustomers();
-    setCustomers(loadedCustomers);
-
-    if (customerIdParam) {
-      const match = loadedCustomers.find((c) => c.id === customerIdParam);
-      if (match) {
-        setSelectedCustomerId(match.id);
-        setClientName(match.name);
-        setClientCompany(match.company || "");
-        setClientAddress(match.address);
-        setClientPhone(match.phone);
-        setClientEmail(match.email);
-      }
-    }
-  }, [customerIdParam]);
+  // Line items (starts clean by default)
+  const [items, setItems] = useState<LineItem[]>([]);
 
   // Handle Customer Selection Dropdown
   const handleSelectCustomer = (id: string) => {
@@ -359,7 +353,7 @@ export default function QuotesClient() {
     const match = customers.find((c) => c.id === id);
     if (match) {
       setClientName(match.name);
-      setClientCompany(match.company || "");
+      setClientCompany(match.company ?? "");
       setClientAddress(match.address);
       setClientPhone(match.phone);
       setClientEmail(match.email);
@@ -367,54 +361,51 @@ export default function QuotesClient() {
     }
   };
 
-  // Initialize Speech Recognition
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Initialize Speech Recognition cleanly without setState in effect
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const windowObj = window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionInstance;
+        webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+      };
 
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
+      const SpeechRec = windowObj.SpeechRecognition || windowObj.webkitSpeechRecognition;
+
+      if (SpeechRec) {
+        const recognition = new SpeechRec();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = "en-GB";
 
-        recognition.onresult = (event: any) => {
-          let currentTranscript = "";
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          // BUG FIX: Only append FINAL speech results so text doesn't duplicate
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript;
-          }
-          if (currentTranscript.trim()) {
-            setNotesInput((prev) => `${prev ? prev + " " : ""}${currentTranscript.trim()}`);
+            if (event.results[i].isFinal) {
+              const text = event.results[i][0].transcript.trim();
+              if (text) {
+                setNotesInput((prev) => `${prev ? prev + " " : ""}${text}`);
+              }
+            }
           }
         };
 
         recognition.onerror = () => setIsRecording(false);
         recognition.onend = () => setIsRecording(false);
         recognitionRef.current = recognition;
-      } else {
-        setSpeechSupported(false);
       }
     }
   }, []);
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
   // Toggle Voice Recording
   const handleToggleVoice = () => {
-    if (!speechSupported || !recognitionRef.current) {
-      setIsRecording(true);
-      triggerToast("Simulating voice dictation... speak your quote notes.");
-      setTimeout(() => {
-        setNotesInput(
-          "New quote for Mrs Smith. Supply and install 6 lap fence panels on rear garden border with concrete post spurs and one day labour for two men."
-        );
-        setIsRecording(false);
-        triggerToast("Voice memo transcribed!");
-      }, 2500);
+    if (!recognitionRef.current) {
+      // BUG FIX: Don't overwrite user's notes with fake text! Explain support clearly.
+      triggerToast("Voice dictation is only supported in browsers with microphone access (Chrome, Edge, Safari).");
       return;
     }
 
@@ -426,42 +417,49 @@ export default function QuotesClient() {
       try {
         recognitionRef.current.start();
         setIsRecording(true);
-        triggerToast("Listening... speak your job details now.");
-      } catch (err) {
+        triggerToast("Listening... dictate your job notes clearly.");
+      } catch {
         setIsRecording(false);
       }
     }
   };
 
-  // AI Description Expander
-  const handleExpandDescription = () => {
-    if (!notesInput.trim()) return;
+  // Real Server-Side AI Scope Expander
+  const handleExpandDescription = async () => {
+    if (!notesInput.trim()) {
+      triggerToast("Please dictate or enter job notes first.");
+      return;
+    }
     setIsExpanding(true);
 
-    setTimeout(() => {
-      const lower = notesInput.toLowerCase();
-      let expanded = "";
+    try {
+      const res = await fetch("/api/quote/expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: notesInput.trim(),
+          title: quoteTitle.trim(),
+          trade: profile.trade,
+        }),
+      });
 
-      if (lower.includes("garden wall") || lower.includes("wall") || lower.includes("brick")) {
-        expanded =
-          "Supply and construct 9-inch brick garden retaining wall including 600mm deep concrete strip foundations, damp-proof course (DPC), weep holes, mortar bedding, and full site cleanup.";
-        setQuoteTitle("Brick Garden Wall Construction");
-      } else if (lower.includes("fence") || lower.includes("panel")) {
-        expanded =
-          "Supply and install heavy-duty pressure-treated featheredge fence panels. Excavate post holes to 600mm, set slotted concrete posts in Postcrete, fit 6-inch gravel boards, and remove all old timber fencing from site.";
-        setQuoteTitle("Timber Fencing Installation");
-      } else if (lower.includes("boiler") || lower.includes("heat")) {
-        expanded =
-          "Supply and fit high-efficiency condensing combi boiler. Includes chemical system flush, magnetic central heating filter, smart wireless thermostat, all copper pipe adaptations, and Gas Safe registration.";
-        setQuoteTitle("High-Efficiency Boiler Installation");
+      const data = await res.json();
+      if (res.ok && data.scopeOfWork) {
+        setNotesInput(data.scopeOfWork);
+        if (data.title && !quoteTitle) setQuoteTitle(data.title);
+        triggerToast(
+          data.aiPowered
+            ? "✨ Gemini AI expanded your notes into professional scope!"
+            : "Scope expanded into clear, professional wording!"
+        );
       } else {
-        expanded = `Comprehensive trade works: ${notesInput.trim()}. Includes all required primary trade materials, sub-surface preparation, compliance with building standards, skilled labor, and registered waste disposal.`;
+        triggerToast(data.error || "Could not expand scope. Please try again.");
       }
-
-      setNotesInput(expanded);
+    } catch {
+      triggerToast("Network error contacting AI server.");
+    } finally {
       setIsExpanding(false);
-      triggerToast("Scope expanded into professional trade specification!");
-    }, 700);
+    }
   };
 
   // Apply Template
@@ -472,9 +470,19 @@ export default function QuotesClient() {
     triggerToast(`Loaded "${template.name}" template!`);
   };
 
+  // Load Sample Quote
+  const handleLoadSample = () => {
+    setClientName("Sarah Jenkins");
+    setClientCompany("Private Homeowner");
+    setClientAddress("24 Orchard Way, Bristol, BS8 4EJ");
+    setClientPhone("+44 7911 123456");
+    setClientEmail("sarah.jenkins@example.com");
+    handleSelectTemplate(templates[0]);
+  };
+
   // Apply Margin Calculator Values
   const handleApplyMarginCalc = () => {
-    const materialWithMarkup = calcMaterialCost * (1 + calcMaterialMarkup / 100);
+    const materialWithMarkup = roundMoney(calcMaterialCost * (1 + calcMaterialMarkup / 100));
     const newItems: LineItem[] = [
       {
         id: "calc-mat",
@@ -482,7 +490,7 @@ export default function QuotesClient() {
         description: `Trade materials & sundries (Includes ${calcMaterialMarkup}% markup)`,
         quantity: 1,
         unit: "pkg",
-        rate: Math.round(materialWithMarkup * 100) / 100,
+        rate: materialWithMarkup,
       },
       {
         id: "calc-lab",
@@ -503,7 +511,7 @@ export default function QuotesClient() {
         description: "Site waste clearance, transport & licensed skip disposal",
         quantity: 1,
         unit: "service",
-        rate: calcDisposalCost,
+        rate: roundMoney(calcDisposalCost),
       });
     }
 
@@ -512,75 +520,64 @@ export default function QuotesClient() {
     triggerToast("Calculated labor, materials & markup applied to quote!");
   };
 
-  // AI Generator Simulation
-  const handleGenerateAI = () => {
-    if (!notesInput.trim()) return;
+  // Real Server-Side AI Quote Generator
+  const handleGenerateAI = async () => {
+    if (!notesInput.trim()) {
+      triggerToast("Please enter or dictate job notes first.");
+      return;
+    }
     setIsGenerating(true);
 
-    setTimeout(() => {
-      const lower = notesInput.toLowerCase();
-      const generated: LineItem[] = [];
+    try {
+      const res = await fetch("/api/quote/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: notesInput.trim(),
+          trade: profile.trade,
+        }),
+      });
 
-      if (lower.includes("fence") || lower.includes("panel")) {
-        generated.push(
-          {
-            id: Date.now().toString() + "-1",
-            type: "material",
-            description: "Heavy Duty 6x5ft Pressure Treated Lap Fence Panels",
-            quantity: 6,
-            unit: "panels",
-            rate: 38.0,
-          },
-          {
-            id: Date.now().toString() + "-2",
-            type: "material",
-            description: "Concrete Morticed Posts & Concrete Gravel Boards + Postcrete",
-            quantity: 7,
-            unit: "sets",
-            rate: 26.0,
-          },
-          {
-            id: Date.now().toString() + "-3",
-            type: "labor",
-            description: "Post hole excavation, concrete setting, panel fitting & old fence removal",
-            quantity: 12,
-            unit: "hrs",
-            rate: 45.0,
-          }
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.items)) {
+        const mappedItems: LineItem[] = data.items.map(
+          (
+            it: {
+              type: "labor" | "material" | "service";
+              description: string;
+              quantity: number;
+              unit: string;
+              rate: number;
+            },
+            idx: number
+          ) => ({
+            id: `ai-${Date.now()}-${idx}`,
+            type: it.type,
+            description: it.description,
+            quantity: it.quantity,
+            unit: it.unit,
+            rate: it.rate,
+          })
+        );
+
+        setItems(mappedItems);
+        if (data.title && !quoteTitle) setQuoteTitle(data.title);
+        if (data.scopeOfWork) setNotesInput(data.scopeOfWork);
+        if (data.suggestedDepositPercent) setDepositPercent(data.suggestedDepositPercent);
+
+        triggerToast(
+          data.aiPowered
+            ? "✨ Gemini AI calculated itemized trade breakdown & pricing!"
+            : "Line items populated from job notes!"
         );
       } else {
-        generated.push(
-          {
-            id: Date.now().toString() + "-1",
-            type: "material",
-            description: "Primary trade materials & fixings as per site scope",
-            quantity: 1,
-            unit: "lot",
-            rate: 450.0,
-          },
-          {
-            id: Date.now().toString() + "-2",
-            type: "labor",
-            description: "Certified trade labor and installation works",
-            quantity: 10,
-            unit: "hrs",
-            rate: 55.0,
-          },
-          {
-            id: Date.now().toString() + "-3",
-            type: "service",
-            description: "Disposal of trade waste & site cleanup",
-            quantity: 1,
-            unit: "job",
-            rate: 140.0,
-          }
-        );
+        triggerToast(data.error || "Could not generate quote items.");
       }
-
-      setItems(generated);
+    } catch {
+      triggerToast("Network error contacting AI server.");
+    } finally {
       setIsGenerating(false);
-      triggerToast("AI extracted line items & updated calculations!");
-    }, 850);
+    }
   };
 
   const handleAddItem = (type: "labor" | "material" | "service") => {
@@ -603,19 +600,25 @@ export default function QuotesClient() {
     setItems(items.filter((item) => item.id !== id));
   };
 
-  // Calculations
-  const subtotal = items.reduce((acc, curr) => acc + curr.quantity * curr.rate, 0);
-  const vat = vatEnabled ? subtotal * 0.2 : 0;
-  const total = subtotal + vat;
-  const deposit = (total * depositPercent) / 100;
+  // Currency Calculations (rounded to pence)
+  const subtotal = roundMoney(items.reduce((acc, curr) => acc + curr.quantity * curr.rate, 0));
+  const vat = roundMoney(vatEnabled ? subtotal * 0.2 : 0);
+  const total = roundMoney(subtotal + vat);
+  const deposit = roundMoney((total * depositPercent) / 100);
 
-  // Real Save to Repository
+  // Save to Repository (Updates existing if activeQuoteId set)
   const handleSaveQuote = (status: "Draft" | "Sent" = "Sent") => {
+    if (!clientName.trim() && items.length === 0) {
+      triggerToast("Please add client details or line items before saving.");
+      return;
+    }
+
     const saved = saveQuote({
+      ...(activeQuoteId ? { id: activeQuoteId, token: activeToken ?? undefined } : {}),
       customerId: selectedCustomerId || undefined,
       clientName: clientName.trim() || "Private Client",
       clientCompany: clientCompany.trim() || undefined,
-      clientAddress: clientAddress.trim() || "Bristol, UK",
+      clientAddress: clientAddress.trim() || "Local Address",
       clientPhone: clientPhone.trim() || undefined,
       clientEmail: clientEmail.trim() || undefined,
       title: quoteTitle.trim() || "Trade Works Specification",
@@ -631,14 +634,15 @@ export default function QuotesClient() {
     });
 
     setActiveQuoteId(saved.id);
-    triggerToast(`Quote ${saved.id} saved & published! Link ready.`);
+    setActiveToken(saved.token);
+    triggerToast(`Quote ${saved.id} saved! Link: /q/${saved.token}`);
   };
 
-  // Margin Calculator stats
-  const calcGrossMaterial = calcMaterialCost * (1 + calcMaterialMarkup / 100);
-  const calcMaterialProfit = calcGrossMaterial - calcMaterialCost;
-  const calcTotalLabor = calcDays * calcDayRate * calcTradespeople;
-  const calcGrossTotal = calcGrossMaterial + calcTotalLabor + calcDisposalCost;
+  // Margin Calculator live stats
+  const calcGrossMaterial = roundMoney(calcMaterialCost * (1 + calcMaterialMarkup / 100));
+  const calcMaterialProfit = roundMoney(calcGrossMaterial - calcMaterialCost);
+  const calcTotalLabor = roundMoney(calcDays * calcDayRate * calcTradespeople);
+  const calcGrossTotal = roundMoney(calcGrossMaterial + calcTotalLabor + calcDisposalCost);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -655,25 +659,37 @@ export default function QuotesClient() {
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
             <FileText className="w-8 h-8 text-blue-600" />
-            Real Quote Builder
+            Quote Builder
           </h1>
           <p className="text-slate-600 text-sm mt-1">
             Pick a customer, build line items with day rates or templates, and save active quotes.
           </p>
         </div>
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <Link
-            href={`/q/${activeQuoteId}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition"
-          >
-            <Eye className="w-3.5 h-3.5 text-slate-500" />
-            <span>Customer View ({activeQuoteId})</span>
-          </Link>
+          {activeToken || activeQuoteId ? (
+            <Link
+              href={`/q/${activeToken || activeQuoteId}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition"
+            >
+              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <span>Customer Link ({activeQuoteId})</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLoadSample}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+            >
+              <span>Load Example Data</span>
+            </button>
+          )}
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Active: #{activeQuoteId}
-          </span>
+          {activeQuoteId && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              #{activeQuoteId}
+            </span>
+          )}
         </div>
       </div>
 
@@ -682,7 +698,7 @@ export default function QuotesClient() {
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            1-Click Job Templates (High Priority)
+            1-Click Job Templates
           </span>
           <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
             Loads pre-itemized materials & labor
@@ -735,7 +751,7 @@ export default function QuotesClient() {
             </select>
           </div>
 
-          {/* AI Voice & Text Prompt Box */}
+          {/* Voice & Text Prompt Box */}
           <div className="bg-gradient-to-br from-blue-50/70 via-white to-slate-50 p-5 sm:p-6 rounded-2xl border-2 border-blue-200/90 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -772,7 +788,7 @@ export default function QuotesClient() {
               rows={3}
               value={notesInput}
               onChange={(e) => setNotesInput(e.target.value)}
-              placeholder="Speak or type: 'New quote for Mrs Smith. Build garden wall 10 meters long. 2 days labor for two men...'"
+              placeholder="Speak or type job notes: 'Build brick garden wall 10 meters long, 2 days labor for two men...'"
               className="w-full p-3.5 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent shadow-2xs font-normal"
             />
 
@@ -855,6 +871,7 @@ export default function QuotesClient() {
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. Garden Wall Construction"
                       value={quoteTitle}
                       onChange={(e) => setQuoteTitle(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -866,6 +883,7 @@ export default function QuotesClient() {
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. John Doe"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -877,6 +895,7 @@ export default function QuotesClient() {
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. 15 High Street, Bristol"
                       value={clientAddress}
                       onChange={(e) => setClientAddress(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -910,75 +929,83 @@ export default function QuotesClient() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3"
-                    >
-                      <span
-                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shrink-0 ${
-                          item.type === "labor"
-                            ? "bg-blue-100 text-blue-800"
-                            : item.type === "material"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800"
-                        }`}
+                {items.length === 0 ? (
+                  <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
+                    <p className="text-sm font-medium text-slate-500">
+                      No line items yet. Add materials or labor above, select a template, or click &ldquo;Load Example Data&rdquo;.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3"
                       >
-                        {item.type}
-                      </span>
-
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => handleUpdateItem(item.id, "description", e.target.value)}
-                        className="flex-1 bg-white px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-600"
-                        placeholder="Item description"
-                      />
-
-                      <div className="flex items-center gap-2 justify-between sm:justify-start">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              handleUpdateItem(item.id, "quantity", parseFloat(e.target.value) || 0)
-                            }
-                            className="w-14 bg-white px-2 py-1.5 text-xs sm:text-sm text-center rounded-lg border border-slate-300 focus:outline-none"
-                          />
-                          <span className="text-xs text-slate-500 font-medium w-8">{item.unit}</span>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-slate-500">@ £</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={item.rate}
-                            onChange={(e) =>
-                              handleUpdateItem(item.id, "rate", parseFloat(e.target.value) || 0)
-                            }
-                            className="w-20 bg-white px-2 py-1.5 text-xs sm:text-sm text-right rounded-lg border border-slate-300 focus:outline-none"
-                          />
-                        </div>
-
-                        <span className="text-xs font-bold text-slate-800 w-16 text-right">
-                          £{(item.quantity * item.rate).toFixed(2)}
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shrink-0 ${
+                            item.type === "labor"
+                              ? "bg-blue-100 text-blue-800"
+                              : item.type === "material"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {item.type}
                         </span>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="text-slate-400 hover:text-red-600 p-1 rounded transition"
-                          title="Delete item"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) => handleUpdateItem(item.id, "description", e.target.value)}
+                          className="flex-1 bg-white px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                          placeholder="Item description"
+                        />
+
+                        <div className="flex items-center gap-2 justify-between sm:justify-start">
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, "quantity", parseFloat(e.target.value) || 0)
+                              }
+                              className="w-14 bg-white px-2 py-1.5 text-xs sm:text-sm text-center rounded-lg border border-slate-300 focus:outline-none"
+                            />
+                            <span className="text-xs text-slate-500 font-medium w-8">{item.unit}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-slate-500">@ £</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.rate}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, "rate", parseFloat(e.target.value) || 0)
+                              }
+                              className="w-20 bg-white px-2 py-1.5 text-xs sm:text-sm text-right rounded-lg border border-slate-300 focus:outline-none"
+                            />
+                          </div>
+
+                          <span className="text-xs font-bold text-slate-800 w-16 text-right">
+                            £{roundMoney(item.quantity * item.rate).toFixed(2)}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="text-slate-400 hover:text-red-600 p-1 rounded transition"
+                            title="Delete item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -1162,7 +1189,7 @@ export default function QuotesClient() {
                   Quote Summary
                 </span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                  16 Oct 2026
+                  {new Date().toISOString().split("T")[0]}
                 </span>
               </div>
               <h3 className="text-xl font-black mt-1 text-white">{quoteTitle || "Untitled Quote"}</h3>
@@ -1202,6 +1229,7 @@ export default function QuotesClient() {
                       onChange={(e) => setDepositPercent(parseInt(e.target.value))}
                       className="bg-slate-100 rounded px-1.5 py-0.5 text-xs font-semibold"
                     >
+                      <option value={0}>0% (No Deposit)</option>
                       <option value={10}>10%</option>
                       <option value={20}>20%</option>
                       <option value={25}>25%</option>
@@ -1231,13 +1259,23 @@ export default function QuotesClient() {
                   className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition active:scale-[0.98]"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Save & Issue Quote to Client</span>
+                  <span>{activeQuoteId ? "Update & Issue Quote" : "Save & Issue Quote to Client"}</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">
                   <Link
-                    href={`/q/${activeQuoteId}`}
-                    className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 px-3 rounded-xl text-xs transition"
+                    href={activeToken ? `/q/${activeToken}` : activeQuoteId ? `/q/${activeQuoteId}` : "#"}
+                    onClick={(e) => {
+                      if (!activeQuoteId && !activeToken) {
+                        e.preventDefault();
+                        triggerToast("Please save the quote first to generate a customer link.");
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold transition ${
+                      activeQuoteId || activeToken
+                        ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                    }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Customer Link</span>
@@ -1246,9 +1284,20 @@ export default function QuotesClient() {
                   <button
                     type="button"
                     onClick={() => {
-                      const shareText = `Hi ${clientName}, your quote for ${quoteTitle} from Apex Plumbing is ready to review and sign online: ${window.location.origin}/q/${activeQuoteId}`;
+                      if (!activeQuoteId && !activeToken) {
+                        triggerToast("Save the quote first to generate a shareable WhatsApp link.");
+                        return;
+                      }
+                      const url = `${window.location.origin}/q/${activeToken || activeQuoteId}`;
+                      const senderCompany = profile.companyName ? ` from ${profile.companyName}` : "";
+                      const shareText = `Hi ${clientName || "there"}, here is your quotation for ${quoteTitle || "the works"}${senderCompany}. You can review and accept online here: ${url}`;
                       navigator.clipboard.writeText(shareText);
-                      triggerToast("WhatsApp message copied to clipboard!");
+                      const cleanPhone = clientPhone.replace(/[^0-9]/g, "");
+                      const waUrl = cleanPhone
+                        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(shareText)}`
+                        : `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                      window.open(waUrl, "_blank");
+                      triggerToast("WhatsApp link opened & copied to clipboard!");
                     }}
                     className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 px-3 rounded-xl text-xs transition"
                   >
@@ -1262,7 +1311,7 @@ export default function QuotesClient() {
               <div className="p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl flex items-start gap-2 text-xs text-blue-800">
                 <HelpCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                 <span>
-                  Saved quotes immediately update your dashboard metrics and sync with customer history.
+                  Quotes get a unique, unguessable customer link where clients can sign digitally from any smartphone.
                 </span>
               </div>
             </div>

@@ -7,10 +7,6 @@ import {
   Clock,
   Smartphone,
   ShieldCheck,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  Star,
 } from "lucide-react";
 
 export default function Home() {
@@ -258,7 +254,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-rose-500 font-bold shrink-0">✕</span>
-                  <span><strong>Chasing customers:</strong> Awkward phone tag asking "did you get my email?"</span>
+                  <span><strong>Chasing customers:</strong> Awkward phone tag asking &ldquo;did you get my email?&rdquo;</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-rose-500 font-bold shrink-0">✕</span>
@@ -359,7 +355,7 @@ export default function Home() {
               </div>
               <h3 className="font-bold text-lg mb-2">Speak or Type Job Notes</h3>
               <p className="text-slate-400 text-sm leading-relaxed">
-                Describe the work: "Replace 3 double sockets, fit 6 downlights, run test certificate."
+                Describe the work: &ldquo;Replace 3 double sockets, fit 6 downlights, run test certificate.&rdquo;
               </p>
             </div>
 
