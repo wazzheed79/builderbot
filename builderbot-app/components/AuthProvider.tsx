@@ -50,6 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           profile: cloudData.profile,
           customers: cloudData.customers,
           quotes: cloudData.quotes,
+          jobs: cloudData.jobs,
+          invoices: cloudData.invoices,
         });
       }
     } catch (err) {

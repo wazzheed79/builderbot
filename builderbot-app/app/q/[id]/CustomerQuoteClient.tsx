@@ -15,15 +15,23 @@ import {
   AlertCircle,
   Loader2,
   Clock,
+  Share2,
+  Receipt,
 } from "lucide-react";
 import {
   getQuoteById,
   updateQuoteStatus,
   markQuoteViewed,
   Quote,
+  Invoice,
+  getInvoices,
+  convertQuoteToInvoice,
   getBusinessProfile,
   BusinessProfile,
+  calculateQuoteExpiry,
 } from "@/lib/storage";
+import QuoteQrCode from "@/components/quotes/QuoteQrCode";
+import { getWhatsAppShareUrl } from "@/lib/share";
 
 export default function CustomerQuoteClient({
   params,
@@ -57,6 +65,18 @@ export default function CustomerQuoteClient({
   const [declineReason, setDeclineReason] = useState("");
   const [profile] = useState<BusinessProfile>(() => getBusinessProfile());
   const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
+
+  const [createdInvoice, setCreatedInvoice] = useState<Invoice | null>(() => {
+    const q = getQuoteById(quoteId);
+    if (!q) return null;
+    return getInvoices().find((i) => i.quoteId === q.id) || null;
+  });
+
+  const handleCreateInvoice = () => {
+    if (!loadedQuote) return;
+    const inv = convertQuoteToInvoice(loadedQuote, false);
+    setCreatedInvoice(inv);
+  };
 
   // Fetch from server / Supabase for external client devices
   useEffect(() => {
@@ -136,13 +156,19 @@ export default function CustomerQuoteClient({
     );
   }
 
-  // Contractor details from user profile or server data
   const activeProfile: BusinessProfile = serverContractor
     ? ({ ...profile, ...serverContractor } as BusinessProfile)
     : profile;
   const contractorName = activeProfile.companyName || "Trade Contractor Services";
   const contactPhone = activeProfile.phone || "+44 7000 000000";
   const contactEmail = activeProfile.email || "quotes@contractor.co.uk";
+
+  const expiry = calculateQuoteExpiry(
+    loadedQuote.createdAt,
+    activeProfile.quoteValidityDays || 30
+  );
+  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot.co.uk";
+  const quoteLiveUrl = `${siteOrigin}/q/${loadedQuote.token || loadedQuote.id}`;
 
   const handleConfirmAccept = () => {
     if (!signatureName.trim() || !agreedToTerms) return;
@@ -335,10 +361,23 @@ export default function CustomerQuoteClient({
               </div>
 
               {/* Contractor Contact */}
-              <div className="text-left sm:text-right text-xs text-slate-400 space-y-1">
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-blue-400 border border-slate-700">
-                  {loadedQuote.id}
-                </span>
+              <div className="sm:text-right space-y-1">
+                <div className="flex flex-wrap items-center sm:justify-end gap-1.5 pb-1">
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-blue-400 border border-slate-700">
+                    {loadedQuote.id}
+                  </span>
+                  {expiry.isExpired ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-950 text-red-300 border border-red-800">
+                      <Clock className="w-3 h-3 text-red-400" />
+                      Expired
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-amber-300 border border-slate-700">
+                      <Clock className="w-3 h-3 text-amber-400" />
+                      Valid: {expiry.daysLeft}d left
+                    </span>
+                  )}
+                </div>
                 <p className="pt-2 flex items-center sm:justify-end gap-1.5 text-slate-300">
                   <Phone className="w-3.5 h-3.5 text-blue-400" />
                   <span>{contactPhone}</span>
@@ -465,6 +504,23 @@ export default function CustomerQuoteClient({
               </div>
             </div>
 
+            {/* QR Code & Digital Verification Block (Visible on Web & Printed PDF) */}
+            <div className="pt-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="space-y-1 text-center sm:text-left">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5 justify-center sm:justify-start">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  Verified Digital Quotation
+                </span>
+                <p className="text-xs text-slate-600 max-w-md">
+                  Scan this QR code with any smartphone camera to review the itemized scope or sign and legally approve this quotation online.
+                </p>
+                <p className="text-[11px] font-mono text-slate-400">
+                  Ref: {loadedQuote.id} • Valid until {expiry.expiryFormatted}
+                </p>
+              </div>
+              <QuoteQrCode url={quoteLiveUrl} size={90} label="Scan to Sign" />
+            </div>
+
             {/* Terms and Conditions Note */}
             {profile.termsAndConditions && (
               <div className="pt-4 border-t border-slate-200">
@@ -500,18 +556,35 @@ export default function CustomerQuoteClient({
                   </button>
                 </>
               ) : status === "accepted" ? (
-                <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between text-xs sm:text-sm text-emerald-800 font-semibold">
+                <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-emerald-800 font-semibold">
                   <span className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    Accepted & signed by {loadedQuote.acceptedSignatureName || signatureName}.
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span>Accepted & signed by {loadedQuote.acceptedSignatureName || signatureName}.</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="underline text-emerald-900 hover:text-emerald-700"
-                  >
-                    Print Receipt
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {createdInvoice ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-xs px-2.5 py-1 bg-white border border-emerald-300 rounded-lg text-emerald-800 font-bold">
+                        <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{createdInvoice.id}</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleCreateInvoice}
+                        className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        <span>Convert to Tax Invoice</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="underline text-emerald-900 hover:text-emerald-700 ml-1"
+                    >
+                      Print Receipt
+                    </button>
+                  </div>
                 </div>
               ) : status === "expired" ? (
                 <div className="w-full bg-amber-50 border border-amber-200 p-4 rounded-xl text-center text-xs text-amber-800 font-semibold">
@@ -523,13 +596,37 @@ export default function CustomerQuoteClient({
                 </div>
               )}
 
+              <a
+                href={getWhatsAppShareUrl(
+                  {
+                    quoteId: loadedQuote.id,
+                    token: loadedQuote.token,
+                    clientName: loadedQuote.clientName,
+                    clientPhone: loadedQuote.clientPhone,
+                    quoteTitle: loadedQuote.title,
+                    companyName: contractorName,
+                    contractorName: activeProfile.ownerName,
+                    total: loadedQuote.total,
+                    deposit: loadedQuote.deposit,
+                    depositPercent: loadedQuote.depositPercent,
+                  },
+                  siteOrigin
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 px-4 rounded-xl text-xs transition shadow-sm"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share WhatsApp</span>
+              </a>
+
               <button
                 type="button"
                 onClick={() => window.print()}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-3.5 px-4 rounded-xl text-xs transition"
               >
                 <Download className="w-4 h-4" />
-                <span>Save PDF</span>
+                <span>Print / Save PDF</span>
               </button>
             </div>
           </div>

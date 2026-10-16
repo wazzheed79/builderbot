@@ -5,6 +5,10 @@ import {
   updateCloudQuoteStatus,
   deleteCloudCustomer,
   deleteCloudQuote,
+  syncJobToCloud,
+  deleteCloudJob,
+  syncInvoiceToCloud,
+  deleteCloudInvoice,
 } from "./supabase";
 
 export interface Customer {
@@ -51,6 +55,40 @@ export interface Quote {
   acceptedAt?: string;
   rejectedReason?: string;
   rejectedAt?: string;
+  createdAt: string;
+}
+
+export interface Job {
+  id: string;
+  customerId: string;
+  title: string;
+  address: string;
+  status: "Quoted" | "Scheduled" | "In Progress" | "Completed" | "Invoiced";
+  notes?: string;
+  quoteId?: string;
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  quoteId?: string;
+  jobId?: string;
+  customerId: string;
+  title: string;
+  clientName: string;
+  clientAddress: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  items: LineItem[];
+  subtotal: number;
+  vatEnabled: boolean;
+  vat: number;
+  total: number;
+  depositPaid: number;
+  balanceDue: number;
+  status: "Draft" | "Issued" | "Partially Paid" | "Paid" | "Overdue";
+  dueDate: string;
+  paidAt?: string;
   createdAt: string;
 }
 
@@ -123,6 +161,7 @@ import {
   recalculateQuoteTotals,
   validateStatusTransition,
   generateToken,
+  calculateQuoteExpiry,
 } from "./quote-rules.mjs";
 
 export {
@@ -130,6 +169,7 @@ export {
   recalculateQuoteTotals,
   validateStatusTransition,
   generateToken,
+  calculateQuoteExpiry,
 };
 
 const DEFAULT_CUSTOMERS: Customer[] = [
@@ -327,8 +367,77 @@ const DEFAULT_QUOTES: Quote[] = [
   },
 ];
 
+export const DEFAULT_JOBS: Job[] = [
+  {
+    id: "job-101",
+    customerId: "cust-1",
+    title: "Master Ensuite Bathroom Renovation",
+    address: "24 Orchard Way, Bristol, BS8 4EJ",
+    status: "In Progress",
+    notes: "Site survey completed. Customer requested walk-in shower tray instead of bathtub. Access code 4812.",
+    quoteId: "BB-1042",
+    createdAt: "2026-10-10",
+  },
+  {
+    id: "job-102",
+    customerId: "cust-2",
+    title: "Boundary Featheredge Fence Replacement (28m)",
+    address: "12 Meadow Lane, Bath, BA1 5TT",
+    status: "Scheduled",
+    notes: "Old panels dismantled and stacked. Installation scheduled for Monday 8:00 AM.",
+    quoteId: "BB-1043",
+    createdAt: "2026-10-12",
+  },
+  {
+    id: "job-103",
+    customerId: "cust-3",
+    title: "Commercial Heating Plant Safety Inspection & Power Flush",
+    address: "Suite 4, Oakfield Business Park, Bristol, BS1 2AB",
+    status: "Quoted",
+    notes: "Requires out-of-hours technician access certificate.",
+    quoteId: "BB-1044",
+    createdAt: "2026-10-14",
+  },
+];
+
+export const DEFAULT_INVOICES: Invoice[] = [
+  {
+    id: "INV-1042",
+    quoteId: "BB-1042",
+    jobId: "job-101",
+    customerId: "cust-1",
+    title: "Master Ensuite Bathroom Renovation — Initial Deposit",
+    clientName: "Sarah Jenkins",
+    clientAddress: "24 Orchard Way, Bristol, BS8 4EJ",
+    clientEmail: "sarah.jenkins@example.com",
+    clientPhone: "+44 7911 123456",
+    items: [
+      {
+        id: "1",
+        type: "service",
+        description: "Ensuite refurbishment procurement & initial deposit payment",
+        quantity: 1,
+        unit: "stage",
+        rate: 894.0,
+      },
+    ],
+    subtotal: 745.0,
+    vatEnabled: true,
+    vat: 149.0,
+    total: 894.0,
+    depositPaid: 894.0,
+    balanceDue: 0.0,
+    status: "Paid",
+    dueDate: "2026-10-17",
+    paidAt: "2026-10-15T14:30:00Z",
+    createdAt: "2026-10-15",
+  },
+];
+
 const CUSTOMERS_KEY = "builderbot_customers_v1";
 const QUOTES_KEY = "builderbot_quotes_v1";
+const JOBS_KEY = "builderbot_jobs_v1";
+const INVOICES_KEY = "builderbot_invoices_v1";
 
 // Customers Repository
 export function getCustomers(): Customer[] {
@@ -558,11 +667,212 @@ export function deleteQuote(id: string): void {
   deleteCloudQuote(id).catch(() => {});
 }
 
+// Jobs Repository
+export function getJobs(): Job[] {
+  if (typeof window === "undefined") return DEFAULT_JOBS;
+  try {
+    const raw = localStorage.getItem(JOBS_KEY);
+    if (!raw) {
+      if (localStorage.getItem("builderbot_data_source") === "cloud") return [];
+      localStorage.setItem(JOBS_KEY, JSON.stringify(DEFAULT_JOBS));
+      return DEFAULT_JOBS;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_JOBS;
+  }
+}
+
+export function getJobById(id: string): Job | undefined {
+  return getJobs().find((j) => j.id === id);
+}
+
+export function getJobsByCustomer(customerId: string): Job[] {
+  return getJobs().filter((j) => j.customerId === customerId);
+}
+
+export function saveJob(job: Omit<Job, "id" | "createdAt"> & { id?: string; createdAt?: string }): Job {
+  const current = getJobs();
+  let saved: Job;
+
+  if (job.id) {
+    saved = {
+      ...(job as Job),
+      createdAt: (job as Job).createdAt || new Date().toISOString().split("T")[0],
+    };
+    const updated = current.map((j) => (j.id === job.id ? saved : j));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(JOBS_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
+  } else {
+    saved = {
+      ...job,
+      id: `job-${Date.now()}`,
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+    const updated = [saved, ...current];
+    if (typeof window !== "undefined") {
+      localStorage.setItem(JOBS_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
+  }
+
+  syncJobToCloud(saved).catch(() => {});
+  return saved;
+}
+
+export function deleteJob(id: string): void {
+  const current = getJobs().filter((j) => j.id !== id);
+  if (typeof window !== "undefined") {
+    localStorage.setItem(JOBS_KEY, JSON.stringify(current));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  deleteCloudJob(id).catch(() => {});
+}
+
+// Invoices Repository
+export function getInvoices(): Invoice[] {
+  if (typeof window === "undefined") return DEFAULT_INVOICES;
+  try {
+    const raw = localStorage.getItem(INVOICES_KEY);
+    if (!raw) {
+      if (localStorage.getItem("builderbot_data_source") === "cloud") return [];
+      localStorage.setItem(INVOICES_KEY, JSON.stringify(DEFAULT_INVOICES));
+      return DEFAULT_INVOICES;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_INVOICES;
+  }
+}
+
+export function getInvoiceById(id: string): Invoice | undefined {
+  return getInvoices().find((i) => i.id === id);
+}
+
+export function getInvoicesByCustomer(customerId: string): Invoice[] {
+  return getInvoices().filter((i) => i.customerId === customerId);
+}
+
+export function saveInvoice(
+  invoice: Omit<Invoice, "id" | "createdAt"> & { id?: string; createdAt?: string }
+): Invoice {
+  const current = getInvoices();
+  let saved: Invoice;
+
+  if (invoice.id) {
+    saved = {
+      ...(invoice as Invoice),
+      createdAt: (invoice as Invoice).createdAt || new Date().toISOString().split("T")[0],
+    };
+    const updated = current.map((i) => (i.id === invoice.id ? saved : i));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(INVOICES_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
+  } else {
+    let maxNum = 1040;
+    for (const inv of current) {
+      const match = inv.id.match(/^INV-(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+    const nextId = `INV-${maxNum + 1}`;
+
+    saved = {
+      ...invoice,
+      id: nextId,
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+    const updated = [saved, ...current];
+    if (typeof window !== "undefined") {
+      localStorage.setItem(INVOICES_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
+  }
+
+  syncInvoiceToCloud(saved).catch(() => {});
+  return saved;
+}
+
+export function deleteInvoice(id: string): void {
+  const current = getInvoices().filter((i) => i.id !== id);
+  if (typeof window !== "undefined") {
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(current));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  deleteCloudInvoice(id).catch(() => {});
+}
+
+// 1-Tap Convert Quote to Invoice
+export function convertQuoteToInvoice(quote: Quote, depositOnly: boolean = false): Invoice {
+  const currentInvoices = getInvoices();
+  const existing = currentInvoices.find((i) => i.quoteId === quote.id);
+  if (existing) return existing;
+
+  const profile = getBusinessProfile();
+  const paymentDays = profile.paymentTermsDays || 7;
+  const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+
+  let items: LineItem[] = quote.items;
+  let subtotal = quote.subtotal;
+  let vat = quote.vat;
+  let total = quote.total;
+  let depositPaid = quote.acceptedSignatureName ? quote.deposit : 0;
+  let balanceDue = roundMoney(Math.max(0, total - depositPaid));
+
+  if (depositOnly) {
+    total = quote.deposit;
+    subtotal = quote.vatEnabled ? roundMoney(total / 1.2) : total;
+    vat = roundMoney(total - subtotal);
+    depositPaid = 0;
+    balanceDue = total;
+    items = [
+      {
+        id: "dep-1",
+        type: "service",
+        description: `Initial Deposit (${quote.depositPercent}%) for: ${quote.title}`,
+        quantity: 1,
+        unit: "stage",
+        rate: total,
+      },
+    ];
+  }
+
+  const invoice = saveInvoice({
+    quoteId: quote.id,
+    customerId: quote.customerId || "cust-unknown",
+    title: depositOnly ? `Deposit: ${quote.title}` : `Invoice: ${quote.title}`,
+    clientName: quote.clientName,
+    clientAddress: quote.clientAddress,
+    clientEmail: quote.clientEmail,
+    clientPhone: quote.clientPhone,
+    items,
+    subtotal,
+    vatEnabled: quote.vatEnabled,
+    vat,
+    total,
+    depositPaid,
+    balanceDue,
+    status: balanceDue === 0 ? "Paid" : "Issued",
+    dueDate,
+  });
+
+  return invoice;
+}
+
 // Cloud Hydration & Cache Synchronization
 export function hydrateLocalCache(data: {
   profile?: BusinessProfile | null;
   customers?: Customer[];
   quotes?: Quote[];
+  jobs?: Job[];
+  invoices?: Invoice[];
 }): void {
   if (typeof window === "undefined") return;
   if (data.profile) {
@@ -574,6 +884,12 @@ export function hydrateLocalCache(data: {
   if (data.quotes !== undefined) {
     localStorage.setItem(QUOTES_KEY, JSON.stringify(data.quotes));
   }
+  if (data.jobs !== undefined) {
+    localStorage.setItem(JOBS_KEY, JSON.stringify(data.jobs));
+  }
+  if (data.invoices !== undefined) {
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(data.invoices));
+  }
   localStorage.setItem("builderbot_data_source", "cloud");
   window.dispatchEvent(new Event("builderbot_storage_updated"));
 }
@@ -582,6 +898,8 @@ export function loadDemoSampleData(): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(DEFAULT_CUSTOMERS));
   localStorage.setItem(QUOTES_KEY, JSON.stringify(DEFAULT_QUOTES));
+  localStorage.setItem(JOBS_KEY, JSON.stringify(DEFAULT_JOBS));
+  localStorage.setItem(INVOICES_KEY, JSON.stringify(DEFAULT_INVOICES));
   localStorage.setItem(PROFILE_KEY, JSON.stringify(DEFAULT_BUSINESS_PROFILE));
   localStorage.setItem("builderbot_data_source", "demo");
   window.dispatchEvent(new Event("builderbot_storage_updated"));
@@ -591,6 +909,8 @@ export function clearLocalData(): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(CUSTOMERS_KEY, JSON.stringify([]));
   localStorage.setItem(QUOTES_KEY, JSON.stringify([]));
+  localStorage.setItem(JOBS_KEY, JSON.stringify([]));
+  localStorage.setItem(INVOICES_KEY, JSON.stringify([]));
   localStorage.removeItem("builderbot_data_source");
   window.dispatchEvent(new Event("builderbot_storage_updated"));
 }

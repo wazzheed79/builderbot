@@ -26,15 +26,24 @@ body {
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
   body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
   }
 
   header,
   nav,
+  aside,
   .no-print,
-  button:not(.print-include) {
+  button:not(.print-include),
+  a:not(.print-include) {
     display: none !important;
   }
 
@@ -49,6 +58,17 @@ body {
 
   table {
     page-break-inside: avoid;
+    width: 100% !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Retain background graphics and badge colors in PDF */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 

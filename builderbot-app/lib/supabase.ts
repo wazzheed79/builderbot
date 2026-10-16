@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Quote, Customer, BusinessProfile } from "./storage";
+import { Quote, Customer, BusinessProfile, Job, Invoice } from "./storage";
 import {
   roundMoney,
   recalculateQuoteTotals,
@@ -105,6 +105,46 @@ export function mapRowToProfile(row: Record<string, unknown>): BusinessProfile {
     paymentTermsDays: Number(row.payment_terms_days ?? 7),
     quoteValidityDays: Number(row.quote_validity_days ?? 30),
     termsAndConditions: row.terms_and_conditions ? String(row.terms_and_conditions) : undefined,
+  };
+}
+
+// Convert Supabase DB row to Job object
+export function mapRowToJob(row: Record<string, unknown>): Job {
+  return {
+    id: String(row.id),
+    customerId: String(row.customer_id),
+    title: String(row.title ?? ""),
+    address: String(row.address ?? ""),
+    status: (row.status as Job["status"]) || "Quoted",
+    notes: row.notes ? String(row.notes) : undefined,
+    quoteId: row.quote_id ? String(row.quote_id) : undefined,
+    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+  };
+}
+
+// Convert Supabase DB row to Invoice object
+export function mapRowToInvoice(row: Record<string, unknown>): Invoice {
+  return {
+    id: String(row.id),
+    quoteId: row.quote_id ? String(row.quote_id) : undefined,
+    jobId: row.job_id ? String(row.job_id) : undefined,
+    customerId: String(row.customer_id),
+    title: String(row.title ?? ""),
+    clientName: String(row.client_name ?? ""),
+    clientAddress: String(row.client_address ?? ""),
+    clientEmail: row.client_email ? String(row.client_email) : undefined,
+    clientPhone: row.client_phone ? String(row.client_phone) : undefined,
+    items: Array.isArray(row.items) ? (row.items as Invoice["items"]) : [],
+    subtotal: Number(row.subtotal ?? 0),
+    vatEnabled: Boolean(row.vat_enabled ?? true),
+    vat: Number(row.vat ?? 0),
+    total: Number(row.total ?? 0),
+    depositPaid: Number(row.deposit_paid ?? 0),
+    balanceDue: Number(row.balance_due ?? 0),
+    status: (row.status as Invoice["status"]) || "Issued",
+    dueDate: row.due_date ? String(row.due_date).split("T")[0] : new Date().toISOString().split("T")[0],
+    paidAt: row.paid_at ? String(row.paid_at) : undefined,
+    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
   };
 }
 
@@ -481,6 +521,8 @@ export async function pullUserDataFromCloud(): Promise<{
   profile: BusinessProfile | null;
   customers: Customer[];
   quotes: Quote[];
+  jobs: Job[];
+  invoices: Invoice[];
 } | null> {
   const sb = getSupabase();
   if (!sb) return null;
@@ -489,13 +531,15 @@ export async function pullUserDataFromCloud(): Promise<{
     const { data: userData } = await sb.auth.getUser();
     if (!userData?.user?.id) return null;
 
-    const [profile, customers, quotes] = await Promise.all([
+    const [profile, customers, quotes, jobs, invoices] = await Promise.all([
       fetchCloudProfile(),
       fetchCloudCustomers(),
       fetchCloudQuotes(),
+      fetchCloudJobs(),
+      fetchCloudInvoices(),
     ]);
 
-    return { profile, customers, quotes };
+    return { profile, customers, quotes, jobs, invoices };
   } catch (err) {
     console.error("Failed to pull user data from cloud:", err);
     return null;
@@ -539,6 +583,142 @@ export async function deleteCloudQuote(id: string): Promise<boolean> {
     return !error;
   } catch {
     return false;
+  }
+}
+
+// Jobs Cloud Sync
+export async function syncJobToCloud(job: Job): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return false;
+
+    const { error } = await sb.from("jobs").upsert({
+      id: job.id,
+      owner_id: ownerId,
+      customer_id: job.customerId,
+      title: job.title,
+      address: job.address,
+      status: job.status,
+      notes: job.notes || null,
+      quote_id: job.quoteId || null,
+      created_at: job.createdAt,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteCloudJob(id: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return false;
+
+    const { error } = await sb.from("jobs").delete().eq("id", id).eq("owner_id", ownerId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchCloudJobs(): Promise<Job[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return [];
+
+    const { data, error } = await sb
+      .from("jobs")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data.map(mapRowToJob);
+  } catch {
+    return [];
+  }
+}
+
+// Invoices Cloud Sync
+export async function syncInvoiceToCloud(invoice: Invoice): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return false;
+
+    const { error } = await sb.from("invoices").upsert({
+      id: invoice.id,
+      owner_id: ownerId,
+      quote_id: invoice.quoteId || null,
+      job_id: invoice.jobId || null,
+      customer_id: invoice.customerId,
+      title: invoice.title,
+      client_name: invoice.clientName,
+      client_address: invoice.clientAddress,
+      client_email: invoice.clientEmail || null,
+      client_phone: invoice.clientPhone || null,
+      items: invoice.items,
+      subtotal: invoice.subtotal,
+      vat_enabled: invoice.vatEnabled,
+      vat: invoice.vat,
+      total: invoice.total,
+      deposit_paid: invoice.depositPaid,
+      balance_due: invoice.balanceDue,
+      status: invoice.status,
+      due_date: invoice.dueDate,
+      paid_at: invoice.paidAt || null,
+      created_at: invoice.createdAt,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteCloudInvoice(id: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return false;
+
+    const { error } = await sb.from("invoices").delete().eq("id", id).eq("owner_id", ownerId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchCloudInvoices(): Promise<Invoice[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return [];
+
+    const { data, error } = await sb
+      .from("invoices")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data.map(mapRowToInvoice);
+  } catch {
+    return [];
   }
 }
 

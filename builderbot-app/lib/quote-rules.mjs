@@ -78,3 +78,40 @@ export function generateToken() {
   const perf = (typeof performance !== "undefined" ? performance.now() : 0).toString(36).replace(".", "");
   return `q_${timestamp}${perf}`.padEnd(24, "0");
 }
+
+/**
+ * Computes quotation expiry status and formatted dates.
+ * @param {string} createdAtIso
+ * @param {number} validityDays
+ * @param {number} [currentTimestampMs]
+ */
+export function calculateQuoteExpiry(createdAtIso, validityDays = 30, currentTimestampMs = Date.now()) {
+  const createdMs = new Date(createdAtIso).getTime();
+  if (isNaN(createdMs)) {
+    return {
+      isExpired: false,
+      daysLeft: validityDays,
+      expiryDateIso: "",
+      expiryFormatted: "30 days from issue",
+    };
+  }
+
+  const expiryMs = createdMs + Math.max(1, validityDays) * 24 * 60 * 60 * 1000;
+  const isExpired = currentTimestampMs > expiryMs;
+  const msRemaining = Math.max(0, expiryMs - currentTimestampMs);
+  const daysLeft = Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
+  const expiryDate = new Date(expiryMs);
+  const expiryDateIso = expiryDate.toISOString().split("T")[0];
+  const expiryFormatted = expiryDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return {
+    isExpired,
+    daysLeft,
+    expiryDateIso,
+    expiryFormatted,
+  };
+}

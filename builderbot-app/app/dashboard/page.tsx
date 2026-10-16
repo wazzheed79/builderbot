@@ -20,6 +20,8 @@ import {
 import {
   getDashboardMetrics,
   getCustomers,
+  getJobs,
+  getInvoices,
   getRecentActivityFeed,
   ActivityItem,
 } from "@/lib/storage";
@@ -27,12 +29,28 @@ import {
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState(() => getDashboardMetrics());
   const [customerCount, setCustomerCount] = useState(() => getCustomers().length);
+  const [activeJobsCount, setActiveJobsCount] = useState(
+    () => getJobs().filter((j) => j.status === "Scheduled" || j.status === "In Progress").length
+  );
+  const [outstandingBalance, setOutstandingBalance] = useState(() =>
+    getInvoices()
+      .filter((i) => i.status !== "Paid")
+      .reduce((acc, i) => acc + i.balanceDue, 0)
+  );
   const [activities, setActivities] = useState<ActivityItem[]>(() => getRecentActivityFeed());
 
   useEffect(() => {
     const handleUpdate = () => {
       setMetrics(getDashboardMetrics());
       setCustomerCount(getCustomers().length);
+      setActiveJobsCount(
+        getJobs().filter((j) => j.status === "Scheduled" || j.status === "In Progress").length
+      );
+      setOutstandingBalance(
+        getInvoices()
+          .filter((i) => i.status !== "Paid")
+          .reduce((acc, i) => acc + i.balanceDue, 0)
+      );
       setActivities(getRecentActivityFeed());
     };
     window.addEventListener("builderbot_storage_updated", handleUpdate);
@@ -51,18 +69,25 @@ export default function DashboardPage() {
       color: "text-blue-600 bg-blue-50 border-blue-200",
     },
     {
-      title: "Accepted Value",
+      title: "Accepted Won",
       value: `£${metrics.totalAcceptedValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       change: `${metrics.winRate}% win rate`,
       icon: CheckCircle,
       color: "text-emerald-600 bg-emerald-50 border-emerald-200",
     },
     {
-      title: "Pending Pipeline",
-      value: `£${metrics.totalPendingValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: `${metrics.activePipelineCount} quotes outstanding`,
-      icon: Clock,
+      title: "Active Jobs",
+      value: activeJobsCount.toString(),
+      change: "On site / scheduled",
+      icon: TrendingUp,
       color: "text-amber-600 bg-amber-50 border-amber-200",
+    },
+    {
+      title: "Invoices Due",
+      value: `£${outstandingBalance.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: "Awaiting settlement",
+      icon: Clock,
+      color: "text-purple-600 bg-purple-50 border-purple-200",
     },
     {
       title: "Active Customers",
@@ -95,7 +120,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           return (

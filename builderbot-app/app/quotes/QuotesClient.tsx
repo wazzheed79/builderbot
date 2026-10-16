@@ -33,6 +33,7 @@ import QuoteTemplatesBar, {
 } from "@/components/quotes/QuoteTemplatesBar";
 import MarginCalculator from "@/components/quotes/MarginCalculator";
 import LineItemEditor from "@/components/quotes/LineItemEditor";
+import { getWhatsAppShareUrl, formatWhatsAppQuoteMessage } from "@/lib/share";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -738,21 +739,29 @@ export default function QuotesClient() {
                         triggerToast("Save the quote first to generate a shareable WhatsApp link.");
                         return;
                       }
-                      const url = `${window.location.origin}/q/${activeToken || activeQuoteId}`;
-                      const senderCompany = profile.companyName ? ` from ${profile.companyName}` : "";
-                      const shareText = `Hi ${clientName || "there"}, here is your quotation for ${quoteTitle || "the works"}${senderCompany}. You can review and accept online here: ${url}`;
+                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot.co.uk";
+                      const params = {
+                        quoteId: activeQuoteId || "",
+                        token: activeToken || activeQuoteId || "",
+                        clientName: clientName || "there",
+                        clientPhone: clientPhone,
+                        quoteTitle: quoteTitle,
+                        companyName: profile.companyName,
+                        contractorName: profile.ownerName,
+                        total,
+                        deposit,
+                        depositPercent,
+                      };
+                      const waUrl = getWhatsAppShareUrl(params, siteOrigin);
+                      const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
                       navigator.clipboard.writeText(shareText);
-                      const cleanPhone = clientPhone.replace(/[^0-9]/g, "");
-                      const waUrl = cleanPhone
-                        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(shareText)}`
-                        : `https://wa.me/?text=${encodeURIComponent(shareText)}`;
                       window.open(waUrl, "_blank");
-                      triggerToast("WhatsApp link opened & copied to clipboard!");
+                      triggerToast("WhatsApp opened & message copied to clipboard!");
                     }}
-                    className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 px-3 rounded-xl text-xs transition"
+                    className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold py-2.5 px-3 rounded-xl text-xs transition"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Share WhatsApp</span>
+                    <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>WhatsApp</span>
                   </button>
                 </div>
               </div>

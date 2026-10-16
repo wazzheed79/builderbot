@@ -6,6 +6,7 @@ import {
   recalculateQuoteTotals,
   validateStatusTransition,
   generateToken,
+  calculateQuoteExpiry,
 } from "../lib/quote-rules.mjs";
 
 test("Currency Rounding: roundMoney rounds to exactly two decimal places", () => {
@@ -72,4 +73,26 @@ test("Status Machine: Rejects acceptance if quote is expired", () => {
 test("Token Security: Tokens must be prefixed with q_ and be cryptographically long", () => {
   const token = generateToken();
   assert.match(token, /^q_[a-zA-Z0-9]{16,}$/);
+});
+
+test("Quote Validity: calculateQuoteExpiry computes correct remaining days and expiry state", () => {
+  const baseTime = new Date("2026-10-15T12:00:00Z").getTime();
+
+  // 10 days in, 20 days left out of 30
+  const activeCheck = calculateQuoteExpiry(
+    "2026-10-05T12:00:00Z",
+    30,
+    baseTime
+  );
+  assert.equal(activeCheck.isExpired, false);
+  assert.equal(activeCheck.daysLeft, 20);
+
+  // 35 days in -> expired
+  const expiredCheck = calculateQuoteExpiry(
+    "2026-09-01T12:00:00Z",
+    30,
+    baseTime
+  );
+  assert.equal(expiredCheck.isExpired, true);
+  assert.equal(expiredCheck.daysLeft, 0);
 });

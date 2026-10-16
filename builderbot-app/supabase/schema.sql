@@ -76,11 +76,55 @@ CREATE TABLE IF NOT EXISTS public.quotes (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 4. Jobs Table (Owner scoped - site projects)
+CREATE TABLE IF NOT EXISTS public.jobs (
+  id TEXT PRIMARY KEY,
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  address TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Quoted' CHECK (status IN ('Quoted', 'Scheduled', 'In Progress', 'Completed', 'Invoiced')),
+  notes TEXT,
+  quote_id TEXT REFERENCES public.quotes(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. Invoices Table (Owner scoped - billing & cashflow)
+CREATE TABLE IF NOT EXISTS public.invoices (
+  id TEXT PRIMARY KEY,
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  quote_id TEXT REFERENCES public.quotes(id) ON DELETE SET NULL,
+  job_id TEXT REFERENCES public.jobs(id) ON DELETE SET NULL,
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  client_address TEXT NOT NULL,
+  client_email TEXT,
+  client_phone TEXT,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  subtotal NUMERIC NOT NULL CHECK (subtotal >= 0),
+  vat_enabled BOOLEAN DEFAULT true,
+  vat NUMERIC NOT NULL CHECK (vat >= 0),
+  total NUMERIC NOT NULL CHECK (total >= 0),
+  deposit_paid NUMERIC DEFAULT 0 CHECK (deposit_paid >= 0),
+  balance_due NUMERIC NOT NULL CHECK (balance_due >= 0),
+  status TEXT NOT NULL DEFAULT 'Issued' CHECK (status IN ('Draft', 'Issued', 'Partially Paid', 'Paid', 'Overdue')),
+  due_date TIMESTAMP WITH TIME ZONE,
+  paid_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_profiles_owner_id ON public.profiles(owner_id);
 CREATE INDEX IF NOT EXISTS idx_customers_owner_id ON public.customers(owner_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_owner_id ON public.quotes(owner_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_token ON public.quotes(token);
+CREATE INDEX IF NOT EXISTS idx_jobs_owner_id ON public.jobs(owner_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_customer_id ON public.jobs(customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_owner_id ON public.invoices(owner_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_customer_id ON public.invoices(customer_id);
 
 -- ==============================================================================
 -- STRICT ROW LEVEL SECURITY (RLS)
@@ -89,6 +133,8 @@ CREATE INDEX IF NOT EXISTS idx_quotes_token ON public.quotes(token);
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: Authenticated users can only read and mutate their own profile
 CREATE POLICY "Profiles are private to owner"
@@ -107,6 +153,20 @@ CREATE POLICY "Customers are private to owner"
 -- Quotes: Authenticated users can only access their own quotes
 CREATE POLICY "Quotes are private to owner"
   ON public.quotes FOR ALL
+  TO authenticated
+  USING (auth.uid() = owner_id)
+  WITH CHECK (auth.uid() = owner_id);
+
+-- Jobs: Authenticated users can only access their own jobs
+CREATE POLICY "Jobs are private to owner"
+  ON public.jobs FOR ALL
+  TO authenticated
+  USING (auth.uid() = owner_id)
+  WITH CHECK (auth.uid() = owner_id);
+
+-- Invoices: Authenticated users can only access their own invoices
+CREATE POLICY "Invoices are private to owner"
+  ON public.invoices FOR ALL
   TO authenticated
   USING (auth.uid() = owner_id)
   WITH CHECK (auth.uid() = owner_id);
