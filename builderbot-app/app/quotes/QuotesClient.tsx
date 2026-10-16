@@ -67,7 +67,15 @@ export default function QuotesClient() {
   const customerIdParam = searchParams.get("customerId");
 
   // Load Customers cleanly with lazy state initializer
-  const [customers] = useState<Customer[]>(() => getCustomers());
+  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setCustomers(getCustomers());
+    };
+    window.addEventListener("builderbot_storage_updated", handleUpdate);
+    return () => window.removeEventListener("builderbot_storage_updated", handleUpdate);
+  }, []);
 
   const initialCustomer = customerIdParam
     ? customers.find((c) => c.id === customerIdParam)

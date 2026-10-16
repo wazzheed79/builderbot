@@ -1,45 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// Helper math logic matching lib/storage.ts & lib/supabase.ts
-function roundMoney(amount) {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
-}
-
-function recalculateQuoteTotals(items, vatEnabled, depositPercent) {
-  const subtotal = roundMoney(
-    items.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0)
-  );
-  const vat = roundMoney(vatEnabled ? subtotal * 0.2 : 0);
-  const total = roundMoney(subtotal + vat);
-  const deposit = roundMoney((total * Math.max(0, Math.min(100, depositPercent))) / 100);
-
-  return { subtotal, vat, total, deposit };
-}
-
-function validateStatusTransition(currentStatus, targetStatus, isExpired) {
-  if (isExpired) {
-    return { allowed: false, error: "Quote has expired." };
-  }
-  if (targetStatus === "Viewed") {
-    if (currentStatus === "Sent") return { allowed: true };
-    return { allowed: false, error: `Cannot transition from ${currentStatus} to Viewed.` };
-  }
-  if (currentStatus !== "Sent" && currentStatus !== "Viewed") {
-    return { allowed: false, error: `Cannot transition from ${currentStatus}.` };
-  }
-  if (targetStatus !== "Accepted" && targetStatus !== "Rejected") {
-    return { allowed: false, error: `Invalid target status ${targetStatus}.` };
-  }
-  return { allowed: true };
-}
-
-function generateToken() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `q_${crypto.randomUUID().replace(/-/g, "")}`;
-  }
-  return `q_${Date.now().toString(36)}`;
-}
+import {
+  roundMoney,
+  recalculateQuoteTotals,
+  validateStatusTransition,
+  generateToken,
+} from "../lib/quote-rules.mjs";
 
 test("Currency Rounding: roundMoney rounds to exactly two decimal places", () => {
   assert.equal(roundMoney(10.004), 10.00);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -46,6 +46,11 @@ export default function CustomersPage() {
     setCustomers(getCustomers());
     setQuotes(getQuotes());
   };
+
+  useEffect(() => {
+    window.addEventListener("builderbot_storage_updated", loadData);
+    return () => window.removeEventListener("builderbot_storage_updated", loadData);
+  }, []);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);

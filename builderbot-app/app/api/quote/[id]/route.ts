@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { fetchPublicQuoteByToken, submitPublicDecision } from "@/lib/supabase";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Validation schema for digital acceptance/decline
 const DecisionPayloadSchema = z.object({
@@ -66,6 +67,16 @@ export async function POST(
       );
     }
 
+    // Rate Limiting Check (10 decision attempts per minute per IP)
+    const clientIp = getClientIp(request);
+    const rateCheck = checkRateLimit(`quote-decision:${clientIp}`, 10, 60000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a moment before trying again." },
+        { status: 429, headers: { "Retry-After": String(rateCheck.retryAfterSec || 60) } }
+      );
+    }
+
     const rawBody = await request.json().catch(() => null);
     if (!rawBody) {
       return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
@@ -88,10 +99,6 @@ export async function POST(
         { status: 422 }
       );
     }
-
-    // Extract client IP address for compliance and audit
-    const forwarded = request.headers.get("x-forwarded-for");
-    const clientIp = forwarded ? forwarded.split(",")[0].trim() : request.headers.get("x-real-ip") || "unknown";
 
     const decisionResult = await submitPublicDecision(id, status, {
       signatureName,

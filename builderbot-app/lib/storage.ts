@@ -3,6 +3,8 @@ import {
   syncCustomerToCloud,
   syncProfileToCloud,
   updateCloudQuoteStatus,
+  deleteCloudCustomer,
+  deleteCloudQuote,
 } from "./supabase";
 
 export interface Customer {
@@ -116,21 +118,19 @@ export function saveBusinessProfile(profile: BusinessProfile): BusinessProfile {
   return profile;
 }
 
-export function roundMoney(amount: number): number {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
-}
+import {
+  roundMoney,
+  recalculateQuoteTotals,
+  validateStatusTransition,
+  generateToken,
+} from "./quote-rules.mjs";
 
-export function generateToken(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `q_${crypto.randomUUID().replace(/-/g, "")}`;
-  }
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    const bytes = new Uint8Array(20);
-    crypto.getRandomValues(bytes);
-    return `q_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
-  }
-  return `q_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 15)}`;
-}
+export {
+  roundMoney,
+  recalculateQuoteTotals,
+  validateStatusTransition,
+  generateToken,
+};
 
 const DEFAULT_CUSTOMERS: Customer[] = [
   {
@@ -336,6 +336,9 @@ export function getCustomers(): Customer[] {
   try {
     const raw = localStorage.getItem(CUSTOMERS_KEY);
     if (!raw) {
+      if (localStorage.getItem("builderbot_data_source") === "cloud") {
+        return [];
+      }
       localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(DEFAULT_CUSTOMERS));
       return DEFAULT_CUSTOMERS;
     }
@@ -355,7 +358,10 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
       createdAt: (customer as Customer).createdAt || new Date().toISOString().split("T")[0],
     };
     const updated = current.map((c) => (c.id === customer.id ? saved : c));
-    if (typeof window !== "undefined") localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
   } else {
     saved = {
       ...customer,
@@ -363,7 +369,10 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
       createdAt: new Date().toISOString().split("T")[0],
     };
     const updated = [saved, ...current];
-    if (typeof window !== "undefined") localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
   }
 
   syncCustomerToCloud(saved).catch(() => {});
@@ -372,7 +381,11 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
 
 export function deleteCustomer(id: string): void {
   const current = getCustomers().filter((c) => c.id !== id);
-  if (typeof window !== "undefined") localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(current));
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(current));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  deleteCloudCustomer(id).catch(() => {});
 }
 
 export function getCustomerById(id: string): Customer | undefined {
@@ -385,6 +398,9 @@ export function getQuotes(): Quote[] {
   try {
     const raw = localStorage.getItem(QUOTES_KEY);
     if (!raw) {
+      if (localStorage.getItem("builderbot_data_source") === "cloud") {
+        return [];
+      }
       localStorage.setItem(QUOTES_KEY, JSON.stringify(DEFAULT_QUOTES));
       return DEFAULT_QUOTES;
     }
@@ -426,7 +442,10 @@ export function saveQuote(
       createdAt: quote.createdAt || new Date().toISOString().split("T")[0],
     };
     const updated = current.map((q) => (q.id === quote.id ? saved : q));
-    if (typeof window !== "undefined") localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
   } else {
     // New quote: find max number to avoid duplicates after deletion
     let maxNum = 1040;
@@ -450,7 +469,10 @@ export function saveQuote(
       createdAt: new Date().toISOString().split("T")[0],
     };
     const updated = [saved, ...current];
-    if (typeof window !== "undefined") localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("builderbot_storage_updated"));
+    }
   }
 
   syncQuoteToCloud(saved).catch(() => {});
@@ -488,6 +510,7 @@ export function updateQuoteStatus(
 
   if (typeof window !== "undefined" && target) {
     localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
   }
 
   updateCloudQuoteStatus(idOrToken, status, metadata).catch(() => {});
@@ -519,6 +542,7 @@ export function markQuoteViewed(idOrToken: string): Quote | undefined {
 
   if (typeof window !== "undefined" && target && target.status === "Viewed") {
     localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
     updateCloudQuoteStatus(idOrToken, "Viewed").catch(() => {});
   }
 
@@ -527,7 +551,48 @@ export function markQuoteViewed(idOrToken: string): Quote | undefined {
 
 export function deleteQuote(id: string): void {
   const current = getQuotes().filter((q) => q.id !== id);
-  if (typeof window !== "undefined") localStorage.setItem(QUOTES_KEY, JSON.stringify(current));
+  if (typeof window !== "undefined") {
+    localStorage.setItem(QUOTES_KEY, JSON.stringify(current));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  deleteCloudQuote(id).catch(() => {});
+}
+
+// Cloud Hydration & Cache Synchronization
+export function hydrateLocalCache(data: {
+  profile?: BusinessProfile | null;
+  customers?: Customer[];
+  quotes?: Quote[];
+}): void {
+  if (typeof window === "undefined") return;
+  if (data.profile) {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
+  }
+  if (data.customers !== undefined) {
+    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data.customers));
+  }
+  if (data.quotes !== undefined) {
+    localStorage.setItem(QUOTES_KEY, JSON.stringify(data.quotes));
+  }
+  localStorage.setItem("builderbot_data_source", "cloud");
+  window.dispatchEvent(new Event("builderbot_storage_updated"));
+}
+
+export function loadDemoSampleData(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(DEFAULT_CUSTOMERS));
+  localStorage.setItem(QUOTES_KEY, JSON.stringify(DEFAULT_QUOTES));
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(DEFAULT_BUSINESS_PROFILE));
+  localStorage.setItem("builderbot_data_source", "demo");
+  window.dispatchEvent(new Event("builderbot_storage_updated"));
+}
+
+export function clearLocalData(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify([]));
+  localStorage.setItem(QUOTES_KEY, JSON.stringify([]));
+  localStorage.removeItem("builderbot_data_source");
+  window.dispatchEvent(new Event("builderbot_storage_updated"));
 }
 
 // Computed Dashboard Metrics

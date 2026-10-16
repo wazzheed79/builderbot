@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -25,9 +25,19 @@ import {
 } from "@/lib/storage";
 
 export default function DashboardPage() {
-  const [metrics] = useState(() => getDashboardMetrics());
-  const [customerCount] = useState(() => getCustomers().length);
-  const [activities] = useState<ActivityItem[]>(() => getRecentActivityFeed());
+  const [metrics, setMetrics] = useState(() => getDashboardMetrics());
+  const [customerCount, setCustomerCount] = useState(() => getCustomers().length);
+  const [activities, setActivities] = useState<ActivityItem[]>(() => getRecentActivityFeed());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setMetrics(getDashboardMetrics());
+      setCustomerCount(getCustomers().length);
+      setActivities(getRecentActivityFeed());
+    };
+    window.addEventListener("builderbot_storage_updated", handleUpdate);
+    return () => window.removeEventListener("builderbot_storage_updated", handleUpdate);
+  }, []);
 
   const stats = [
     {

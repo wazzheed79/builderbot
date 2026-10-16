@@ -1,5 +1,12 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Quote, Customer, BusinessProfile, roundMoney } from "./storage";
+import { Quote, Customer, BusinessProfile } from "./storage";
+import {
+  roundMoney,
+  recalculateQuoteTotals,
+  validateStatusTransition,
+} from "./quote-rules.mjs";
+
+export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -63,20 +70,42 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
   };
 }
 
-// Recalculate totals server-side to prevent client tampering
-export function recalculateQuoteTotals(
-  items: Quote["items"],
-  vatEnabled: boolean,
-  depositPercent: number
-) {
-  const subtotal = roundMoney(
-    items.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0)
-  );
-  const vat = roundMoney(vatEnabled ? subtotal * 0.2 : 0);
-  const total = roundMoney(subtotal + vat);
-  const deposit = roundMoney((total * Math.max(0, Math.min(100, depositPercent))) / 100);
+// Convert Supabase DB row to Customer object
+export function mapRowToCustomer(row: Record<string, unknown>): Customer {
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    company: row.company ? String(row.company) : undefined,
+    phone: String(row.phone ?? ""),
+    email: String(row.email ?? ""),
+    address: String(row.address ?? ""),
+    notes: row.notes ? String(row.notes) : undefined,
+    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+  };
+}
 
-  return { subtotal, vat, total, deposit };
+// Convert Supabase DB row to BusinessProfile object
+export function mapRowToProfile(row: Record<string, unknown>): BusinessProfile {
+  return {
+    companyName: String(row.company_name ?? ""),
+    tradingName: row.trading_name ? String(row.trading_name) : "",
+    ownerName: String(row.owner_name ?? ""),
+    phone: String(row.phone ?? ""),
+    email: String(row.email ?? ""),
+    website: row.website ? String(row.website) : "",
+    address: String(row.address ?? ""),
+    trade: String(row.trade ?? "General Building & Renovation"),
+    vatRegistered: Boolean(row.vat_registered ?? false),
+    vatNumber: row.vat_number ? String(row.vat_number) : "",
+    bankName: row.bank_name ? String(row.bank_name) : "",
+    bankSortCode: row.bank_sort_code ? String(row.bank_sort_code) : "",
+    bankAccountNumber: row.bank_account_number ? String(row.bank_account_number) : "",
+    accreditations: Array.isArray(row.accreditations) ? (row.accreditations as string[]) : [],
+    defaultDepositPercent: Number(row.default_deposit_percent ?? 20),
+    paymentTermsDays: Number(row.payment_terms_days ?? 7),
+    quoteValidityDays: Number(row.quote_validity_days ?? 30),
+    termsAndConditions: row.terms_and_conditions ? String(row.terms_and_conditions) : undefined,
+  };
 }
 
 // SECURE Token-Only Public Quote Fetcher
@@ -182,15 +211,7 @@ export async function submitPublicDecision(
       return { success: false, error: "Quote not found." };
     }
 
-    // 2. Strict State Transition Rule: ONLY 'Sent' or 'Viewed' quotes can be accepted or rejected
-    if (currentQuote.status !== "Sent" && currentQuote.status !== "Viewed") {
-      return {
-        success: false,
-        error: `Quote cannot be modified. Current status: ${currentQuote.status}`,
-      };
-    }
-
-    // 3. Expiry Check
+    // 2. Expiry Check
     let validityDays = 30;
     if (currentQuote.owner_id) {
       const { data: prof } = await sb
@@ -202,9 +223,15 @@ export async function submitPublicDecision(
     }
 
     const expiryMs = new Date(currentQuote.created_at).getTime() + validityDays * 24 * 60 * 60 * 1000;
-    if (Date.now() > expiryMs) {
-      await sb.from("quotes").update({ status: "Expired" }).eq("token", token);
-      return { success: false, error: "This quotation has expired and can no longer be accepted." };
+    const isExpired = Date.now() > expiryMs;
+
+    // 3. Strict State Transition Rule validation
+    const transition = validateStatusTransition(currentQuote.status, decision, isExpired);
+    if (!transition.allowed) {
+      if (isExpired) {
+        await sb.from("quotes").update({ status: "Expired" }).eq("token", token);
+      }
+      return { success: false, error: transition.error || "Quotation cannot be modified." };
     }
 
     // 4. Apply status with audit log (timestamp + IP)
@@ -380,6 +407,135 @@ export async function updateCloudQuoteStatus(
       : sb.from("quotes").update(updatePayload).eq("id", idOrToken);
 
     const { error } = await query;
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// Cloud Data Fetchers (Source of Truth)
+export async function fetchCloudProfile(): Promise<BusinessProfile | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return null;
+
+    const { data, error } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapRowToProfile(data);
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCloudCustomers(): Promise<Customer[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return [];
+
+    const { data, error } = await sb
+      .from("customers")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data.map(mapRowToCustomer);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCloudQuotes(): Promise<Quote[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return [];
+
+    const { data, error } = await sb
+      .from("quotes")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data.map(mapRowToQuote);
+  } catch {
+    return [];
+  }
+}
+
+export async function pullUserDataFromCloud(): Promise<{
+  profile: BusinessProfile | null;
+  customers: Customer[];
+  quotes: Quote[];
+} | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    if (!userData?.user?.id) return null;
+
+    const [profile, customers, quotes] = await Promise.all([
+      fetchCloudProfile(),
+      fetchCloudCustomers(),
+      fetchCloudQuotes(),
+    ]);
+
+    return { profile, customers, quotes };
+  } catch (err) {
+    console.error("Failed to pull user data from cloud:", err);
+    return null;
+  }
+}
+
+export async function deleteCloudCustomer(id: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return false;
+
+    const { error } = await sb
+      .from("customers")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", ownerId);
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteCloudQuote(id: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const ownerId = userData?.user?.id;
+    if (!ownerId) return false;
+
+    const { error } = await sb
+      .from("quotes")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", ownerId);
+
     return !error;
   } catch {
     return false;
