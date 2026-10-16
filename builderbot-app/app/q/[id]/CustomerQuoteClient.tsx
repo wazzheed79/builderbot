@@ -14,6 +14,7 @@ import {
   Sparkles,
   AlertCircle,
   Loader2,
+  Clock,
 } from "lucide-react";
 import {
   getQuoteById,
@@ -38,10 +39,11 @@ export default function CustomerQuoteClient({
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(() => !getQuoteById(quoteId));
 
-  const [status, setStatus] = useState<"pending" | "accepted" | "rejected">(() => {
+  const [status, setStatus] = useState<"pending" | "accepted" | "rejected" | "expired">(() => {
     const q = getQuoteById(quoteId);
     if (q?.status === "Accepted") return "accepted";
     if (q?.status === "Rejected") return "rejected";
+    if (q?.status === "Expired") return "expired";
     return "pending";
   });
 
@@ -53,6 +55,7 @@ export default function CustomerQuoteClient({
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [profile] = useState<BusinessProfile>(() => getBusinessProfile());
+  const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
 
   // Fetch from server / Supabase for external client devices
   useEffect(() => {
@@ -65,9 +68,15 @@ export default function CustomerQuoteClient({
           if (data?.quote) {
             setLoadedQuote(data.quote);
             if (data.quote.status === "Accepted") setStatus("accepted");
-            if (data.quote.status === "Rejected") setStatus("rejected");
+            else if (data.quote.status === "Rejected") setStatus("rejected");
+            else if (data.quote.status === "Expired" || data.isExpired) setStatus("expired");
+            else setStatus("pending");
+
             if (data.quote.acceptedSignatureName) {
               setSignatureName(data.quote.acceptedSignatureName);
+            }
+            if (data.contractor) {
+              setServerContractor(data.contractor);
             }
           }
           setIsLoadingCloud(false);
@@ -119,10 +128,13 @@ export default function CustomerQuoteClient({
     );
   }
 
-  // Contractor details from user profile
-  const contractorName = profile.companyName || "Trade Contractor Services";
-  const contactPhone = profile.phone || "+44 7000 000000";
-  const contactEmail = profile.email || "quotes@contractor.co.uk";
+  // Contractor details from user profile or server data
+  const activeProfile: BusinessProfile = serverContractor
+    ? ({ ...profile, ...serverContractor } as BusinessProfile)
+    : profile;
+  const contractorName = activeProfile.companyName || "Trade Contractor Services";
+  const contactPhone = activeProfile.phone || "+44 7000 000000";
+  const contactEmail = activeProfile.email || "quotes@contractor.co.uk";
 
   const handleConfirmAccept = () => {
     if (!signatureName.trim() || !agreedToTerms) return;
@@ -190,6 +202,7 @@ export default function CustomerQuoteClient({
     <div className="min-h-screen bg-slate-100/80 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Banner / Notice for Customer */}
+        <div className="no-print">
         {status === "accepted" ? (
           <div className="bg-emerald-600 text-white p-6 sm:p-7 rounded-2xl shadow-xl space-y-4 animate-in fade-in duration-300">
             <div className="flex items-start gap-4">
@@ -210,7 +223,7 @@ export default function CustomerQuoteClient({
               </div>
             </div>
 
-            {profile.bankAccountNumber && (
+            {activeProfile.bankAccountNumber && (
               <div className="bg-emerald-700/60 border border-emerald-500/40 rounded-xl p-4 text-xs space-y-2">
                 <p className="font-bold text-emerald-100 uppercase tracking-wider text-[11px]">
                   Deposit Payment Instructions (Bank Transfer):
@@ -218,15 +231,15 @@ export default function CustomerQuoteClient({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 font-mono">
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Bank</span>
-                    <span className="text-white font-bold">{profile.bankName || "Commercial Bank"}</span>
+                    <span className="text-white font-bold">{activeProfile.bankName || "Commercial Bank"}</span>
                   </div>
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Sort Code</span>
-                    <span className="text-white font-bold">{profile.bankSortCode || "20-00-00"}</span>
+                    <span className="text-white font-bold">{activeProfile.bankSortCode || "20-00-00"}</span>
                   </div>
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Account No</span>
-                    <span className="text-white font-bold">{profile.bankAccountNumber}</span>
+                    <span className="text-white font-bold">{activeProfile.bankAccountNumber}</span>
                   </div>
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Reference</span>
@@ -235,6 +248,16 @@ export default function CustomerQuoteClient({
                 </div>
               </div>
             )}
+          </div>
+        ) : status === "expired" ? (
+          <div className="bg-amber-600 text-white p-6 rounded-2xl shadow-xl flex items-start gap-4">
+            <Clock className="w-8 h-8 text-white shrink-0 mt-0.5" />
+            <div>
+              <h2 className="text-lg font-bold">Quotation Expired</h2>
+              <p className="text-amber-100 text-sm mt-1">
+                This quotation was valid for {activeProfile.quoteValidityDays || 30} days and has expired. Please contact {contractorName} to request updated pricing.
+              </p>
+            </div>
           </div>
         ) : status === "rejected" ? (
           <div className="bg-slate-800 text-white p-6 rounded-2xl shadow-xl flex items-start gap-4">
@@ -253,13 +276,14 @@ export default function CustomerQuoteClient({
               Official Trade Quotation #{loadedQuote.id}
             </span>
             <span className="bg-blue-700/80 px-2.5 py-1 rounded text-xs">
-              Valid for {profile.quoteValidityDays || 30} Days
+              Valid for {activeProfile.quoteValidityDays || 30} Days
             </span>
           </div>
         )}
+        </div>
 
         {/* Main Document Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print-page">
           {/* Header & Contractor Details */}
           <div className="p-6 sm:p-8 bg-slate-900 text-white">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-800">
@@ -446,7 +470,7 @@ export default function CustomerQuoteClient({
             )}
 
             {/* Action Bar for Customer */}
-            <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3">
+            <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3 no-print">
               {status === "pending" ? (
                 <>
                   <button
@@ -480,6 +504,10 @@ export default function CustomerQuoteClient({
                   >
                     Print Receipt
                   </button>
+                </div>
+              ) : status === "expired" ? (
+                <div className="w-full bg-amber-50 border border-amber-200 p-4 rounded-xl text-center text-xs text-amber-800 font-semibold">
+                  This quotation has passed its validity window and is closed for online acceptance. Please contact the contractor to request an updated quotation.
                 </div>
               ) : (
                 <div className="w-full bg-slate-100 border border-slate-300 p-4 rounded-xl text-center text-xs text-slate-600">

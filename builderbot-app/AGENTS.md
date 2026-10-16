@@ -1,3 +1,4 @@
+<!-- Note: For BuilderBot architecture, conventions, and roadmap, see /AGENTS.md at repository root -->
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

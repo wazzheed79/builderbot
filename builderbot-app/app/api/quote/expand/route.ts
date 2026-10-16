@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { GoogleGenAI, Type } from "@google/genai";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const ExpandRequestSchema = z.object({
+  notes: z
+    .string()
+    .trim()
+    .min(3, "Please provide at least 3 characters of job notes.")
+    .max(2000, "Notes cannot exceed 2000 characters."),
+  title: z
+    .string()
+    .trim()
+    .max(150)
+    .optional(),
+  trade: z
+    .string()
+    .trim()
+    .max(100)
+    .optional(),
+});
 
 interface ExpandResponse {
   title: string;
@@ -10,44 +30,60 @@ interface ExpandResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { notes, title: initialTitle, trade } = body;
-
-    if (!notes || typeof notes !== "string" || !notes.trim()) {
+    // 1. Rate Limiting Check (15 requests/min per IP)
+    const clientIp = getClientIp(request);
+    const rateCheck = checkRateLimit(`ai-expand:${clientIp}`, 15, 60000);
+    if (!rateCheck.allowed) {
       return NextResponse.json(
-        { error: "Scope notes or bullet points are required." },
-        { status: 400 }
+        { error: "Too many AI requests. Please wait a moment before trying again." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateCheck.retryAfterSec || 60) },
+        }
       );
     }
 
-    const trimmedNotes = notes.trim();
+    // 2. Request Body & Schema Validation
+    const rawBody = await request.json().catch(() => null);
+    if (!rawBody) {
+      return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
+    }
+
+    const parseResult = ExpandRequestSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message || "Invalid input data." },
+        { status: 422 }
+      );
+    }
+
+    const { notes, title: initialTitle, trade } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (apiKey) {
       const ai = new GoogleGenAI({ apiKey });
 
-      const prompt = `Expand the following tradesperson job notes into a formal, professional scope of works suitable for a customer contract.
-Trade Category: ${trade || "General Building & Renovation"}
-Existing Title (if any): "${initialTitle || ""}"
-Raw Notes:
-"${trimmedNotes}"
-
-Instructions:
-1. Provide a professional, refined title for the project if not already provided.
-2. Expand the notes into professional, polished contractor language detailing:
-   - Preparation and safety steps
-   - Materials specification and installation methodology
-   - Execution and quality checks
-   - Removal of debris and site sweep upon completion
-3. NEVER fabricate regulatory registrations (e.g. Gas Safe, NICEIC, Part P) unless explicitly mentioned in the notes.
-4. Keep the wording clear, trustworthy, and free of unnecessary fluff.`;
-
+      // Pass user notes securely as content parts, not prompt interpolation
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: prompt,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Target Trade Category: ${trade || "General Building & Renovation"}\nExisting Title: ${initialTitle || "None"}\nRaw Job Notes to expand into professional scope of works:`,
+              },
+              { text: notes },
+            ],
+          },
+        ],
         config: {
           systemInstruction:
-            "You are BuilderBot AI, an expert trade specification writer for UK tradespeople. You write professional, concise, contract-ready trade scopes of work in JSON format.",
+            "You are BuilderBot AI, an expert trade specification writer for UK tradespeople. " +
+            "Expand the user's raw notes into a formal, professional scope of works suitable for a customer contract. " +
+            "Detail preparation, safety, materials installation methodology, quality checks, and site clearance. " +
+            "CRITICAL: NEVER hallucinate or claim regulatory registrations (e.g. Gas Safe, NICEIC, Part P) unless explicitly mentioned in the notes. " +
+            "Keep the language clear, trustworthy, and free of unnecessary fluff.",
           responseMimeType: "application/json",
           responseJsonSchema: {
             type: Type.OBJECT,
@@ -69,9 +105,16 @@ Instructions:
       const responseText = response.text || "{}";
       const parsed = JSON.parse(responseText);
 
+      const cleanTitle = String(parsed.title || initialTitle || "Trade Works Specification")
+        .trim()
+        .slice(0, 150);
+      const cleanScope = String(parsed.scopeOfWork || notes)
+        .trim()
+        .slice(0, 3000);
+
       const result: ExpandResponse = {
-        title: parsed.title || initialTitle || "Trade Works Specification",
-        scopeOfWork: parsed.scopeOfWork || trimmedNotes,
+        title: cleanTitle,
+        scopeOfWork: cleanScope,
         aiPowered: true,
       };
 
@@ -79,7 +122,7 @@ Instructions:
     }
 
     // Heuristic fallback if GEMINI_API_KEY is not configured
-    const lower = trimmedNotes.toLowerCase();
+    const lower = notes.toLowerCase();
     let title = initialTitle || "Trade Works Specification";
     let scopeOfWork = "";
 
@@ -96,7 +139,7 @@ Instructions:
       scopeOfWork =
         "Drain system and remove existing boiler. Supply and install high-efficiency condensing boiler, connect flue, powerflush heating loop, fit magnetic system filter, and install wireless programmable thermostat. Commission system and issue benchmark documentation.";
     } else {
-      scopeOfWork = `Scope of works: ${trimmedNotes}. Includes delivery and handling of required trade materials, surface and site preparation, skilled trade execution, and complete site cleanup upon completion.`;
+      scopeOfWork = `Scope of works: ${notes}. Includes delivery and handling of required trade materials, surface and site preparation, skilled trade execution, and complete site cleanup upon completion.`;
     }
 
     return NextResponse.json({

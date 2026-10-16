@@ -81,11 +81,11 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   website: "www.premiertrade.co.uk",
   address: "Unit 4, Trade Enterprise Park, Bristol, BS2 8QJ",
   trade: "General Building & Renovation",
-  vatRegistered: true,
-  vatNumber: "GB 987 6543 21",
-  bankName: "Barclays Commercial",
-  bankSortCode: "20-14-33",
-  bankAccountNumber: "84729104",
+  vatRegistered: false,
+  vatNumber: "",
+  bankName: "",
+  bankSortCode: "",
+  bankAccountNumber: "",
   accreditations: [],
   defaultDepositPercent: 20,
   paymentTermsDays: 7,
@@ -120,12 +120,15 @@ export function roundMoney(amount: number): number {
 }
 
 export function generateToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "q_";
-  for (let i = 0; i < 16; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `q_${crypto.randomUUID().replace(/-/g, "")}`;
   }
-  return token;
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(20);
+    crypto.getRandomValues(bytes);
+    return `q_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+  }
+  return `q_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 15)}`;
 }
 
 const DEFAULT_CUSTOMERS: Customer[] = [

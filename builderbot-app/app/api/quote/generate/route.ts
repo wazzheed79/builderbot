@@ -1,5 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { GoogleGenAI, Type } from "@google/genai";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { roundMoney } from "@/lib/storage";
+
+const GenerateRequestSchema = z.object({
+  notes: z
+    .string()
+    .trim()
+    .min(3, "Please provide at least 3 characters of job notes.")
+    .max(2000, "Notes cannot exceed 2000 characters."),
+  trade: z
+    .string()
+    .trim()
+    .max(100)
+    .optional(),
+});
 
 interface LineItemResponse {
   type: "labor" | "material" | "service";
@@ -20,39 +36,61 @@ interface GenerateResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { notes, trade } = body;
-
-    if (!notes || typeof notes !== "string" || !notes.trim()) {
+    // 1. Rate Limiting Check (15 requests/min per IP)
+    const clientIp = getClientIp(request);
+    const rateCheck = checkRateLimit(`ai-generate:${clientIp}`, 15, 60000);
+    if (!rateCheck.allowed) {
       return NextResponse.json(
-        { error: "Trade notes or voice transcription is required." },
-        { status: 400 }
+        { error: "Too many AI generation requests. Please wait a moment before trying again." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateCheck.retryAfterSec || 60) },
+        }
       );
     }
 
-    const trimmedNotes = notes.trim();
+    // 2. Request Body & Schema Validation
+    const rawBody = await request.json().catch(() => null);
+    if (!rawBody) {
+      return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
+    }
+
+    const parseResult = GenerateRequestSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message || "Invalid input data." },
+        { status: 422 }
+      );
+    }
+
+    const { notes, trade } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (apiKey) {
       const ai = new GoogleGenAI({ apiKey });
 
-      const prompt = `Convert the following tradesperson job notes/voice dictation into an itemized trade quote breakdown.
-Trade Context: ${trade || "General Building & Renovation"}
-Job Notes:
-"${trimmedNotes}"
-
-Requirements:
-1. Provide a professional, concise project title.
-2. Provide a clear, professional scope of work detailing site preparation, materials installation, execution, and cleanup. Do NOT fabricate legal accreditations (like Gas Safe or NICEIC) unless explicitly mentioned in notes.
-3. Provide realistic UK trade market rates in GBP (£). Skilled labor should be £40-£65/hr or £220-£350/day. Materials at realistic merchant prices.
-4. Recommend a reasonable deposit % (usually 20%).`;
-
+      // Separate system instruction from user content to resist prompt injection
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: prompt,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Target Trade Category: ${trade || "General Building & Renovation"}\nItemize the following job notes into UK trade line items:`,
+              },
+              { text: notes },
+            ],
+          },
+        ],
         config: {
           systemInstruction:
-            "You are BuilderBot AI, an expert trade quantity surveyor and estimator for UK builders, electricians, plumbers, roofers, landscapers, and carpenters. You generate realistic, accurate UK trade itemized breakdowns in JSON format. You NEVER hallucinate legal licenses.",
+            "You are BuilderBot AI, an expert trade quantity surveyor for UK builders, electricians, plumbers, roofers, landscapers, and carpenters. " +
+            "Given tradesperson notes, return realistic UK trade itemized breakdowns in JSON format. " +
+            "Use realistic UK market rates in GBP (£): skilled labor should be £40-£65/hr or £220-£350/day. " +
+            "Materials at realistic trade supplier prices. " +
+            "Recommend a deposit % between 10 and 30 (default 20). " +
+            "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes.",
           responseMimeType: "application/json",
           responseJsonSchema: {
             type: Type.OBJECT,
@@ -108,21 +146,51 @@ Requirements:
       const responseText = response.text || "{}";
       const parsed = JSON.parse(responseText);
 
-      // Validate & clean items
-      const cleanedItems: LineItemResponse[] = (parsed.items || []).map(
-        (it: Partial<LineItemResponse>, idx: number) => ({
-          type: it.type === "labor" || it.type === "service" ? it.type : "material",
-          description: it.description || `Trade item #${idx + 1}`,
-          quantity: Math.max(1, Number(it.quantity) || 1),
-          unit: it.unit || "unit",
-          rate: Math.max(0, Math.round(((Number(it.rate) || 0) + Number.EPSILON) * 100) / 100),
-        })
+      // Clamping & Sanity Validation on AI output
+      const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+      const cleanedItems: LineItemResponse[] = rawItems
+        .slice(0, 50) // Cap to max 50 items
+        .map((it: Partial<LineItemResponse>, idx: number) => {
+          const rawType = String(it.type || "material").toLowerCase();
+          const validTypes: LineItemResponse["type"][] = ["labor", "material", "service"];
+          const itemType = validTypes.includes(rawType as LineItemResponse["type"])
+            ? (rawType as LineItemResponse["type"])
+            : "material";
+
+          // Clamp quantities between 0.01 and 10,000
+          const rawQty = Number(it.quantity) || 1;
+          const clampedQty = Math.max(0.01, Math.min(10000, roundMoney(rawQty)));
+
+          // Clamp unit rates between £0 and £50,000
+          const rawRate = Number(it.rate) || 0;
+          const clampedRate = Math.max(0, Math.min(50000, roundMoney(rawRate)));
+
+          const cleanDesc = String(it.description || `Trade item #${idx + 1}`)
+            .trim()
+            .slice(0, 200);
+
+          const cleanUnit = String(it.unit || "unit")
+            .trim()
+            .slice(0, 30);
+
+          return {
+            type: itemType,
+            description: cleanDesc,
+            quantity: clampedQty,
+            unit: cleanUnit,
+            rate: clampedRate,
+          };
+        });
+
+      const depositPercent = Math.max(
+        0,
+        Math.min(100, Number(parsed.suggestedDepositPercent) || 20)
       );
 
       const result: GenerateResponse = {
-        title: parsed.title || "Trade Works Specification",
-        scopeOfWork: parsed.scopeOfWork || trimmedNotes,
-        suggestedDepositPercent: Number(parsed.suggestedDepositPercent) || 20,
+        title: String(parsed.title || "Trade Works Specification").trim().slice(0, 150),
+        scopeOfWork: String(parsed.scopeOfWork || notes).trim().slice(0, 2500),
+        suggestedDepositPercent: depositPercent,
         items: cleanedItems,
         aiPowered: true,
       };
@@ -131,7 +199,7 @@ Requirements:
     }
 
     // Heuristic Fallback when GEMINI_API_KEY is not configured
-    const lower = trimmedNotes.toLowerCase();
+    const lower = notes.toLowerCase();
     const fallbackItems: LineItemResponse[] = [];
     let title = "Trade Works Specification";
 
@@ -197,7 +265,7 @@ Requirements:
       fallbackItems.push(
         {
           type: "material",
-          description: `Primary materials & fixings for: ${trimmedNotes.slice(0, 40)}...`,
+          description: `Primary materials & fixings for: ${notes.slice(0, 40)}...`,
           quantity: 1,
           unit: "lot",
           rate: 350.0,
@@ -221,7 +289,7 @@ Requirements:
 
     return NextResponse.json({
       title,
-      scopeOfWork: `Scope of works: ${trimmedNotes}. Includes delivery of trade materials, skilled labor execution, and waste clearance upon completion.`,
+      scopeOfWork: `Scope of works: ${notes}. Includes delivery of trade materials, skilled labor execution, and waste clearance upon completion.`,
       suggestedDepositPercent: 20,
       items: fallbackItems,
       aiPowered: false,
