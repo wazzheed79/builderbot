@@ -3,6 +3,7 @@ import { z } from "zod";
 import { GoogleGenAI, Type } from "@google/genai";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { roundMoney } from "@/lib/storage";
+import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 
 const GenerateRequestSchema = z.object({
   notes: z
@@ -198,102 +199,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Heuristic Fallback when GEMINI_API_KEY is not configured
-    const lower = notes.toLowerCase();
-    const fallbackItems: LineItemResponse[] = [];
-    let title = "Trade Works Specification";
-
-    if (lower.includes("fence") || lower.includes("panel") || lower.includes("post")) {
-      title = "Timber Fencing & Post Installation";
-      fallbackItems.push(
-        {
-          type: "material",
-          description: "Heavy Duty Pressure-Treated Fence Panels (6ft x 5ft)",
-          quantity: 6,
-          unit: "panels",
-          rate: 38.5,
-        },
-        {
-          type: "material",
-          description: "Slotted Concrete Posts & Postcrete Rapid Setting Concrete",
-          quantity: 7,
-          unit: "sets",
-          rate: 26.0,
-        },
-        {
-          type: "labor",
-          description: "Post hole excavation, concrete setting, and panel assembly",
-          quantity: 12,
-          unit: "hrs",
-          rate: 45.0,
-        },
-        {
-          type: "service",
-          description: "Dismantle and licensed disposal of old damaged fencing",
-          quantity: 1,
-          unit: "service",
-          rate: 120.0,
-        }
-      );
-    } else if (lower.includes("wall") || lower.includes("brick") || lower.includes("mortar")) {
-      title = "Garden Brick Wall Construction";
-      fallbackItems.push(
-        {
-          type: "material",
-          description: "Facing Bricks, Class M4 Building Mortar & Concrete Footing Mix",
-          quantity: 1,
-          unit: "lot",
-          rate: 480.0,
-        },
-        {
-          type: "labor",
-          description: "Trench excavation, strip foundation concrete pour & bricklaying",
-          quantity: 16,
-          unit: "hrs",
-          rate: 48.0,
-        },
-        {
-          type: "service",
-          description: "Excavated earth and rubble removal from site",
-          quantity: 1,
-          unit: "service",
-          rate: 140.0,
-        }
-      );
-    } else {
-      title = "Specified Trade Installation & Labor";
-      fallbackItems.push(
-        {
-          type: "material",
-          description: `Primary materials & fixings for: ${notes.slice(0, 40)}...`,
-          quantity: 1,
-          unit: "lot",
-          rate: 350.0,
-        },
-        {
-          type: "labor",
-          description: "Trade site preparation, skilled installation, and finishing",
-          quantity: 8,
-          unit: "hrs",
-          rate: 50.0,
-        },
-        {
-          type: "service",
-          description: "Site clearance and clean-down upon completion",
-          quantity: 1,
-          unit: "service",
-          rate: 80.0,
-        }
-      );
-    }
+    // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
+    const estimate = estimateTradeJob(notes);
 
     return NextResponse.json({
-      title,
-      scopeOfWork: `Scope of works: ${notes}. Includes delivery of trade materials, skilled labor execution, and waste clearance upon completion.`,
-      suggestedDepositPercent: 20,
-      items: fallbackItems,
+      title: estimate.title,
+      scopeOfWork: estimate.scopeOfWork,
+      suggestedDepositPercent: estimate.suggestedDepositPercent,
+      items: estimate.items,
       aiPowered: false,
-      notice: "Add GEMINI_API_KEY in .env.local to activate real-time Gemini 2.5 Flash intelligence.",
+      notice: "Add GEMINI_API_KEY in .env.local to activate bespoke Gemini 2.5 Flash intelligence.",
     });
   } catch (error) {
     console.error("Error generating quote:", error);
