@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -20,7 +20,13 @@ import {
   MessageSquare,
 } from "lucide-react";
 
-export default function CustomerQuoteClient({ quoteId }: { quoteId: string }) {
+export default function CustomerQuoteClient({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = use(params);
+  const quoteId = resolvedParams.id || "BB-1042";
   const [status, setStatus] = useState<"pending" | "accepted" | "declined">("pending");
   const [signatureName, setSignatureName] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);

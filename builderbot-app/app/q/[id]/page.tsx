@@ -5,13 +5,11 @@ export function generateStaticParams() {
   return [{ id: "BB-1042" }];
 }
 
-export default async function CustomerQuotePage({
+export default function CustomerQuotePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-
   return (
     <Suspense
       fallback={
@@ -20,7 +18,7 @@ export default async function CustomerQuotePage({
         </div>
       }
     >
-      <CustomerQuoteClient quoteId={id} />
+      <CustomerQuoteClient params={params} />
     </Suspense>
   );
 }
