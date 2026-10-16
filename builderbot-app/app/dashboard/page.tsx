@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -8,67 +11,62 @@ import {
   Users,
   ChevronRight,
   ArrowUpRight,
+  CheckCircle2,
+  DollarSign,
 } from "lucide-react";
+import {
+  getDashboardMetrics,
+  getCustomers,
+  Quote,
+} from "@/lib/storage";
 
 export default function DashboardPage() {
+  const [metrics, setMetrics] = useState({
+    totalQuotesCount: 3,
+    acceptedQuotesCount: 1,
+    pendingQuotesCount: 2,
+    totalAcceptedValue: 1161.6,
+    totalPendingValue: 3420.0,
+    winRate: 33,
+    recentQuotes: [] as Quote[],
+  });
+  const [customerCount, setCustomerCount] = useState(3);
+
+  useEffect(() => {
+    const data = getDashboardMetrics();
+    const custs = getCustomers();
+    setMetrics(data);
+    setCustomerCount(custs.length);
+  }, []);
+
   const stats = [
     {
-      title: "Quotes Sent (Oct)",
-      value: "14",
-      change: "+3 this week",
+      title: "Quotes Sent",
+      value: metrics.totalQuotesCount.toString(),
+      change: `${metrics.pendingQuotesCount} awaiting decision`,
       icon: FileText,
       color: "text-blue-600 bg-blue-50 border-blue-200",
     },
     {
       title: "Accepted Value",
-      value: "£8,420",
-      change: "72% win rate",
+      value: `£${metrics.totalAcceptedValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: `${metrics.winRate}% win rate`,
       icon: CheckCircle,
       color: "text-emerald-600 bg-emerald-50 border-emerald-200",
     },
     {
-      title: "Awaiting Client",
-      value: "4",
-      change: "£3,180 pending",
+      title: "Pending Quotes",
+      value: `£${metrics.totalPendingValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      change: `${metrics.pendingQuotesCount} active in pipeline`,
       icon: Clock,
       color: "text-amber-600 bg-amber-50 border-amber-200",
     },
     {
       title: "Active Customers",
-      value: "28",
-      change: "+4 new",
+      value: customerCount.toString(),
+      change: "Directory synced",
       icon: Users,
       color: "text-indigo-600 bg-indigo-50 border-indigo-200",
-    },
-  ];
-
-  const recentQuotes = [
-    {
-      id: "BB-1042",
-      client: "Sarah Jenkins",
-      trade: "Plumbing",
-      job: "En-suite Shower & Radiator Replacement",
-      amount: "£850.00",
-      status: "Accepted",
-      date: "Today, 14:20",
-    },
-    {
-      id: "BB-1041",
-      client: "David Miller",
-      trade: "Electrical",
-      job: "Full Consumer Unit Upgrade & 8 Downlights",
-      amount: "£1,120.00",
-      status: "Sent",
-      date: "Yesterday",
-    },
-    {
-      id: "BB-1040",
-      client: "Oakfield House",
-      trade: "Carpentry",
-      job: "Fitted Alcove Shelving and Cabinets",
-      amount: "£1,450.00",
-      status: "Draft",
-      date: "14 Oct",
     },
   ];
 
@@ -81,7 +79,7 @@ export default function DashboardPage() {
             Trades Dashboard
           </h1>
           <p className="text-slate-600 text-sm mt-1">
-            Overview of your active quotes, win rates, and pending customer acceptances.
+            Real-time overview of active quotes, won contract value, and customer pipeline.
           </p>
         </div>
         <Link
@@ -124,14 +122,14 @@ export default function DashboardPage() {
       <div className="mt-10 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Recent Quotes</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Track customer views and status changes in real time.</p>
+            <h2 className="text-lg font-bold text-slate-900">Recent Quotes & Pipeline</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Real-time status updates from client acceptance links.</p>
           </div>
           <Link
             href="/quotes"
             className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
-            <span>View all</span>
+            <span>Create new</span>
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -145,26 +143,26 @@ export default function DashboardPage() {
                 <th className="py-3 px-6">Job Summary</th>
                 <th className="py-3 px-6 text-right">Amount</th>
                 <th className="py-3 px-6 text-center">Status</th>
-                <th className="py-3 px-6 text-right">Action</th>
+                <th className="py-3 px-6 text-right">Customer Link</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {recentQuotes.map((q) => (
+              {metrics.recentQuotes.map((q) => (
                 <tr key={q.id} className="hover:bg-slate-50/80 transition">
                   <td className="py-4 px-6 font-mono font-bold text-xs text-slate-900">
                     {q.id}
                   </td>
                   <td className="py-4 px-6">
-                    <p className="font-semibold text-slate-900">{q.client}</p>
-                    <p className="text-xs text-slate-400">{q.date}</p>
+                    <p className="font-semibold text-slate-900">{q.clientName}</p>
+                    <p className="text-xs text-slate-400">{q.createdAt}</p>
                   </td>
                   <td className="py-4 px-6">
                     <span className="inline-block text-xs font-medium text-slate-600 truncate max-w-xs">
-                      {q.job}
+                      {q.title}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right font-bold text-slate-900">
-                    {q.amount}
+                    £{q.total.toFixed(2)}
                   </td>
                   <td className="py-4 px-6 text-center">
                     <span
@@ -173,6 +171,8 @@ export default function DashboardPage() {
                           ? "bg-emerald-100 text-emerald-800"
                           : q.status === "Sent"
                           ? "bg-blue-100 text-blue-800"
+                          : q.status === "Declined"
+                          ? "bg-rose-100 text-rose-800"
                           : "bg-slate-100 text-slate-700"
                       }`}
                     >
@@ -181,10 +181,10 @@ export default function DashboardPage() {
                   </td>
                   <td className="py-4 px-6 text-right">
                     <Link
-                      href="/quotes"
+                      href={`/q/${q.id}`}
                       className="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1"
                     >
-                      <span>Open</span>
+                      <span>Customer Page</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </Link>
                   </td>

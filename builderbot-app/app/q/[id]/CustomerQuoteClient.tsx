@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -19,6 +19,7 @@ import {
   CreditCard,
   MessageSquare,
 } from "lucide-react";
+import { getQuoteById, updateQuoteStatus, Quote } from "@/lib/storage";
 
 export default function CustomerQuoteClient({
   params,
@@ -27,68 +28,79 @@ export default function CustomerQuoteClient({
 }) {
   const resolvedParams = use(params);
   const quoteId = resolvedParams.id || "BB-1042";
+
   const [status, setStatus] = useState<"pending" | "accepted" | "declined">("pending");
   const [signatureName, setSignatureName] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [loadedQuote, setLoadedQuote] = useState<Quote | null>(null);
+
+  useEffect(() => {
+    const q = getQuoteById(quoteId);
+    if (q) {
+      setLoadedQuote(q);
+      if (q.status === "Accepted") setStatus("accepted");
+      else if (q.status === "Declined") setStatus("declined");
+      else setStatus("pending");
+    }
+  }, [quoteId]);
 
   const quoteData = {
-    id: quoteId || "BB-1042",
+    id: loadedQuote?.id || quoteId || "BB-1042",
     businessName: "Apex Plumbing & Heating Ltd",
     contactName: "Mark Robinson",
     phone: "07911 123456",
     email: "mark@apexplumbing.co.uk",
     accreditations: ["Gas Safe Register #589214", "TrustMark Accredited", "£2M Public Liability Insured"],
-    clientName: "Sarah Jenkins",
-    clientAddress: "24 Orchard Way, Bristol, BS8 4EJ",
-    date: "16 Oct 2026",
-    expiry: "15 Nov 2026 (Valid 30 Days)",
-    title: "En-suite Bathroom Renovation & Radiator Upgrade",
+    clientName: loadedQuote?.clientName || "Sarah Jenkins",
+    clientAddress: loadedQuote?.clientAddress || "24 Orchard Way, Bristol, BS8 4EJ",
+    date: loadedQuote?.createdAt || "16 Oct 2026",
+    expiry: "Valid 30 Days",
+    title: loadedQuote?.title || "En-suite Bathroom Renovation & Radiator Upgrade",
     scope:
+      loadedQuote?.notes ||
       "Full strip out of existing shower and sanitaryware. Installation of thermostatic bar shower, 1200x500mm chrome heated towel rail, low-profile resin tray, vanity basin, pipework rerouting, testing, and licensed trade waste disposal.",
-    items: [
-      {
-        description: "Thermostatic Bar Shower Kit & Riser Rail",
-        type: "Materials",
-        amount: "£245.00",
-      },
-      {
-        description: "Chrome Heated Towel Rail (1200x500mm) + Angled Valves",
-        type: "Materials",
-        amount: "£165.00",
-      },
-      {
-        description: "Low Profile Stone Resin Shower Tray (1200x800mm)",
-        type: "Materials",
-        amount: "£195.00",
-      },
-      {
-        description: "Certified plumbing labor, waste routing & pressure testing",
-        type: "Labor",
-        amount: "£880.00",
-      },
-      {
-        description: "Old suite rip-out & licensed trade waste disposal",
-        type: "Disposal",
-        amount: "£180.00",
-      },
-    ],
-    subtotal: "£1,665.00",
-    vat: "£333.00",
-    total: "£1,998.00",
-    depositRequired: "£399.60", // 20%
-    depositPercent: "20%",
+    items: loadedQuote?.items && loadedQuote.items.length > 0
+      ? loadedQuote.items.map((i) => ({
+          description: i.description,
+          type: i.type.charAt(0).toUpperCase() + i.type.slice(1),
+          amount: `£${(i.quantity * i.rate).toFixed(2)}`,
+        }))
+      : [
+          {
+            description: "Thermostatic Bar Shower Kit & Riser Rail",
+            type: "Materials",
+            amount: "£245.00",
+          },
+          {
+            description: "Chrome Heated Towel Rail (1200x500mm) + Angled Valves",
+            type: "Materials",
+            amount: "£165.00",
+          },
+          {
+            description: "Certified plumbing labor, waste routing & pressure testing",
+            type: "Labor",
+            amount: "£880.00",
+          },
+        ],
+    subtotal: `£${(loadedQuote?.subtotal || 1665.0).toFixed(2)}`,
+    vat: `£${(loadedQuote?.vat || 333.0).toFixed(2)}`,
+    total: `£${(loadedQuote?.total || 1998.0).toFixed(2)}`,
+    depositRequired: `£${(loadedQuote?.deposit || 399.6).toFixed(2)}`,
+    depositPercent: `${loadedQuote?.depositPercent || 20}%`,
   };
 
   const handleConfirmAccept = () => {
     if (!signatureName.trim() || !agreedToTerms) return;
+    updateQuoteStatus(quoteId, "Accepted");
     setStatus("accepted");
     setShowSignModal(false);
   };
 
   const handleConfirmDecline = () => {
+    updateQuoteStatus(quoteId, "Declined");
     setStatus("declined");
     setShowDeclineModal(false);
   };
@@ -103,11 +115,11 @@ export default function CustomerQuoteClient({
             <div>
               <h2 className="text-xl font-black">Quote Accepted & Signed!</h2>
               <p className="text-emerald-100 text-sm mt-1">
-                Thank you, {signatureName || quoteData.clientName}. {quoteData.businessName} has received your acceptance. A confirmation email and booking deposit receipt have been sent.
+                Thank you, {signatureName || quoteData.clientName}. {quoteData.businessName} has received your digital acceptance. The dashboard and booking deposit receipt have been updated.
               </p>
               <div className="mt-3 flex items-center gap-3">
                 <span className="text-xs bg-emerald-700/80 px-3 py-1 rounded-lg font-semibold">
-                  Signed on 16 Oct 2026
+                  Signed & Confirmed
                 </span>
                 <span className="text-xs bg-emerald-700/80 px-3 py-1 rounded-lg font-semibold">
                   Deposit: {quoteData.depositRequired}
@@ -121,7 +133,7 @@ export default function CustomerQuoteClient({
             <div>
               <h2 className="text-lg font-bold">Quote Declined</h2>
               <p className="text-slate-300 text-sm mt-1">
-                You have marked this quote as declined. Feedback has been sent to {quoteData.businessName}.
+                You have marked this quote as declined. Feedback has been updated for {quoteData.businessName}.
               </p>
             </div>
           </div>
@@ -132,7 +144,7 @@ export default function CustomerQuoteClient({
               Official Trade Quote from {quoteData.businessName}
             </span>
             <span className="bg-blue-700/80 px-2.5 py-1 rounded text-xs">
-              Valid until 15 Nov 2026
+              {quoteData.expiry}
             </span>
           </div>
         )}
@@ -195,7 +207,7 @@ export default function CustomerQuoteClient({
               <div>
                 <span className="text-slate-400 uppercase font-bold tracking-wider">Project Specification</span>
                 <p className="text-sm font-bold text-white mt-0.5">{quoteData.title}</p>
-                <p className="text-slate-400 mt-0.5">{quoteData.expiry}</p>
+                <p className="text-slate-400 mt-0.5">Date Issued: {quoteData.date}</p>
               </div>
             </div>
           </div>
@@ -298,7 +310,7 @@ export default function CustomerQuoteClient({
                 <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between text-xs sm:text-sm text-emerald-800 font-semibold">
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    You accepted this quote on 16 Oct 2026.
+                    You accepted this quote on {quoteData.date}.
                   </span>
                   <button
                     type="button"

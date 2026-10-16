@@ -213,6 +213,101 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Why Builders Choose BuilderBot: Old Way vs. BuilderBot */}
+      <section className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+              The Modern Trade Advantage
+            </span>
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-3">
+              Why Builders Choose BuilderBot
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Compare the traditional painful quoting routine with the BuilderBot workflow.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+            {/* The Old Way */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-rose-200/80 shadow-xs relative overflow-hidden">
+              <div className="flex items-center justify-between pb-4 border-b border-rose-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-sm">
+                    ✕
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900">The Old Way</h3>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  Slow & Frustrating
+                </span>
+              </div>
+
+              <ul className="mt-6 space-y-4 text-sm text-slate-600">
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0">✕</span>
+                  <span><strong>Excel & Word docs:</strong> Fiddling with formatting and formulas after a long day.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0">✕</span>
+                  <span><strong>Scrap paper notes:</strong> Lost measurements and scribbled notes in the van.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0">✕</span>
+                  <span><strong>Hours lost at night:</strong> Typing estimates at 9:00 PM instead of spending time with family.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0">✕</span>
+                  <span><strong>Chasing customers:</strong> Awkward phone tag asking "did you get my email?"</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0">✕</span>
+                  <span><strong>Guessing margins:</strong> Forgetting waste or material markups and undercharging.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* With BuilderBot */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-blue-600 shadow-xl shadow-blue-600/10 relative overflow-hidden ring-4 ring-blue-500/10">
+              <div className="flex items-center justify-between pb-4 border-b border-blue-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                    ✓
+                  </span>
+                  <h3 className="text-lg font-extrabold text-slate-900">With BuilderBot</h3>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  ⚡ Fast & Professional
+                </span>
+              </div>
+
+              <ul className="mt-6 space-y-4 text-sm text-slate-700">
+                <li className="flex items-start gap-3">
+                  <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                  <span><strong>Instant AI quotes:</strong> Itemized labor, materials, and VAT generated in seconds.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                  <span><strong>Digital customer hub:</strong> All client notes, site addresses, and quote history in one place.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                  <span><strong>Voice quoting in your van:</strong> Speak for 30 seconds before you drive away and send it.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                  <span><strong>1-Click acceptance link:</strong> Customers sign on their phone and deposits get locked in.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                  <span><strong>Calculated margins:</strong> Automatically protects your day rates and material markup.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Grid */}
       <section className="py-16 sm:py-24 bg-white border-t border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

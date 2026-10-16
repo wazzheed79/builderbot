@@ -19,6 +19,7 @@
 - **Styling:** Tailwind CSS (mobile-first, clean, high-contrast for on-site tradespeople)
 - **Icons:** `lucide-react`
 - **Speech / Audio:** Web Speech API / Voice Dictation for Van Use
+- **State & Data Store:** `lib/storage.ts` (Client repository for Customers, Quotes, and Dashboard KPIs)
 - **Backend / Database:** Supabase (Auth, Postgres, Storage)
 - **AI Engine:** Google Gemini (fast structured output with `gemini-2.5-flash`)
 - **Payments:** Stripe (invoicing & deposit collection)
@@ -26,17 +27,16 @@
 
 ---
 
-## 📋 Quote Lifecycle Workflow
+## 📋 Complete Data Flow Loop
 ```mermaid
 stateDiagram-v2
-    [*] --> Lead: New Enquiry / Site Visit
-    Lead --> Draft: Voice, Template or Margin Calc Creation
-    Draft --> Sent: Sent to Customer (SMS / WhatsApp / PDF)
-    Sent --> Accepted: One-Click Customer Digital Acceptance (/q/[id])
-    Sent --> Rejected: Customer Declines
-    Accepted --> InProgress: Work Scheduled / Deposit Paid
-    InProgress --> Completed: Work Finished & Photos Uploaded
-    Completed --> Paid: Final Balance Invoiced & Paid
+    [*] --> CustomerDirectory: Add/Manage Client Details
+    CustomerDirectory --> QuoteBuilder: Select Client & Build Items
+    QuoteBuilder --> MarginCalculator: Set Material Markup & Day Rates
+    QuoteBuilder --> StoredQuote: Save & Issue (e.g. BB-1043)
+    StoredQuote --> AcceptanceLink: Public Client URL (/q/[id])
+    AcceptanceLink --> AcceptedQuote: Client Signs & Confirms
+    AcceptedQuote --> DashboardKPIs: Updates Win Rate & Won Revenue Live
 ```
 
 ---
@@ -44,22 +44,24 @@ stateDiagram-v2
 ## 🚦 Agent Conventions & Guidelines
 1. **Mobile-First Van Experience**: Tradespeople use this in their vans with work gloves or dirty hands. Large tap targets (min 44px), voice-ready, zero unnecessary forms.
 2. **Auto-Push Policy**: Whenever a task or feature is completed and verified, stage all files, commit with a concise descriptive message, and push directly to GitHub.
-3. **Deterministic Prerender Compatibility**: In Next.js 16 Partial Prerendering, wrap dynamic hook consumers (`usePathname()`, `params`) in `<Suspense>` and avoid calling non-deterministic APIs (`Math.random()`, `new Date()`) directly in JSX during static builds.
-4. **Keep Docs in Sync**: Keep this file and `README.md` aligned with any new routes or schema additions.
+3. **Deterministic Prerender Compatibility**: In Next.js 16 Partial Prerendering, wrap dynamic hook consumers (`usePathname()`, `useSearchParams()`, `params`) in `<Suspense>` and avoid calling non-deterministic APIs (`Math.random()`, `new Date()`) directly in JSX during static builds.
+4. **Data Sync**: When adding new fields to `Customer` or `Quote`, update `lib/storage.ts` and sync across the Customer Directory, Quote Builder, Customer Acceptance view, and Dashboard.
 
 ---
 
 ## 📝 Changelog & Completed Work
 - [x] **Project Scaffolding**: Initialized Next.js App Router app with TypeScript and Tailwind CSS.
 - [x] **Navigation & Shell**: Created unified responsive navigation (`components/AppNav.tsx`) with desktop header and thumb-friendly mobile bottom navigation bar.
-- [x] **Landing Page Redesign (`app/page.tsx`)**: High-converting trade landing page with hero, live quote card mockup, trade badges, 3-step workflow, and clear CTAs.
-- [x] **Voice-to-Quote Dictation (`app/quotes/page.tsx`)**: Integrated speech recognition with visual listening indicator for hands-free quoting in vans.
-- [x] **AI Job Description Assistant (`app/quotes/page.tsx`)**: "✨ Expand to Professional Scope" button turns raw notes into contract-grade trade specifications.
-- [x] **1-Click High-Priority Quote Templates (`app/quotes/page.tsx`)**: 5 fully itemized trade templates (Kitchen Renovation, Bathroom Installation, Roof Repair, Block Paved Driveway, Combi Boiler Replacement).
-- [x] **Materials & Labour Margin Calculator (`app/quotes/page.tsx`)**: Built-in pricing estimator for Net Materials + Markup % + Days x Day Rate + Waste/Skip to protect profit margins and push directly to quotes.
-- [x] **Customer Quote Acceptance Page (`/q/[id]`)**: Full public client-facing page with contractor accreditation badges, scope of work, itemized costs, digital signature capture, and decline feedback.
-- [x] **Dashboard Overview (`app/dashboard/page.tsx`)**: KPI metrics (Quotes Sent, Won Value, Win Rate) and real-time recent quotes table.
-- [x] **Customer Directory (`app/customers/page.tsx`)**: Searchable client list with phone, email, site address, and quote history.
+- [x] **Landing Page & Comparison**: High-converting trade landing page with **"The Old Way vs. BuilderBot"** side-by-side contrast section (`app/page.tsx`).
+- [x] **Unified Persistence Layer (`lib/storage.ts`)**: Central client data repository managing real Customers, Quotes, Line Items, and computed Dashboard KPI metrics.
+- [x] **Real Customer Management CRM (`app/customers/page.tsx`)**: Add, edit, and delete real customers with company, phone, email, address, notes, and 1-click quote creation.
+- [x] **Connected Quote Builder (`app/quotes/QuotesClient.tsx`)**: Select real customers from directory, add custom line items, calculate margins, and save permanent quotes (`BB-1043`).
+- [x] **Voice-to-Quote Dictation**: Integrated speech recognition with visual listening indicator for hands-free quoting in vans.
+- [x] **AI Job Description Assistant**: "✨ Expand to Professional Scope" button turns raw notes into contract-grade trade specifications.
+- [x] **1-Click High-Priority Quote Templates**: 5 fully itemized trade templates (Kitchen Renovation, Bathroom Installation, Roof Repair, Block Paved Driveway, Combi Boiler Replacement).
+- [x] **Materials & Labour Margin Calculator**: Built-in pricing estimator for Net Materials + Markup % + Days x Day Rate + Waste/Skip.
+- [x] **Customer Acceptance Page (`/q/[id]`)**: Full public client-facing page with contractor accreditation badges, digital signature capture, acceptance confirmation, and decline feedback linked to storage.
+- [x] **Live Dashboard Metrics (`app/dashboard/page.tsx`)**: Real-time KPI metrics (Quotes Sent, Won Contract Value, Win Rate %, Pending Value) dynamically calculated from stored quotes.
 - [x] **Repository & CI/CD**: Verified with clean Next.js 16 build and pushed to GitHub (`wazzheed79/builderbot`).
 
 ---
@@ -68,19 +70,22 @@ stateDiagram-v2
 
 ### Phase 1: Core Quoting & Foundations
 - [x] Responsive trade app shell & mobile navigation
-- [x] Landing page with trade-focused value proposition
-- [x] Interactive quote generator UI with labor/materials breakdown
+- [x] Landing page with "The Old Way vs. BuilderBot" comparison
+- [x] Unified persistence layer for Customers, Quotes, and Metrics
+- [x] Real Customer Management (CRM)
+- [x] Real Quote Builder with Customer linking & saving
 - [x] Voice-to-Quote mic dictation in quote form
 - [x] AI Job Description Scope Expander
 - [x] 1-Click Quote Templates (Kitchen, Bathroom, Roof, Driveway, Boiler)
 - [x] Labour & Materials Margin Calculator
-- [x] Customer Shareable Link & One-Click Digital Acceptance Page (`/q/[id]`)
+- [x] Customer Shareable Link & Digital Acceptance Page (`/q/[id]`)
+- [x] Live Dashboard KPI Metrics (Win rate, Won value, Pipeline)
 - [ ] **PDF Branding & Generation** (Custom logo upload, trade accreditation seals, terms & conditions)
 
 ### Phase 2: Trade Intelligence & Speed
-- [ ] **Customer History & Lightweight CRM** (Customer profile page showing past quotes, revenue, notes)
-- [ ] **Supabase Database & Auth Integration** (`profiles`, `customers`, `quotes`, `quote_items`)
+- [ ] **Supabase Database & Auth Integration** (Cloud sync for multi-device tradespeople)
 - [ ] **Real Gemini API Endpoint** (Server Action / API route parsing real voice audio and text into JSON)
+- [ ] **Customer Profile Detail Page** (Deep dive into customer's lifetime quotes, notes, and photos)
 
 ### Phase 3: Conversions & Pipeline
 - [ ] **Stripe Deposit Collection** (Collect 20% or custom deposit directly upon customer signing)
@@ -93,18 +98,3 @@ stateDiagram-v2
 - [ ] Trade Supplier Material Cost Integrations (Screwfix, Toolstation pricing lookups)
 - [ ] WhatsApp & SMS automated quote delivery and reminder follow-ups
 - [ ] Revenue analytics & tax summaries
-
----
-
-## 💡 The 10 Core Pillars & Ideas
-
-1. **Quote Templates**: Instant presets for common jobs (Kitchens, Bathrooms, Driveways, Boilers, Roofing).
-2. **Materials & Labour Margin Calculator**: Auto-calculates net material cost + trade markup + labor days x day rate + VAT.
-3. **Customer History (CRM)**: Customer profiles showing total spend, previous quotes, and notes.
-4. **AI Job Description Expander**: Transforms raw bullet points into polished, professional descriptions that win higher-value jobs.
-5. **PDF Branding**: Clean PDF exports with business logo, contact info, insurance details, and standard T&Cs.
-6. **Quote Acceptance Page**: Clean public URL where clients can click "Accept Quote" or "Decline" with digital signature.
-7. **Job Pipeline Kanban/List**: Full visibility from Lead to Paid.
-8. **Site Photo Attachments**: Before/after and site condition photos stored with quotes.
-9. **Project Calendar**: Start and target completion dates with calendar sync.
-10. **Voice Quoting (Killer Feature)**: Speak for 30 seconds into a phone on site; AI generates the entire structured quote.
