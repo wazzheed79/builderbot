@@ -18,7 +18,7 @@
 - **Language:** TypeScript (`strict: true`)
 - **Styling:** Tailwind CSS (mobile-first, clean, high-contrast for on-site tradespeople)
 - **Icons:** `lucide-react`
-- **Speech / Audio:** Web Speech API / Audio Recording for Voice Quotes
+- **Speech / Audio:** Web Speech API / Voice Dictation for Van Use
 - **Backend / Database:** Supabase (Auth, Postgres, Storage)
 - **AI Engine:** Google Gemini (fast structured output with `gemini-2.5-flash`)
 - **Payments:** Stripe (invoicing & deposit collection)
@@ -30,9 +30,9 @@
 ```mermaid
 stateDiagram-v2
     [*] --> Lead: New Enquiry / Site Visit
-    Lead --> Draft: Voice or Template Quote Creation
+    Lead --> Draft: Voice, Template or Margin Calc Creation
     Draft --> Sent: Sent to Customer (SMS / WhatsApp / PDF)
-    Sent --> Accepted: One-Click Customer Digital Acceptance
+    Sent --> Accepted: One-Click Customer Digital Acceptance (/q/[id])
     Sent --> Rejected: Customer Declines
     Accepted --> InProgress: Work Scheduled / Deposit Paid
     InProgress --> Completed: Work Finished & Photos Uploaded
@@ -44,7 +44,7 @@ stateDiagram-v2
 ## 🚦 Agent Conventions & Guidelines
 1. **Mobile-First Van Experience**: Tradespeople use this in their vans with work gloves or dirty hands. Large tap targets (min 44px), voice-ready, zero unnecessary forms.
 2. **Auto-Push Policy**: Whenever a task or feature is completed and verified, stage all files, commit with a concise descriptive message, and push directly to GitHub.
-3. **Deterministic Prerender Compatibility**: In Next.js 16 Partial Prerendering, avoid calling `Math.random()` or `new Date()` directly in static JSX trees. Use static values, `useEffect`, or cached props.
+3. **Deterministic Prerender Compatibility**: In Next.js 16 Partial Prerendering, wrap dynamic hook consumers (`usePathname()`, `params`) in `<Suspense>` and avoid calling non-deterministic APIs (`Math.random()`, `new Date()`) directly in JSX during static builds.
 4. **Keep Docs in Sync**: Keep this file and `README.md` aligned with any new routes or schema additions.
 
 ---
@@ -53,10 +53,14 @@ stateDiagram-v2
 - [x] **Project Scaffolding**: Initialized Next.js App Router app with TypeScript and Tailwind CSS.
 - [x] **Navigation & Shell**: Created unified responsive navigation (`components/AppNav.tsx`) with desktop header and thumb-friendly mobile bottom navigation bar.
 - [x] **Landing Page Redesign (`app/page.tsx`)**: High-converting trade landing page with hero, live quote card mockup, trade badges, 3-step workflow, and clear CTAs.
-- [x] **AI Quote Generator UI (`app/quotes/page.tsx`)**: Interactive generator with trade prompt presets, editable labor/materials line items, VAT toggle, deposit calculation, and print/share actions.
+- [x] **Voice-to-Quote Dictation (`app/quotes/page.tsx`)**: Integrated speech recognition with visual listening indicator for hands-free quoting in vans.
+- [x] **AI Job Description Assistant (`app/quotes/page.tsx`)**: "✨ Expand to Professional Scope" button turns raw notes into contract-grade trade specifications.
+- [x] **1-Click High-Priority Quote Templates (`app/quotes/page.tsx`)**: 5 fully itemized trade templates (Kitchen Renovation, Bathroom Installation, Roof Repair, Block Paved Driveway, Combi Boiler Replacement).
+- [x] **Materials & Labour Margin Calculator (`app/quotes/page.tsx`)**: Built-in pricing estimator for Net Materials + Markup % + Days x Day Rate + Waste/Skip to protect profit margins and push directly to quotes.
+- [x] **Customer Quote Acceptance Page (`/q/[id]`)**: Full public client-facing page with contractor accreditation badges, scope of work, itemized costs, digital signature capture, and decline feedback.
 - [x] **Dashboard Overview (`app/dashboard/page.tsx`)**: KPI metrics (Quotes Sent, Won Value, Win Rate) and real-time recent quotes table.
 - [x] **Customer Directory (`app/customers/page.tsx`)**: Searchable client list with phone, email, site address, and quote history.
-- [x] **Repository & CI/CD**: Linked with GitHub remote (`wazzheed79/builderbot`), build verified, and continuously pushed.
+- [x] **Repository & CI/CD**: Verified with clean Next.js 16 build and pushed to GitHub (`wazzheed79/builderbot`).
 
 ---
 
@@ -66,21 +70,22 @@ stateDiagram-v2
 - [x] Responsive trade app shell & mobile navigation
 - [x] Landing page with trade-focused value proposition
 - [x] Interactive quote generator UI with labor/materials breakdown
-- [ ] **Voice-to-Quote Prototype** (Web Speech API mic capture in quote form)
-- [ ] **AI Job Description Assistant** (Expand raw notes into professional client-ready scopes)
-- [ ] **PDF Branding & Generation** (Company logo, trade accreditations, T&Cs, payment terms)
-- [ ] **Customer Shareable Link & One-Click Acceptance Page** (`/q/[id]` with Accept/Decline)
+- [x] Voice-to-Quote mic dictation in quote form
+- [x] AI Job Description Scope Expander
+- [x] 1-Click Quote Templates (Kitchen, Bathroom, Roof, Driveway, Boiler)
+- [x] Labour & Materials Margin Calculator
+- [x] Customer Shareable Link & One-Click Digital Acceptance Page (`/q/[id]`)
+- [ ] **PDF Branding & Generation** (Custom logo upload, trade accreditation seals, terms & conditions)
 
 ### Phase 2: Trade Intelligence & Speed
-- [ ] **1-Click Quote Templates** (Kitchen renovation, Bathroom installation, Roof repair, Boiler swap)
-- [ ] **Labour & Margin Calculator** (Materials + Markup % + Day Rate x Days + VAT)
-- [ ] **Customer History & Lightweight CRM** (Past quotes, accepted jobs, outstanding revenue)
+- [ ] **Customer History & Lightweight CRM** (Customer profile page showing past quotes, revenue, notes)
 - [ ] **Supabase Database & Auth Integration** (`profiles`, `customers`, `quotes`, `quote_items`)
+- [ ] **Real Gemini API Endpoint** (Server Action / API route parsing real voice audio and text into JSON)
 
 ### Phase 3: Conversions & Pipeline
-- [ ] **Stripe Deposit Collection** (Collect 20% or custom deposit upon quote signing)
-- [ ] **Job Pipeline Dashboard** (Lead → Quote Sent → Accepted → In Progress → Completed → Paid)
-- [ ] **Photo Uploads** (Before, in-progress, and finished work photos attached to quotes)
+- [ ] **Stripe Deposit Collection** (Collect 20% or custom deposit directly upon customer signing)
+- [ ] **Job Pipeline Kanban Dashboard** (Lead → Quote Sent → Accepted → In Progress → Completed → Paid)
+- [ ] **Site Photo Attachments** (Before/after and site condition photos stored with quotes)
 - [ ] **Calendar & Scheduling Integration** (Project start dates, completion milestones)
 
 ### Phase 4: Full Automation & Scale

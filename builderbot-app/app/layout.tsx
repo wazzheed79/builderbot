@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import AppNav from "@/components/AppNav";
 
@@ -29,7 +30,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 pb-20 md:pb-0">
-        <AppNav />
+        <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-white" />}>
+          <AppNav />
+        </Suspense>
         <div className="flex-1 flex flex-col">{children}</div>
       </body>
     </html>
