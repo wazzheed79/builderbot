@@ -105,6 +105,7 @@ export function mapRowToProfile(row: Record<string, unknown>): BusinessProfile {
     paymentTermsDays: Number(row.payment_terms_days ?? 7),
     quoteValidityDays: Number(row.quote_validity_days ?? 30),
     termsAndConditions: row.terms_and_conditions ? String(row.terms_and_conditions) : undefined,
+    logoUrl: row.logo_url ? String(row.logo_url) : "",
   };
 }
 
@@ -409,6 +410,7 @@ export async function syncProfileToCloud(profile: BusinessProfile): Promise<bool
       payment_terms_days: profile.paymentTermsDays,
       quote_validity_days: profile.quoteValidityDays,
       terms_and_conditions: profile.termsAndConditions || null,
+      logo_url: profile.logoUrl || null,
     });
     return !error;
   } catch {

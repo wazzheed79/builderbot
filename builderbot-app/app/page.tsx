@@ -67,7 +67,7 @@ export default function Home() {
             {/* Subtitle */}
             <p className="mt-6 text-lg sm:text-xl text-slate-600 leading-relaxed font-normal">
               No more losing evenings to quoting spreadsheets. Enter rough job notes
-              or voice memos, and BuilderBot generates itemized, professional quotes ready to send.
+              or voice memos, and TradeMate generates itemized, professional quotes ready to send.
             </p>
 
             {/* CTAs */}
@@ -217,10 +217,10 @@ export default function Home() {
               The Modern Trade Advantage
             </span>
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-3">
-              Why Builders Choose BuilderBot
+              Why Trades Choose TradeMate
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Compare the traditional painful quoting routine with the BuilderBot workflow.
+              Compare the traditional painful quoting routine with the TradeMate workflow.
             </p>
           </div>
 
@@ -263,14 +263,14 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* With BuilderBot */}
+            {/* With TradeMate */}
             <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-blue-600 shadow-xl shadow-blue-600/10 relative overflow-hidden ring-4 ring-blue-500/10">
               <div className="flex items-center justify-between pb-4 border-b border-blue-100">
                 <div className="flex items-center gap-2">
                   <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
                     ✓
                   </span>
-                  <h3 className="text-lg font-extrabold text-slate-900">With BuilderBot</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900">With TradeMate</h3>
                 </div>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   ⚡ Fast & Professional
@@ -365,7 +365,7 @@ export default function Home() {
               </div>
               <h3 className="font-bold text-lg mb-2">AI Calculates Breakdown</h3>
               <p className="text-slate-400 text-sm leading-relaxed">
-                BuilderBot splits out trade materials, estimated labor hours, and totals with standard markup.
+                TradeMate splits out trade materials, estimated labor hours, and totals with standard markup.
               </p>
             </div>
 
@@ -392,6 +392,32 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Founder Story Section */}
+      <section className="py-16 sm:py-20 bg-slate-100/70 border-t border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white p-8 sm:p-10 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-8">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
+              MB
+            </div>
+
+            <div className="space-y-3 text-center md:text-left">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                A Note from the Founder
+              </span>
+              <h2 className="text-2xl font-black text-slate-900">
+                Built for Hardworking UK Tradespeople
+              </h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                &ldquo;Hi, I&apos;m Michael Boylen. I built TradeMate because hardworking trades shouldn&apos;t have to sacrifice their evenings to spreadsheets and paperwork after a 10-hour day on site. TradeMate gives you the power to price your work, generate an itemized quote, and send it via WhatsApp before you even leave the customer&apos;s driveway.&rdquo;
+              </p>
+              <p className="text-xs font-bold text-slate-900 pt-1">
+                — Michael Boylen, Founder of TradeMate
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-10 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
@@ -399,10 +425,10 @@ export default function Home() {
             <div className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
               <Wrench className="w-3.5 h-3.5" />
             </div>
-            <span className="font-bold text-slate-800 text-sm">BuilderBot</span>
-            <span>— The AI Quoting Platform for Trades</span>
+            <span className="font-bold text-slate-800 text-sm">TradeMate</span>
+            <span>— AI Quoting & Invoicing for Trades</span>
           </div>
-          <p>© 2026 BuilderBot. Designed for fast quoting on site.</p>
+          <p>© 2026 TradeMate. Created by Michael Boylen for UK Trades.</p>
         </div>
       </footer>
     </div>

@@ -111,6 +111,7 @@ export interface BusinessProfile {
   paymentTermsDays: number;
   quoteValidityDays: number;
   termsAndConditions?: string;
+  logoUrl?: string;
 }
 
 export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
@@ -133,6 +134,7 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   quoteValidityDays: 30,
   termsAndConditions:
     "1. All materials remain property of the contractor until paid in full.\n2. Workmanship guaranteed for 12 months from completion date.\n3. Deposit required before procurement of materials.",
+  logoUrl: "",
 };
 
 const PROFILE_KEY = "builderbot_business_profile";

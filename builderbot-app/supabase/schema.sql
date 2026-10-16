@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   payment_terms_days INT DEFAULT 7 CHECK (payment_terms_days >= 0),
   quote_validity_days INT DEFAULT 30 CHECK (quote_validity_days >= 1),
   terms_and_conditions TEXT,
+  logo_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

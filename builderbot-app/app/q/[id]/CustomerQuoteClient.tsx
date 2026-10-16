@@ -321,14 +321,25 @@ export default function CustomerQuoteClient({
           {/* Header & Contractor Details */}
           <div className="p-6 sm:p-8 bg-slate-900 text-white">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-800">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/30 text-blue-300 text-xs font-bold border border-blue-500/30 mb-2">
-                  <Wrench className="w-3.5 h-3.5" />
-                  <span>{profile.trade || "Licensed Trade Contractor"}</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-white">
-                  {contractorName}
-                </h1>
+              <div className="flex items-start gap-4">
+                {activeProfile.logoUrl && (
+                  <div className="w-16 h-16 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={activeProfile.logoUrl}
+                      alt={contractorName}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/30 text-blue-300 text-xs font-bold border border-blue-500/30 mb-2">
+                    <Wrench className="w-3.5 h-3.5" />
+                    <span>{profile.trade || "Licensed Trade Contractor"}</span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-white">
+                    {contractorName}
+                  </h1>
                 {profile.tradingName && (
                   <p className="text-xs text-blue-300 font-medium">{profile.tradingName}</p>
                 )}
@@ -359,8 +370,9 @@ export default function CustomerQuoteClient({
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Contractor Contact */}
+            {/* Contractor Contact */}
               <div className="sm:text-right space-y-1">
                 <div className="flex flex-wrap items-center sm:justify-end gap-1.5 pb-1">
                   <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-blue-400 border border-slate-700">

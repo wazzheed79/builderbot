@@ -45,14 +45,14 @@ export default function AppNav() {
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-lg tracking-tight text-slate-900 flex items-center gap-1.5">
-                BuilderBot
+                TradeMate
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                   <Sparkles className="w-2.5 h-2.5 mr-0.5 text-blue-600" />
                   AI Trade
                 </span>
               </span>
               <span className="text-[11px] font-medium text-slate-500 -mt-1 hidden sm:block">
-                Quotes in &lt; 2 minutes
+                Quotes & Invoices in &lt; 2 minutes
               </span>
             </div>
           </Link>
