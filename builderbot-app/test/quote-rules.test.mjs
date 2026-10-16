@@ -21,7 +21,11 @@ function validateStatusTransition(currentStatus, targetStatus, isExpired) {
   if (isExpired) {
     return { allowed: false, error: "Quote has expired." };
   }
-  if (currentStatus !== "Sent") {
+  if (targetStatus === "Viewed") {
+    if (currentStatus === "Sent") return { allowed: true };
+    return { allowed: false, error: `Cannot transition from ${currentStatus} to Viewed.` };
+  }
+  if (currentStatus !== "Sent" && currentStatus !== "Viewed") {
     return { allowed: false, error: `Cannot transition from ${currentStatus}.` };
   }
   if (targetStatus !== "Accepted" && targetStatus !== "Rejected") {
@@ -72,17 +76,24 @@ test("Quote Calculations: handles 0% deposit and VAT disabled without NaN", () =
   assert.equal(result.deposit, 0.00);
 });
 
-test("Status Machine: Only 'Sent' quotes can be Accepted or Rejected", () => {
+test("Status Machine: Handles Sent -> Viewed -> Accepted/Rejected lifecycle", () => {
+  // Sent -> Viewed when opened
+  assert.deepEqual(validateStatusTransition("Sent", "Viewed", false), { allowed: true });
+
+  // Viewed -> Accepted or Rejected
+  assert.deepEqual(validateStatusTransition("Viewed", "Accepted", false), { allowed: true });
+  assert.deepEqual(validateStatusTransition("Viewed", "Rejected", false), { allowed: true });
+
+  // Sent can also directly transition if signed immediately
   assert.deepEqual(validateStatusTransition("Sent", "Accepted", false), { allowed: true });
-  assert.deepEqual(validateStatusTransition("Sent", "Rejected", false), { allowed: true });
 
-  // Disallow Draft to Accepted directly
-  const draftAttempt = validateStatusTransition("Draft", "Accepted", false);
-  assert.equal(draftAttempt.allowed, false);
+  // Disallow Draft to Viewed or Accepted directly
+  assert.equal(validateStatusTransition("Draft", "Viewed", false).allowed, false);
+  assert.equal(validateStatusTransition("Draft", "Accepted", false).allowed, false);
 
-  // Disallow modifying already accepted quotes
-  const acceptedAttempt = validateStatusTransition("Accepted", "Rejected", false);
-  assert.equal(acceptedAttempt.allowed, false);
+  // Disallow modifying already accepted or rejected quotes
+  assert.equal(validateStatusTransition("Accepted", "Rejected", false).allowed, false);
+  assert.equal(validateStatusTransition("Rejected", "Accepted", false).allowed, false);
 });
 
 test("Status Machine: Rejects acceptance if quote is expired", () => {

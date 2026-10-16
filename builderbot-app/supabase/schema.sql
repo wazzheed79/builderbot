@@ -63,7 +63,9 @@ CREATE TABLE IF NOT EXISTS public.quotes (
   total NUMERIC NOT NULL CHECK (total >= 0),
   deposit_percent NUMERIC DEFAULT 20 CHECK (deposit_percent >= 0 AND deposit_percent <= 100),
   deposit NUMERIC NOT NULL CHECK (deposit >= 0),
-  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Sent', 'Accepted', 'Rejected', 'Expired')),
+  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Sent', 'Viewed', 'Accepted', 'Rejected', 'Expired')),
+  viewed_at TIMESTAMP WITH TIME ZONE,
+  viewed_ip TEXT,
   accepted_signature_name TEXT,
   accepted_at TIMESTAMP WITH TIME ZONE,
   accepted_ip TEXT,
@@ -139,11 +141,16 @@ BEGIN
     v_validity_days := v_profile.quote_validity_days;
   END IF;
 
-  -- Check Expiry: if status is 'Sent' and current time exceeds validity
-  IF v_quote.status = 'Sent' AND (v_quote.created_at + (v_validity_days || ' days')::interval) < now() THEN
+  -- Check Expiry: if status is 'Sent' or 'Viewed' and current time exceeds validity
+  IF v_quote.status IN ('Sent', 'Viewed') AND (v_quote.created_at + (v_validity_days || ' days')::interval) < now() THEN
     UPDATE public.quotes SET status = 'Expired', updated_at = now() WHERE token = lookup_token;
     v_quote.status := 'Expired';
     v_is_expired := true;
+  ELSIF v_quote.status = 'Sent' THEN
+    -- First time client opens quote: transition to Viewed and stamp viewed_at
+    UPDATE public.quotes SET status = 'Viewed', viewed_at = now(), updated_at = now() WHERE token = lookup_token;
+    v_quote.status := 'Viewed';
+    v_quote.viewed_at := now();
   END IF;
 
   RETURN jsonb_build_object(
@@ -163,6 +170,7 @@ BEGIN
       'depositPercent', v_quote.deposit_percent,
       'deposit', v_quote.deposit,
       'status', v_quote.status,
+      'viewedAt', v_quote.viewed_at,
       'acceptedSignatureName', v_quote.accepted_signature_name,
       'acceptedAt', v_quote.accepted_at,
       'rejectedReason', v_quote.rejected_reason,
@@ -221,8 +229,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Quote not found.');
   END IF;
 
-  -- Validate state machine: Must be currently 'Sent'
-  IF v_quote.status != 'Sent' THEN
+  -- Validate state machine: Must be currently 'Sent' or 'Viewed'
+  IF v_quote.status NOT IN ('Sent', 'Viewed') THEN
     RETURN jsonb_build_object(
       'success', false,
       'error', 'Quote cannot be modified. Current status: ' || v_quote.status

@@ -19,6 +19,7 @@ import {
 import {
   getQuoteById,
   updateQuoteStatus,
+  markQuoteViewed,
   Quote,
   getBusinessProfile,
   BusinessProfile,
@@ -90,6 +91,13 @@ export default function CustomerQuoteClient({
       };
     }
   }, [loadedQuote, quoteId]);
+
+  // Mark quote as Viewed when customer opens the link
+  useEffect(() => {
+    if (loadedQuote && loadedQuote.status === "Sent") {
+      markQuoteViewed(loadedQuote.id);
+    }
+  }, [loadedQuote]);
 
   if (isLoadingCloud) {
     return (

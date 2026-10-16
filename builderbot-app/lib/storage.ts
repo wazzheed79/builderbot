@@ -43,7 +43,8 @@ export interface Quote {
   total: number;
   depositPercent: number;
   deposit: number;
-  status: "Draft" | "Sent" | "Accepted" | "Rejected" | "Expired";
+  status: "Draft" | "Sent" | "Viewed" | "Accepted" | "Rejected" | "Expired";
+  viewedAt?: string;
   acceptedSignatureName?: string;
   acceptedAt?: string;
   rejectedReason?: string;
@@ -472,6 +473,7 @@ export function updateQuoteStatus(
       target = {
         ...q,
         status,
+        ...(status === "Viewed" ? { viewedAt: q.viewedAt || now } : {}),
         ...(status === "Accepted" && metadata?.signatureName
           ? { acceptedSignatureName: metadata.signatureName, acceptedAt: now }
           : {}),
@@ -492,6 +494,37 @@ export function updateQuoteStatus(
   return target;
 }
 
+export function markQuoteViewed(idOrToken: string): Quote | undefined {
+  const current = getQuotes();
+  let target: Quote | undefined;
+
+  const lower = idOrToken.toLowerCase();
+  const now = new Date().toISOString();
+
+  const updated = current.map((q) => {
+    if (q.id.toLowerCase() === lower || q.token.toLowerCase() === lower) {
+      if (q.status === "Sent") {
+        target = {
+          ...q,
+          status: "Viewed",
+          viewedAt: q.viewedAt || now,
+        };
+        return target;
+      }
+      target = q;
+      return q;
+    }
+    return q;
+  });
+
+  if (typeof window !== "undefined" && target && target.status === "Viewed") {
+    localStorage.setItem(QUOTES_KEY, JSON.stringify(updated));
+    updateCloudQuoteStatus(idOrToken, "Viewed").catch(() => {});
+  }
+
+  return target;
+}
+
 export function deleteQuote(id: string): void {
   const current = getQuotes().filter((q) => q.id !== id);
   if (typeof window !== "undefined") localStorage.setItem(QUOTES_KEY, JSON.stringify(current));
@@ -502,12 +535,15 @@ export function getDashboardMetrics() {
   const quotes = getQuotes();
 
   const sentQuotes = quotes.filter((q) => q.status === "Sent");
+  const viewedQuotes = quotes.filter((q) => q.status === "Viewed");
   const acceptedQuotes = quotes.filter((q) => q.status === "Accepted");
   const rejectedQuotes = quotes.filter((q) => q.status === "Rejected");
   const draftQuotes = quotes.filter((q) => q.status === "Draft");
 
   const totalAcceptedValue = roundMoney(acceptedQuotes.reduce((acc, q) => acc + q.total, 0));
-  const totalPendingValue = roundMoney(sentQuotes.reduce((acc, q) => acc + q.total, 0));
+  const totalPendingValue = roundMoney(
+    quotes.filter((q) => q.status === "Sent" || q.status === "Viewed").reduce((acc, q) => acc + q.total, 0)
+  );
   const totalDraftValue = roundMoney(draftQuotes.reduce((acc, q) => acc + q.total, 0));
 
   const decidedQuotesCount = acceptedQuotes.length + rejectedQuotes.length;
@@ -516,6 +552,8 @@ export function getDashboardMetrics() {
   return {
     totalQuotesCount: quotes.length,
     sentQuotesCount: sentQuotes.length,
+    viewedQuotesCount: viewedQuotes.length,
+    activePipelineCount: sentQuotes.length + viewedQuotes.length,
     acceptedQuotesCount: acceptedQuotes.length,
     rejectedQuotesCount: rejectedQuotes.length,
     draftQuotesCount: draftQuotes.length,
@@ -523,6 +561,6 @@ export function getDashboardMetrics() {
     totalPendingValue,
     totalDraftValue,
     winRate,
-    recentQuotes: quotes.slice(0, 5),
+    recentQuotes: quotes.slice(0, 8),
   };
 }

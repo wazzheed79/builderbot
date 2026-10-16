@@ -24,8 +24,11 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Quotes Sent",
-      value: metrics.sentQuotesCount.toString(),
-      change: `${metrics.sentQuotesCount} awaiting decision`,
+      value: (metrics.sentQuotesCount + metrics.viewedQuotesCount).toString(),
+      change:
+        metrics.viewedQuotesCount > 0
+          ? `${metrics.viewedQuotesCount} opened by client`
+          : `${metrics.sentQuotesCount} active in pipeline`,
       icon: FileText,
       color: "text-blue-600 bg-blue-50 border-blue-200",
     },
@@ -37,9 +40,9 @@ export default function DashboardPage() {
       color: "text-emerald-600 bg-emerald-50 border-emerald-200",
     },
     {
-      title: "Pending Quotes",
+      title: "Pending Pipeline",
       value: `£${metrics.totalPendingValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: `${metrics.sentQuotesCount} active in pipeline`,
+      change: `${metrics.activePipelineCount} quotes outstanding`,
       icon: Clock,
       color: "text-amber-600 bg-amber-50 border-amber-200",
     },
@@ -151,19 +154,28 @@ export default function DashboardPage() {
                       className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
                         q.status === "Accepted"
                           ? "bg-emerald-100 text-emerald-800"
+                          : q.status === "Viewed"
+                          ? "bg-amber-100 text-amber-900 border border-amber-300"
                           : q.status === "Sent"
                           ? "bg-blue-100 text-blue-800"
                           : q.status === "Rejected"
                           ? "bg-rose-100 text-rose-800"
+                          : q.status === "Expired"
+                          ? "bg-slate-200 text-slate-700"
                           : "bg-slate-100 text-slate-700"
                       }`}
                     >
-                      {q.status}
+                      {q.status === "Viewed" ? "👀 Viewed" : q.status}
                     </span>
+                    {q.status === "Viewed" && q.viewedAt && (
+                      <span className="block text-[10px] text-amber-700 font-medium mt-0.5">
+                        Opened {new Date(q.viewedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
                   </td>
                   <td className="py-4 px-6 text-right">
                     <Link
-                      href={`/q/${q.id}`}
+                      href={`/q/${q.token || q.id}`}
                       className="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1"
                     >
                       <span>Customer Page</span>

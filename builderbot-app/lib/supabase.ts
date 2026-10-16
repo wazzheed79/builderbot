@@ -54,6 +54,7 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
     depositPercent: Number(row.deposit_percent ?? 20),
     deposit: Number(row.deposit ?? 0),
     status: (row.status as Quote["status"]) || "Draft",
+    viewedAt: row.viewed_at ? String(row.viewed_at) : undefined,
     acceptedSignatureName: row.accepted_signature_name ? String(row.accepted_signature_name) : undefined,
     acceptedAt: row.accepted_at ? String(row.accepted_at) : undefined,
     rejectedReason: row.rejected_reason ? String(row.rejected_reason) : undefined,
@@ -132,14 +133,23 @@ export async function fetchPublicQuoteByToken(token: string): Promise<{
       }
     }
 
-    // 3. Server-side Expiry Check
+    // 3. Server-side Expiry Check & Viewed Tracking
     const createdAtMs = new Date(quoteRow.created_at).getTime();
     const expiryMs = createdAtMs + validityDays * 24 * 60 * 60 * 1000;
     const isExpired = Date.now() > expiryMs;
 
-    if (isExpired && quote.status === "Sent") {
+    if (isExpired && (quote.status === "Sent" || quote.status === "Viewed")) {
       quote.status = "Expired";
-      await sb.from("quotes").update({ status: "Expired" }).eq("token", token);
+      await sb.from("quotes").update({ status: "Expired", updated_at: new Date().toISOString() }).eq("token", token);
+    } else if (!isExpired && quote.status === "Sent") {
+      // First time client opens the quote! Transition to "Viewed" and timestamp it.
+      const now = new Date().toISOString();
+      quote.status = "Viewed";
+      quote.viewedAt = now;
+      await sb
+        .from("quotes")
+        .update({ status: "Viewed", viewed_at: now, updated_at: now })
+        .eq("token", token);
     }
 
     return { quote, contractor, isExpired };
@@ -172,8 +182,8 @@ export async function submitPublicDecision(
       return { success: false, error: "Quote not found." };
     }
 
-    // 2. Strict State Transition Rule: ONLY 'Sent' quotes can be accepted or rejected
-    if (currentQuote.status !== "Sent") {
+    // 2. Strict State Transition Rule: ONLY 'Sent' or 'Viewed' quotes can be accepted or rejected
+    if (currentQuote.status !== "Sent" && currentQuote.status !== "Viewed") {
       return {
         success: false,
         error: `Quote cannot be modified. Current status: ${currentQuote.status}`,
