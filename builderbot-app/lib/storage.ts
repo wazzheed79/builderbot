@@ -42,6 +42,7 @@ export interface Quote {
   clientEmail?: string;
   title: string;
   notes: string;
+  photos?: string[];
   items: LineItem[];
   subtotal: number;
   vatEnabled: boolean;
@@ -220,6 +221,9 @@ const DEFAULT_QUOTES: Quote[] = [
     title: "En-suite Bathroom Renovation & Radiator Upgrade",
     notes:
       "Strip out old shower suite. Supply and install thermostatic bar shower, 1200x500mm heated towel rail, low-profile resin tray, vanity basin, pipework rerouting, testing, and licensed trade waste disposal.",
+    photos: [
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%23f1f5f9'/><rect x='20' y='20' width='560' height='410' rx='16' fill='%23e2e8f0'/><path d='M80 350 L220 180 L340 290 L440 160 L520 350 Z' fill='%2394a3b8'/><circle cx='440' cy='100' r='32' fill='%23f59e0b'/><text x='300' y='390' font-family='sans-serif' font-size='18' font-weight='bold' text-anchor='middle' fill='%231e293b'>Site Reference Photo: Existing Shower Area</text></svg>",
+    ],
     items: [
       {
         id: "1",

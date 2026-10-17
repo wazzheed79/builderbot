@@ -17,6 +17,7 @@ import {
   Clock,
   Share2,
   Receipt,
+  Camera,
 } from "lucide-react";
 import {
   getQuoteById,
@@ -63,6 +64,7 @@ export default function CustomerQuoteClient({
   const [showSignModal, setShowSignModal] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [selectedModalPhoto, setSelectedModalPhoto] = useState<string | null>(null);
   const [profile] = useState<BusinessProfile>(() => getBusinessProfile());
   const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
 
@@ -533,6 +535,37 @@ export default function CustomerQuoteClient({
               <QuoteQrCode url={quoteLiveUrl} size={90} label="Scan to Sign" />
             </div>
 
+            {/* Site & Inspection Reference Photos */}
+            {loadedQuote.photos && loadedQuote.photos.length > 0 && (
+              <div className="pt-4 border-t border-slate-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Camera className="w-4 h-4 text-blue-600" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">
+                    Job Site & Inspection Reference Photos ({loadedQuote.photos.length})
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {loadedQuote.photos.map((photoUrl, pIdx) => (
+                    <div
+                      key={pIdx}
+                      className="aspect-4/3 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-xs relative group cursor-pointer"
+                      onClick={() => setSelectedModalPhoto(photoUrl)}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photoUrl}
+                        alt={`Site Inspection Photo ${pIdx + 1}`}
+                        className="w-full h-full object-cover transition group-hover:scale-105"
+                      />
+                      <span className="absolute bottom-1.5 left-1.5 bg-slate-900/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded backdrop-blur-xs">
+                        Photo #{pIdx + 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Terms and Conditions Note */}
             {profile.termsAndConditions && (
               <div className="pt-4 border-t border-slate-200">
@@ -752,6 +785,30 @@ export default function CustomerQuoteClient({
                 Decline Quote
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Size Photo Inspection Modal */}
+      {selectedModalPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150 no-print"
+          onClick={() => setSelectedModalPhoto(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2 border border-slate-700">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={selectedModalPhoto}
+              alt="Site Photo Full Preview"
+              className="max-h-[80vh] w-auto object-contain rounded-xl"
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedModalPhoto(null)}
+              className="absolute top-4 right-4 bg-slate-900/80 hover:bg-slate-900 text-white font-bold text-xs px-3 py-1.5 rounded-full shadow-lg transition"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

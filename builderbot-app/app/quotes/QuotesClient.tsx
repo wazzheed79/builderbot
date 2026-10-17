@@ -34,6 +34,7 @@ import QuoteTemplatesBar, {
 } from "@/components/quotes/QuoteTemplatesBar";
 import MarginCalculator from "@/components/quotes/MarginCalculator";
 import LineItemEditor from "@/components/quotes/LineItemEditor";
+import SitePhotosUploader from "@/components/quotes/SitePhotosUploader";
 import {
   getWhatsAppShareUrl,
   formatWhatsAppQuoteMessage,
@@ -123,6 +124,7 @@ export default function QuotesClient() {
 
   // Line items
   const [items, setItems] = useState<LineItem[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]);
 
   // Handle Customer Selection Dropdown
   const handleSelectCustomer = (id: string) => {
@@ -368,6 +370,7 @@ export default function QuotesClient() {
       clientEmail: clientEmail.trim() || undefined,
       title: quoteTitle.trim() || "Trade Works Specification",
       notes: notesInput.trim(),
+      photos,
       items,
       subtotal,
       vatEnabled,
@@ -540,6 +543,9 @@ export default function QuotesClient() {
               </button>
             </div>
           </div>
+
+          {/* Job Site & Inspection Photos Uploader */}
+          <SitePhotosUploader photos={photos} onChange={setPhotos} />
 
           {/* Mode Switcher Tabs */}
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
