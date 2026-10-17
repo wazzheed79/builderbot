@@ -44,7 +44,7 @@ export default function QuoteQrCode({
         ) : (
           <div className="flex flex-col items-center justify-center text-slate-400 p-2">
             <QrCode className="w-8 h-8 text-slate-500 mb-1" />
-            <span className="text-[9px] font-mono leading-tight">builderbot.co.uk</span>
+            <span className="text-[9px] font-mono leading-tight">trademate.co.uk</span>
           </div>
         )}
       </div>

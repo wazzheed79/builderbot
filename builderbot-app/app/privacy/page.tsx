@@ -10,7 +10,7 @@ export default function PrivacyPage() {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to BuilderBot</span>
+          <span>Back to TradeMate</span>
         </Link>
       </div>
 
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
             1. Overview & Data Controller
           </h2>
           <p className="text-slate-600 text-sm leading-relaxed">
-            BuilderBot provides quoting and customer management tools for trade professionals. Under UK GDPR, the individual contractor or trade business creating the quotation acts as the <strong>Data Controller</strong> for customer information entered into the system. BuilderBot acts as the secure <strong>Data Processor</strong>.
+            TradeMate provides quoting and customer management tools for trade professionals. Under UK GDPR, the individual contractor or trade business creating the quotation acts as the <strong>Data Controller</strong> for customer information entered into the system. TradeMate acts as the secure <strong>Data Processor</strong>.
           </p>
         </section>
 

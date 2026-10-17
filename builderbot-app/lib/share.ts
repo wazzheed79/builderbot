@@ -10,6 +10,8 @@ import {
   formatWhatsAppInvoiceMessage as rawFormatWhatsAppInvoiceMessage,
   getWhatsAppInvoiceShareUrl as rawGetWhatsAppInvoiceShareUrl,
   getEmailShareUrl as rawGetEmailShareUrl,
+  formatWhatsAppFollowUpMessage as rawFormatWhatsAppFollowUpMessage,
+  getWhatsAppFollowUpUrl as rawGetWhatsAppFollowUpUrl,
 } from "./share-rules.mjs";
 
 export interface ShareQuoteParams {
@@ -66,3 +68,14 @@ export const getEmailShareUrl = rawGetEmailShareUrl as (
   clientEmail: string,
   siteOrigin: string
 ) => string;
+
+export const formatWhatsAppFollowUpMessage = rawFormatWhatsAppFollowUpMessage as (
+  params: ShareQuoteParams,
+  siteOrigin: string
+) => string;
+
+export const getWhatsAppFollowUpUrl = rawGetWhatsAppFollowUpUrl as (
+  params: ShareQuoteParams,
+  siteOrigin: string
+) => string;
+

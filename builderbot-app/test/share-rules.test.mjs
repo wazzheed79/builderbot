@@ -8,6 +8,8 @@ import {
   formatWhatsAppInvoiceMessage,
   getWhatsAppInvoiceShareUrl,
   getEmailShareUrl,
+  formatWhatsAppFollowUpMessage,
+  getWhatsAppFollowUpUrl,
 } from "../lib/share-rules.mjs";
 
 test("Phone Normalization: Handles UK mobiles, landlines and international numbers", () => {
@@ -144,3 +146,38 @@ test("Email Share: Pre-populates mailto link with encoded quote subject and body
   assert.match(emailUrl, /^mailto:sarah@example\.com\?subject=/);
   assert.match(emailUrl, /BB-1042/);
 });
+
+test("WhatsApp Follow-Up Message: Generates warm, non-pushy trade copy", () => {
+  const followUpMsg = formatWhatsAppFollowUpMessage(
+    {
+      quoteId: "BB-1042",
+      token: "q_token_123",
+      clientName: "David Miller",
+      quoteTitle: "Timber Fencing Replacement",
+      companyName: "Premier Trade Services",
+      contractorName: "Michael Boylen",
+    },
+    "https://trademate.co.uk"
+  );
+
+  assert.match(followUpMsg, /Hi David, hope you're having a good week!/);
+  assert.match(followUpMsg, /Timber Fencing Replacement/);
+  assert.match(followUpMsg, /https:\/\/trademate\.co\.uk\/q\/q_token_123/);
+  assert.match(followUpMsg, /Premier Trade Services/);
+});
+
+test("WhatsApp Follow-Up URL: Generates valid wa.me link with phone", () => {
+  const url = getWhatsAppFollowUpUrl(
+    {
+      quoteId: "BB-1042",
+      token: "q_token_123",
+      clientName: "David Miller",
+      clientPhone: "07820 445566",
+      quoteTitle: "Boiler Installation",
+    },
+    "https://trademate.co.uk"
+  );
+
+  assert.match(url, /^https:\/\/wa\.me\/447820445566\?text=/);
+});
+

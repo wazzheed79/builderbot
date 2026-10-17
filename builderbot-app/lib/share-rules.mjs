@@ -111,8 +111,41 @@ export function getWhatsAppInvoiceShareUrl(params) {
  */
 export function getEmailShareUrl(params, clientEmail, siteOrigin) {
   const subject = encodeURIComponent(
-    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${params.companyName || "BuilderBot"})`
+    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${params.companyName || "TradeMate"})`
   );
   const body = encodeURIComponent(formatWhatsAppQuoteMessage(params, siteOrigin));
   return `mailto:${clientEmail}?subject=${subject}&body=${body}`;
 }
+
+/**
+ * Formats a warm, non-pushy trade follow-up message for quotes pending acceptance.
+ */
+export function formatWhatsAppFollowUpMessage(params, siteOrigin) {
+  const quoteUrl = `${siteOrigin}/q/${params.token || params.quoteId}`;
+  const sender = params.companyName || params.contractorName || "our trade team";
+  const firstName = (params.clientName || "").trim().split(" ")[0] || "there";
+
+  return (
+    `Hi ${firstName}, hope you're having a good week!\n\n` +
+    `Just following up on the quotation for *"${params.quoteTitle || "the planned works"}"* that I sent over recently.\n\n` +
+    `You can review the quote and details anytime here:\n` +
+    `👉 ${quoteUrl}\n\n` +
+    `Let me know if you have any questions or if you'd like to adjust anything in the scope. Happy to pencil the dates in our calendar whenever you're ready!\n\n` +
+    `Kind regards,\n${sender}`
+  );
+}
+
+/**
+ * Generates the full WhatsApp URL for 1-tap quote follow-up.
+ */
+export function getWhatsAppFollowUpUrl(params, siteOrigin) {
+  const message = formatWhatsAppFollowUpMessage(params, siteOrigin);
+  const cleanPhone = normalizePhoneNumber(params.clientPhone || "");
+  const encoded = encodeURIComponent(message);
+
+  if (cleanPhone) {
+    return `https://wa.me/${cleanPhone}?text=${encoded}`;
+  }
+  return `https://wa.me/?text=${encoded}`;
+}
+

@@ -120,7 +120,7 @@ export default function LoginPage() {
           </div>
         </div>
         <h2 className="text-center text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Sign in to BuilderBot
+          Sign in to TradeMate
         </h2>
         <p className="mt-2 text-center text-sm text-slate-600 max-w-sm mx-auto">
           Fast quoting, customer CRM, and live quote acceptance tracking across your phone, tablet, and van.

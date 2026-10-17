@@ -437,7 +437,7 @@ export default function SettingsPage() {
           <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-xs text-amber-800">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <span>
-              <strong>Legal Notice:</strong> Under UK consumer protection regulations, displaying unverified regulatory marks (such as Gas Safe or NICEIC without active registration) is strictly prohibited. BuilderBot does not pre-fill false certifications.
+              <strong>Legal Notice:</strong> Under UK consumer protection regulations, displaying unverified regulatory marks (such as Gas Safe or NICEIC without active registration) is strictly prohibited. TradeMate does not pre-fill false certifications.
             </span>
           </div>
 

@@ -17,6 +17,7 @@ import {
   Calculator,
   Eye,
   Save,
+  MessageCircle,
 } from "lucide-react";
 import {
   Customer,
@@ -33,7 +34,12 @@ import QuoteTemplatesBar, {
 } from "@/components/quotes/QuoteTemplatesBar";
 import MarginCalculator from "@/components/quotes/MarginCalculator";
 import LineItemEditor from "@/components/quotes/LineItemEditor";
-import { getWhatsAppShareUrl, formatWhatsAppQuoteMessage } from "@/lib/share";
+import {
+  getWhatsAppShareUrl,
+  formatWhatsAppQuoteMessage,
+  getWhatsAppFollowUpUrl,
+  formatWhatsAppFollowUpMessage,
+} from "@/lib/share";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -739,7 +745,7 @@ export default function QuotesClient() {
                         triggerToast("Save the quote first to generate a shareable WhatsApp link.");
                         return;
                       }
-                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot.co.uk";
+                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot-app.vercel.app";
                       const params = {
                         quoteId: activeQuoteId || "",
                         token: activeToken || activeQuoteId || "",
@@ -762,6 +768,39 @@ export default function QuotesClient() {
                   >
                     <Share2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!activeQuoteId && !activeToken) {
+                        triggerToast("Save the quote first to generate a follow-up link.");
+                        return;
+                      }
+                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot-app.vercel.app";
+                      const params = {
+                        quoteId: activeQuoteId || "",
+                        token: activeToken || activeQuoteId || "",
+                        clientName: clientName || "there",
+                        clientPhone: clientPhone,
+                        quoteTitle: quoteTitle,
+                        companyName: profile.companyName,
+                        contractorName: profile.ownerName,
+                        total,
+                        deposit,
+                        depositPercent,
+                      };
+                      const waFollowUpUrl = getWhatsAppFollowUpUrl(params, siteOrigin);
+                      const followUpText = formatWhatsAppFollowUpMessage(params, siteOrigin);
+                      navigator.clipboard.writeText(followUpText);
+                      window.open(waFollowUpUrl, "_blank");
+                      triggerToast("WhatsApp opened with warm follow-up message!");
+                    }}
+                    className="col-span-2 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-semibold py-2 px-3 rounded-xl text-xs transition"
+                    title="Send a polite follow-up message if the customer hasn't responded"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Send Polite Follow-Up (WhatsApp)</span>
                   </button>
                 </div>
               </div>
