@@ -5,7 +5,7 @@ import Link from "next/link";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 
 export default function TradeFlyerPage() {
-  const liveUrl = "https://builderbot-app.vercel.app";
+  const liveUrl = "https://www.tradematequotes.co.uk";
 
   const handlePrint = () => {
     window.print();
@@ -139,7 +139,7 @@ export default function TradeFlyerPage() {
               </p>
               <div className="pt-1">
                 <span className="font-mono text-xs font-bold text-amber-300 bg-slate-800 px-2.5 py-1 rounded-md border border-slate-700 inline-block">
-                  builderbot-app.vercel.app
+                  tradematequotes.co.uk
                 </span>
               </div>
             </div>
@@ -167,7 +167,7 @@ export default function TradeFlyerPage() {
         <div className="bg-slate-100 border-t-2 border-dashed border-slate-300 p-3 grid grid-cols-4 gap-2 text-center text-[10px] font-mono text-slate-700">
           <div className="border-r border-slate-300 pr-1">
             <span className="font-bold block text-blue-700">TradeMate</span>
-            <span className="text-[9px] text-slate-500 truncate block">builderbot-app.vercel.app</span>
+            <span className="text-[9px] text-slate-500 truncate block">tradematequotes.co.uk</span>
           </div>
           <div className="border-r border-slate-300 pr-1">
             <span className="font-bold block text-blue-700">Quotes in &lt;2m</span>
@@ -175,7 +175,7 @@ export default function TradeFlyerPage() {
           </div>
           <div className="border-r border-slate-300 pr-1">
             <span className="font-bold block text-blue-700">TradeMate</span>
-            <span className="text-[9px] text-slate-500 truncate block">builderbot-app.vercel.app</span>
+            <span className="text-[9px] text-slate-500 truncate block">tradematequotes.co.uk</span>
           </div>
           <div>
             <span className="font-bold block text-blue-700">WhatsApp Quotes</span>

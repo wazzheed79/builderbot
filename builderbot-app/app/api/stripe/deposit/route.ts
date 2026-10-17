@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       request.headers.get("origin") ||
       request.headers.get("referer") ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      "https://builderbot-app.vercel.app";
+      "https://www.tradematequotes.co.uk";
     const cleanOrigin = origin.replace(/\/$/, "");
 
     if (!isStripeConfigured) {

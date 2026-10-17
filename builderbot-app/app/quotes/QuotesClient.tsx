@@ -751,7 +751,7 @@ export default function QuotesClient() {
                         triggerToast("Save the quote first to generate a shareable WhatsApp link.");
                         return;
                       }
-                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot-app.vercel.app";
+                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://www.tradematequotes.co.uk";
                       const params = {
                         quoteId: activeQuoteId || "",
                         token: activeToken || activeQuoteId || "",
@@ -783,7 +783,7 @@ export default function QuotesClient() {
                         triggerToast("Save the quote first to generate a follow-up link.");
                         return;
                       }
-                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot-app.vercel.app";
+                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://www.tradematequotes.co.uk";
                       const params = {
                         quoteId: activeQuoteId || "",
                         token: activeToken || activeQuoteId || "",

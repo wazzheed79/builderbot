@@ -15,7 +15,7 @@ The goal is to remove paperwork and allow tradespeople to spend more time earnin
 | :--- | :--- | :--- | :--- |
 | **Foundation** | Current | Next.js 16, TypeScript, Tailwind v4, PWA mobile icon, GitHub Sync | ✅ **Completed** |
 | **MVP Core** | Phase 1 | Customer CRM, AI Quoting Engine, PDF Export, Quote Tracking | ✅ **Completed & Tested** |
-| **Cloud Hosting** | Phase 3 | Vercel Production Deployment (`builderbot-app.vercel.app`) | ✅ **Live on Web** |
+| **Cloud Hosting & Domain** | Phase 3 | Live on Web at `https://www.tradematequotes.co.uk` | ✅ **Completed** |
 | **Real Testing** | Phase 2 | Real trade validation (Target: 1st tradesperson saying *"I would pay for this"*) | 🟡 **In Progress** |
 | **Monetisation** | Phase 4 | Stripe Subscription Checkout (Free, Pro £9.99/mo, Business £24.99/mo) | 🚀 **Active Sprint** |
 | **Expansion** | Phase 5 | Team tools, automated follow-ups, £1,000/mo MRR | ⏳ **Upcoming** |
@@ -73,7 +73,7 @@ One working tradesperson says: **"I would pay for this."**
 - [x] **Vercel Cloud:** Live at `https://builderbot-app.vercel.app`
 - [x] **PWA Mobile App:** "Add to Home Screen" enabled for iOS & Android
 - [x] **Supabase Database:** Multi-device database schema & real-time sync ready
-- [ ] **Custom Domain:** Link `trademate.co.uk` or `builderbot.uk`
+- [x] **Custom Domain:** Live at `https://www.tradematequotes.co.uk` (with auto-redirect from `tradematequotes.co.uk`)
 
 ---
 
