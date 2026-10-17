@@ -16,6 +16,7 @@ import {
   XCircle,
   Send,
   Activity,
+  Printer,
 } from "lucide-react";
 import {
   getDashboardMetrics,
@@ -110,13 +111,24 @@ export default function DashboardPage() {
             Real-time overview of active quotes, won contract value, and live customer activity.
           </p>
         </div>
-        <Link
-          href="/quotes"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md transition self-start sm:self-auto active:scale-[0.98]"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>New Quote</span>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <Link
+            href="/flyer"
+            className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl border border-slate-300 transition"
+            title="Print A5 Notice Board Flyer for Screwfix & Toolstation"
+          >
+            <Printer className="w-4 h-4 text-blue-600" />
+            <span>Notice Board Flyer</span>
+          </Link>
+
+          <Link
+            href="/quotes"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-md transition active:scale-[0.98]"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>New Quote</span>
+          </Link>
+        </div>
       </div>
 
       {/* Metrics Grid */}
