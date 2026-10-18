@@ -9,15 +9,15 @@ export default function TermsPage() {
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Terms of use</h1>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
-        Template for the free beta. Not legal advice. Replace <strong>[YOUR NAME]</strong> and{" "}
-        <strong>[YOUR EMAIL]</strong>, then review the wording before you treat it as your contract.
+        Plain-language terms for the free beta. Not legal advice.
       </p>
 
       <div className="mt-8 space-y-6 text-sm text-stone-700 leading-relaxed">
         <section>
           <h2 className="text-lg font-bold text-ink">The beta is free</h2>
           <p className="mt-2">
-            {brand.name}, run by <strong>[YOUR NAME]</strong>, is free while it is in testing.
+            {brand.name}, run by <strong>{brand.ownerName}</strong>, {brand.ownerRole}, is free while
+            it is in testing.
             Paid plans and card payments are not available. You will not be charged by this app
             during the beta. That can change later, and you would be told before any charge.
           </p>
@@ -42,7 +42,11 @@ export default function TermsPage() {
           <h2 className="text-lg font-bold text-ink">The service can change or stop</h2>
           <p className="mt-2">
             This is a test version. Features can break, and the free database can pause if it
-            is not used. Contact <strong>[YOUR EMAIL]</strong> about access or deletion.
+            is not used. Contact{" "}
+            <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
+              {brand.ownerEmail}
+            </a>{" "}
+            about access or deletion.
           </p>
         </section>
       </div>

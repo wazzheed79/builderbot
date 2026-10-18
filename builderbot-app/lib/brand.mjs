@@ -1,6 +1,7 @@
 /**
- * The only place the product name and tagline are defined.
+ * The only place the product name, tagline, and owner contact are defined.
  * To rename the product, change `name`, `shortName`, and `tagline` here.
+ * Owner name and email are `ownerName` and `ownerEmail`.
  * Screens, page titles, the PWA manifest, and AI prompts read these fields.
  *
  * Do not put a website domain in this file. The live address can change.
@@ -14,6 +15,9 @@ export const brand = {
   tagline: "Quotes in under 2 minutes",
   description:
     "Create and send a professional quote in under two minutes. Free while in testing.",
+  ownerName: "Michael Boylen",
+  ownerEmail: "wazzheed+chuffed@gmail.com",
+  ownerRole: "a sole trader in the United Kingdom",
 };
 
 /**
