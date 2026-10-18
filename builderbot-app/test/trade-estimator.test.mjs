@@ -50,3 +50,14 @@ test("estimateTradeJob: generates realistic breakdowns across all major UK trade
   assert.equal(general.title, "Specified Trade Works & Labor");
   assert.ok(general.items.length >= 3);
 });
+
+test("estimateTradeJob: calibrates labor rates using contractor pricingMemory DNA", () => {
+  const customEstimate = estimateTradeJob(
+    "Fit 6 fence panels and concrete posts",
+    "Fencing",
+    { laborHourlyRate: 62.5, laborDayRate: 340 }
+  );
+  const laborItem = customEstimate.items.find((i) => i.type === "labor");
+  assert.ok(laborItem);
+  assert.equal(laborItem.rate, 62.5);
+});

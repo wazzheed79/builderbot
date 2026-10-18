@@ -16,6 +16,13 @@ const GenerateRequestSchema = z.object({
     .trim()
     .max(100)
     .optional(),
+  pricingMemory: z
+    .object({
+      laborHourlyRate: z.number().positive().optional(),
+      laborDayRate: z.number().positive().optional(),
+      preferredMarkupPercent: z.number().min(0).max(100).optional(),
+    })
+    .optional(),
 });
 
 interface LineItemResponse {
@@ -64,11 +71,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes, trade } = parseResult.data;
+    const { notes, trade, pricingMemory } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (apiKey) {
       const ai = new GoogleGenAI({ apiKey });
+
+      let systemInstruction =
+        "You are TradeMate AI, an expert trade quantity surveyor for UK builders, electricians, plumbers, roofers, landscapers, and carpenters. " +
+        "Given tradesperson notes, return realistic UK trade itemized breakdowns in JSON format. " +
+        "Use realistic UK market rates in GBP (£): skilled labor should be £40-£65/hr or £220-£350/day. " +
+        "Materials at realistic trade supplier prices. " +
+        "Recommend a deposit % between 10 and 30 (default 20). " +
+        "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes.";
+
+      if (pricingMemory) {
+        const customLabor = pricingMemory.laborHourlyRate
+          ? `£${pricingMemory.laborHourlyRate}/hr`
+          : pricingMemory.laborDayRate
+          ? `£${pricingMemory.laborDayRate}/day`
+          : "standard UK rates";
+        systemInstruction += ` CONTRACTOR PRICING DNA: The contractor typically charges ${customLabor} for labour and expects approximately ${pricingMemory.preferredMarkupPercent || 20}% material markup. Calibrate your line item rates to this contractor's personal pricing profile.`;
+      }
 
       // Separate system instruction from user content to resist prompt injection
       const response = await ai.models.generateContent({
@@ -85,13 +109,7 @@ export async function POST(request: NextRequest) {
           },
         ],
         config: {
-          systemInstruction:
-            "You are BuilderBot AI, an expert trade quantity surveyor for UK builders, electricians, plumbers, roofers, landscapers, and carpenters. " +
-            "Given tradesperson notes, return realistic UK trade itemized breakdowns in JSON format. " +
-            "Use realistic UK market rates in GBP (£): skilled labor should be £40-£65/hr or £220-£350/day. " +
-            "Materials at realistic trade supplier prices. " +
-            "Recommend a deposit % between 10 and 30 (default 20). " +
-            "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes.",
+          systemInstruction,
           responseMimeType: "application/json",
           responseJsonSchema: {
             type: Type.OBJECT,
@@ -200,7 +218,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
-    const estimate = estimateTradeJob(notes);
+    const estimate = estimateTradeJob(notes, trade, pricingMemory as any);
 
     return NextResponse.json({
       title: estimate.title,

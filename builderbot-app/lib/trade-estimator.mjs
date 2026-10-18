@@ -1,7 +1,12 @@
 // Pure JavaScript trade estimator rules with realistic UK trade rates and itemizations.
 // Used as the smart offline/instant engine in app/api/quote/generate/route.ts.
 
-export function estimateTradeJob(notes = "") {
+/**
+ * @param {string} [notes]
+ * @param {string} [trade]
+ * @param {any} [pricingMemory]
+ */
+export function estimateTradeJob(notes = "", trade = "", pricingMemory = null) {
   const lower = notes.toLowerCase();
   const items = [];
   let title = "Trade Works Specification";
@@ -346,6 +351,19 @@ export function estimateTradeJob(notes = "") {
         rate: 90.0,
       }
     );
+  }
+
+  // Calibrate with personal pricing memory DNA if provided
+  if (pricingMemory && typeof pricingMemory === "object") {
+    for (const it of items) {
+      if (it.type === "labor") {
+        if (pricingMemory.laborHourlyRate && (it.unit === "hrs" || it.unit === "hr")) {
+          it.rate = Number(pricingMemory.laborHourlyRate);
+        } else if (pricingMemory.laborDayRate && (it.unit === "days" || it.unit === "day")) {
+          it.rate = Number(pricingMemory.laborDayRate);
+        }
+      }
+    }
   }
 
   return {

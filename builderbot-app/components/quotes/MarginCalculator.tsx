@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Calculator, ArrowRight } from "lucide-react";
-import { LineItem, roundMoney } from "@/lib/storage";
+import { LineItem, roundMoney, getPricingMemory, savePricingMemory } from "@/lib/storage";
 
 interface MarginCalculatorProps {
   onApply: (items: LineItem[]) => void;
@@ -10,9 +10,9 @@ interface MarginCalculatorProps {
 
 export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
   const [materialCost, setMaterialCost] = useState(1250);
-  const [materialMarkup, setMaterialMarkup] = useState(15);
+  const [materialMarkup, setMaterialMarkup] = useState(() => getPricingMemory().preferredMarkupPercent || 15);
   const [days, setDays] = useState(5);
-  const [dayRate, setDayRate] = useState(250);
+  const [dayRate, setDayRate] = useState(() => getPricingMemory().laborDayRate || 280);
   const [tradespeople, setTradespeople] = useState(1);
   const [disposalCost, setDisposalCost] = useState(200);
 
@@ -54,6 +54,16 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
         rate: roundMoney(disposalCost),
       });
     }
+
+    try {
+      const mem = getPricingMemory();
+      savePricingMemory({
+        ...mem,
+        laborDayRate: dayRate,
+        preferredMarkupPercent: materialMarkup,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {}
 
     onApply(newItems);
   };

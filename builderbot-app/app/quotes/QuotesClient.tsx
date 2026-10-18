@@ -27,6 +27,7 @@ import {
   roundMoney,
   getBusinessProfile,
   BusinessProfile,
+  getPricingMemory,
 } from "@/lib/storage";
 import QuoteTemplatesBar, {
   QuoteTemplate,
@@ -281,6 +282,7 @@ export default function QuotesClient() {
         body: JSON.stringify({
           notes: notesInput.trim(),
           trade: profile.trade,
+          pricingMemory: getPricingMemory(),
         }),
       });
 
@@ -328,13 +330,14 @@ export default function QuotesClient() {
   };
 
   const handleAddItem = (type: "labor" | "material") => {
+    const memory = getPricingMemory();
     const newItem: LineItem = {
       id: Date.now().toString(),
       type,
-      description: type === "labor" ? "Labor hours" : "Materials / Fixtures",
+      description: type === "labor" ? "Labour hours" : "Materials / Fixtures",
       quantity: 1,
       unit: type === "labor" ? "hrs" : "unit",
-      rate: type === "labor" ? 50 : 25,
+      rate: type === "labor" ? memory.laborHourlyRate || 50 : 25,
     };
     setItems([...items, newItem]);
   };

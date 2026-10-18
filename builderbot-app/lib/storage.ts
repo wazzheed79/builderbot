@@ -159,6 +159,79 @@ export function saveBusinessProfile(profile: BusinessProfile): BusinessProfile {
   return profile;
 }
 
+// Quote DNA & Personal Pricing Memory
+export interface PricingMemory {
+  laborDayRate: number; // e.g. £280/day
+  laborHourlyRate: number; // e.g. £50/hr
+  preferredMarkupPercent: number; // e.g. 20%
+  totalQuotesLearned?: number;
+  updatedAt?: string;
+}
+
+export const DEFAULT_PRICING_MEMORY: PricingMemory = {
+  laborDayRate: 280,
+  laborHourlyRate: 50,
+  preferredMarkupPercent: 20,
+  totalQuotesLearned: 0,
+  updatedAt: "2026-10-18T12:00:00Z",
+};
+
+const PRICING_MEMORY_KEY = "trademate_pricing_memory_v1";
+
+export function getPricingMemory(): PricingMemory {
+  if (typeof window === "undefined") return DEFAULT_PRICING_MEMORY;
+  try {
+    const raw = localStorage.getItem(PRICING_MEMORY_KEY);
+    if (!raw) return DEFAULT_PRICING_MEMORY;
+    return { ...DEFAULT_PRICING_MEMORY, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_PRICING_MEMORY;
+  }
+}
+
+export function savePricingMemory(memory: PricingMemory): PricingMemory {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(PRICING_MEMORY_KEY, JSON.stringify(memory));
+    window.dispatchEvent(new Event("trademate_pricing_memory_updated"));
+  }
+  return memory;
+}
+
+export function learnPricingFromQuote(items: LineItem[]): PricingMemory {
+  const current = getPricingMemory();
+  const laborItems = items.filter((it) => it.type === "labor" && it.rate > 0);
+  if (laborItems.length === 0) return current;
+
+  const hourlyItems = laborItems.filter((it) => it.unit === "hrs" || it.rate <= 120);
+  const dayItems = laborItems.filter((it) => it.unit === "days" || it.rate > 150);
+
+  let newHourly = current.laborHourlyRate;
+  let newDay = current.laborDayRate;
+
+  if (hourlyItems.length > 0) {
+    const avgHourly = hourlyItems.reduce((acc, it) => acc + it.rate, 0) / hourlyItems.length;
+    newHourly = roundMoney(current.laborHourlyRate * 0.7 + avgHourly * 0.3);
+  }
+
+  if (dayItems.length > 0) {
+    const avgDay = dayItems.reduce((acc, it) => acc + it.rate, 0) / dayItems.length;
+    newDay = roundMoney(current.laborDayRate * 0.7 + avgDay * 0.3);
+  } else if (newHourly) {
+    newDay = roundMoney(newHourly * 8);
+  }
+
+  const updated: PricingMemory = {
+    ...current,
+    laborHourlyRate: newHourly,
+    laborDayRate: newDay,
+    totalQuotesLearned: (current.totalQuotesLearned || 0) + 1,
+    updatedAt: new Date().toISOString(),
+  };
+
+  savePricingMemory(updated);
+  return updated;
+}
+
 import {
   roundMoney,
   recalculateQuoteTotals,
@@ -589,6 +662,10 @@ export function saveQuote(
       window.dispatchEvent(new Event("builderbot_storage_updated"));
     }
   }
+
+  try {
+    learnPricingFromQuote(saved.items);
+  } catch {}
 
   syncQuoteToCloud(saved).catch(() => {});
   return saved;

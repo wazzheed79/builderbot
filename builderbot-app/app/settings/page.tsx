@@ -25,10 +25,14 @@ import {
   DEFAULT_BUSINESS_PROFILE,
   getBusinessProfile,
   saveBusinessProfile,
+  PricingMemory,
+  getPricingMemory,
+  savePricingMemory,
 } from "@/lib/storage";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile>(() => getBusinessProfile());
+  const [pricingMemory, setPricingMemory] = useState<PricingMemory>(() => getPricingMemory());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [newAccreditation, setNewAccreditation] = useState("");
 
@@ -592,6 +596,101 @@ export default function SettingsPage() {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section 6: Quote DNA & Personal Pricing Memory */}
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-indigo-100 shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="font-black text-lg text-slate-900">Quote DNA & Pricing Memory</h2>
+                <p className="text-xs text-slate-500">
+                  TradeMate automatically adapts to your pricing baseline every time you build and save quotes.
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              Auto-Adapting
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Baseline Day Rate (£/day)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-400">£</span>
+                <input
+                  type="number"
+                  min="50"
+                  value={pricingMemory.laborDayRate}
+                  onChange={(e) => {
+                    const val = Number(e.target.value) || 0;
+                    setPricingMemory((prev) => ({ ...prev, laborDayRate: val }));
+                    savePricingMemory({ ...pricingMemory, laborDayRate: val });
+                  }}
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Baseline Hourly Rate (£/hr)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-400">£</span>
+                <input
+                  type="number"
+                  min="10"
+                  value={pricingMemory.laborHourlyRate}
+                  onChange={(e) => {
+                    const val = Number(e.target.value) || 0;
+                    setPricingMemory((prev) => ({ ...prev, laborHourlyRate: val }));
+                    savePricingMemory({ ...pricingMemory, laborHourlyRate: val });
+                  }}
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Default Material Markup (%)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={pricingMemory.preferredMarkupPercent}
+                  onChange={(e) => {
+                    const val = Number(e.target.value) || 0;
+                    setPricingMemory((prev) => ({ ...prev, preferredMarkupPercent: val }));
+                    savePricingMemory({ ...pricingMemory, preferredMarkupPercent: val });
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900"
+                />
+                <span className="absolute right-3.5 top-2.5 text-xs font-bold text-slate-400">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/60 rounded-xl flex items-center justify-between text-xs text-indigo-900">
+            <span>
+              💡 <strong>AI Calibration:</strong> Quotes generated by AI and margin calculations will apply your £{pricingMemory.laborHourlyRate}/hr rate and {pricingMemory.preferredMarkupPercent}% markup.
+            </span>
+            {pricingMemory.totalQuotesLearned ? (
+              <span className="text-[11px] font-bold text-indigo-700 shrink-0">
+                Learned from {pricingMemory.totalQuotesLearned} quote{pricingMemory.totalQuotesLearned > 1 ? "s" : ""}
+              </span>
+            ) : null}
           </div>
         </div>
 
