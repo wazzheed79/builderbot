@@ -136,9 +136,9 @@ export default function AppNav() {
       {/* Cross-App Demo Mode Banner */}
       <DemoBanner />
 
-      {/* Mobile Bottom Navigation Bar (Thumb friendly for site work) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg px-2 py-1.5 pb-safe">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
+      {/* Mobile Bottom Navigation Bar (High-Contrast, 48px+ touch targets for van/site work) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1.5 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
+        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto items-center">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -146,14 +146,17 @@ export default function AppNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[11px] font-medium transition ${
+                className={`flex flex-col items-center justify-center min-h-[52px] min-w-[48px] py-1 px-1 rounded-xl text-[11px] transition-all duration-75 active:scale-90 select-none relative ${
                   isActive
-                    ? "text-blue-600 font-semibold"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-blue-50 text-blue-700 font-bold shadow-xs"
+                    : "text-slate-500 hover:text-slate-900 active:bg-slate-100 font-medium"
                 }`}
               >
-                <Icon className="w-5 h-5 mb-0.5" />
-                <span className="truncate">{item.name}</span>
+                {isActive && (
+                  <span className="absolute top-1 w-5 h-1 bg-blue-600 rounded-full" />
+                )}
+                <Icon className={`w-6 h-6 mt-1 transition-transform ${isActive ? "text-blue-600 scale-105" : "text-slate-500"}`} />
+                <span className="truncate mt-0.5 tracking-tight text-[10.5px]">{item.name}</span>
               </Link>
             );
           })}

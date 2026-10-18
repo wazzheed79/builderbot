@@ -18,6 +18,8 @@ import {
   Share2,
   Receipt,
   Camera,
+  CreditCard,
+  MessageSquare,
 } from "lucide-react";
 import {
   getQuoteById,
@@ -79,6 +81,19 @@ export default function CustomerQuoteClient({
     const inv = convertQuoteToInvoice(loadedQuote, false);
     setCreatedInvoice(inv);
   };
+
+  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
+  const [depositPaymentNotice, setDepositPaymentNotice] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("payment") === "success") {
+        setPaymentSuccess(true);
+      }
+    }
+  }, []);
 
   // Fetch from server / Supabase for external client devices
   useEffect(() => {
@@ -234,6 +249,58 @@ export default function CustomerQuoteClient({
     setShowDeclineModal(false);
   };
 
+  const handlePayStripeDeposit = async () => {
+    if (!loadedQuote) return;
+    setIsProcessingDeposit(true);
+    setDepositPaymentNotice(null);
+
+    try {
+      const res = await fetch("/api/stripe/deposit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteId: loadedQuote.id,
+          quoteTitle: loadedQuote.title || `Quotation #${loadedQuote.id}`,
+          depositAmount: loadedQuote.deposit,
+          contractorName: contractorName,
+          customerEmail: loadedQuote.clientEmail || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+      } else if (data.demo) {
+        setDepositPaymentNotice(
+          `Deposit payment preview: £${loadedQuote.deposit.toFixed(2)} deposit confirmed! (Stripe Test/Preview Mode — Card & Apple Pay activate once Stripe keys are set)`
+        );
+      } else {
+        setDepositPaymentNotice(
+          data.error || "Unable to process online card deposit right now. Please use bank transfer details below."
+        );
+      }
+    } catch {
+      setDepositPaymentNotice(
+        "Connection error reaching payment gateway. Please use bank transfer details below."
+      );
+    } finally {
+      setIsProcessingDeposit(false);
+    }
+  };
+
+  const handleRequestChanges = () => {
+    if (!loadedQuote) return;
+    const cleanPhone = contactPhone.replace(/[^0-9+]/g, "");
+    const message = encodeURIComponent(
+      `Hi ${contractorName}, I am reviewing quotation #${loadedQuote.id} (${loadedQuote.title || "Trade Work"}). Could we discuss a small question or adjustment to the scope?`
+    );
+    if (cleanPhone) {
+      window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
+    } else {
+      window.location.href = `mailto:${contactEmail}?subject=${encodeURIComponent(`Question regarding Quote #${loadedQuote.id}`)}&body=${message}`;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/80 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
@@ -258,6 +325,57 @@ export default function CustomerQuoteClient({
                 </div>
               </div>
             </div>
+
+            {/* Payment Received Alert if returned from Stripe */}
+            {paymentSuccess && (
+              <div className="bg-emerald-800/90 border border-emerald-400 p-4 rounded-xl text-white text-xs flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
+                <div>
+                  <span className="font-bold text-sm block">Deposit Payment Received via Card!</span>
+                  <span>Thank you. Your £{loadedQuote.deposit.toFixed(2)} deposit has cleared and your booking is reserved.</span>
+                </div>
+              </div>
+            )}
+
+            {/* One-Tap Online Deposit Payment (Stripe Card / Apple Pay) */}
+            {!paymentSuccess && loadedQuote.deposit > 0 && (
+              <div className="bg-white text-slate-900 p-4 rounded-xl shadow-md border border-emerald-300 space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-700 block">
+                      Pay Booking Deposit Online
+                    </span>
+                    <span className="text-xs text-slate-600">
+                      Fast &amp; secure via Debit Card, Credit Card, Apple Pay or Google Pay.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePayStripeDeposit}
+                    disabled={isProcessingDeposit}
+                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black px-4 py-3 rounded-xl text-xs sm:text-sm shadow-md transition active:scale-95 shrink-0"
+                  >
+                    {isProcessingDeposit ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <span>Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 text-emerald-200" />
+                        <span>Pay £{loadedQuote.deposit.toFixed(2)} Deposit Online</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {depositPaymentNotice && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 font-medium">
+                    {depositPaymentNotice}
+                  </div>
+                )}
+              </div>
+            )}
 
             {activeProfile.bankAccountNumber && (
               <div className="bg-emerald-700/60 border border-emerald-500/40 rounded-xl p-4 text-xs space-y-2">
@@ -589,6 +707,16 @@ export default function CustomerQuoteClient({
                   >
                     <CheckCircle2 className="w-5 h-5" />
                     <span>Accept & Sign Quote</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRequestChanges}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold py-3.5 px-5 rounded-xl border border-blue-200 transition active:scale-[0.98]"
+                    title="Send a quick WhatsApp or message to query or adjust scope"
+                  >
+                    <MessageSquare className="w-4 h-4 text-blue-600" />
+                    <span>Ask Question / Request Changes</span>
                   </button>
 
                   <button

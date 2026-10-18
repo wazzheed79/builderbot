@@ -22,5 +22,21 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Quote",
+      "short_name": "New Quote",
+      "description": "Start a new trade quote from the van",
+      "url": "/quotes",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Customers",
+      "short_name": "Customers",
+      "description": "View customer directory & quotes",
+      "url": "/customers",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
   ]
 }

@@ -387,7 +387,7 @@ export default function QuotesClient() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-36 lg:pb-12">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-20 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-semibold border border-slate-700 animate-in slide-in-from-top-2">
@@ -472,32 +472,33 @@ export default function QuotesClient() {
 
           {/* Voice & Text Prompt Box */}
           <div className="bg-gradient-to-br from-blue-50/70 via-white to-slate-50 p-5 sm:p-6 rounded-2xl border-2 border-blue-200/90 shadow-xs">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+              <label className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-blue-600" />
-                <span>Job Notes & Voice Dictation</span>
+                <span>Job Notes & Van Voice Dictation</span>
               </label>
 
-              {/* Voice Quoting Button */}
+              {/* Voice Quoting Button (High-contrast, large touch area) */}
               <button
                 type="button"
                 onClick={handleToggleVoice}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs active:scale-95 ${
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[46px] rounded-xl text-xs sm:text-sm font-extrabold transition-all shadow-md active:scale-95 ${
                   isRecording
-                    ? "bg-red-600 text-white animate-pulse"
+                    ? "bg-red-600 hover:bg-red-700 text-white ring-4 ring-red-400/50 shadow-red-500/25 animate-pulse"
                     : "bg-blue-600 hover:bg-blue-700 text-white"
                 }`}
                 title="Speak your quote from your van"
               >
                 {isRecording ? (
                   <>
+                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
                     <MicOff className="w-4 h-4" />
-                    <span>Listening... (Tap to Stop)</span>
+                    <span>Listening... (Tap to Finish)</span>
                   </>
                 ) : (
                   <>
-                    <Mic className="w-4 h-4" />
-                    <span>Speak Quote (Voice)</span>
+                    <Mic className="w-4 h-4 text-amber-300" />
+                    <span>Dictate Quote in Van</span>
                   </>
                 )}
               </button>
@@ -508,8 +509,30 @@ export default function QuotesClient() {
               value={notesInput}
               onChange={(e) => setNotesInput(e.target.value)}
               placeholder="Speak or type job notes: 'Build brick garden wall 10 meters long, 2 days labor for two men...'"
-              className="w-full p-3.5 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent shadow-2xs font-normal"
+              className="w-full p-3.5 text-xs sm:text-sm font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent shadow-2xs text-slate-900"
             />
+
+            {/* Live Recording Status Banner */}
+            {isRecording && (
+              <div className="mt-2.5 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-xs text-red-900 flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping shrink-0" />
+                  <span className="font-bold">
+                    Van Mic Active: Speak job scope, materials or days needed.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotesInput("");
+                    triggerToast("Dictation cleared.");
+                  }}
+                  className="text-[11px] font-bold text-red-700 underline hover:text-red-900 shrink-0"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-100/80">
               <div className="flex items-center gap-2">
@@ -820,6 +843,74 @@ export default function QuotesClient() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Sticky Summary & Fast Action Bar (lg:hidden) */}
+      <div className="lg:hidden fixed bottom-[64px] left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t-2 border-slate-800 text-white px-4 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total</span>
+            <span className="text-lg font-black text-white">£{total.toFixed(2)}</span>
+          </div>
+          <span className="text-[11px] font-bold text-amber-400">
+            Deposit: £{deposit.toFixed(2)} ({depositPercent}%)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {activeQuoteId || activeToken ? (
+            <button
+              type="button"
+              onClick={() => {
+                const siteOrigin =
+                  typeof window !== "undefined"
+                    ? window.location.origin
+                    : "https://www.tradematequotes.co.uk";
+                const params = {
+                  quoteId: activeQuoteId || "",
+                  token: activeToken || activeQuoteId || "",
+                  clientName: clientName || "there",
+                  clientPhone: clientPhone,
+                  quoteTitle: quoteTitle,
+                  companyName: profile.companyName,
+                  contractorName: profile.ownerName,
+                  total,
+                  deposit,
+                  depositPercent,
+                };
+                const waUrl = getWhatsAppShareUrl(params, siteOrigin);
+                const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
+                navigator.clipboard.writeText(shareText);
+                window.open(waUrl, "_blank");
+                triggerToast("WhatsApp opened & message copied to clipboard!");
+              }}
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-3.5 py-2 min-h-[46px] rounded-xl text-xs shadow-md active:scale-95 transition"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>WhatsApp</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleSaveQuote()}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold px-4 py-2 min-h-[46px] rounded-xl text-xs sm:text-sm shadow-md active:scale-95 transition"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save Quote</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+            }}
+            className="p-2 min-h-[46px] min-w-[46px] flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold active:scale-90 transition"
+            title="Jump to Details"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
