@@ -9,17 +9,17 @@ export default function PrivacyPage() {
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Privacy notice</h1>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
-        This is a plain-language template for the free beta. It is not legal advice. Replace
-        the placeholders <strong>[YOUR NAME]</strong> and <strong>[YOUR EMAIL]</strong> with
-        the real owner details, then have it checked before you rely on it.
+        This is a plain-language notice for the free beta. It is not legal advice.
       </p>
 
       <div className="mt-8 space-y-6 text-sm text-stone-700 leading-relaxed">
         <section>
           <h2 className="text-lg font-bold text-ink">Who this is from</h2>
           <p className="mt-2">
-            {brand.name} is run by <strong>[YOUR NAME]</strong>. Contact: <strong>[YOUR EMAIL]</strong>.
-            Last updated: October 2026.
+            {brand.name} is run by <strong>{brand.ownerName}</strong>, {brand.ownerRole}. Contact:{" "}
+            <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
+              {brand.ownerEmail}
+            </a>. Last updated: October 2026.
           </p>
         </section>
         <section>
@@ -56,7 +56,11 @@ export default function PrivacyPage() {
             The tradesperson who types a customer&apos;s name, address, phone, or email decides
             why that information is there. {brand.name} provides the tool. A customer who wants
             a quote deleted should ask the tradesperson. The tradesperson can delete the record
-            in the app, or email <strong>[YOUR EMAIL]</strong> for help with a synced account.
+            in the app, or email{" "}
+            <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
+              {brand.ownerEmail}
+            </a>{" "}
+            for help with a synced account.
           </p>
         </section>
         <section>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { brand } from "@/lib/brand.mjs";
 
 const FeedbackSchema = z.object({
   message: z.string().trim().min(4).max(2000),
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contactEmail = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "";
+  const contactEmail = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || brand.ownerEmail;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabase = serviceKey && isSupabaseConfigured() ? getServerSupabase() : null;
 

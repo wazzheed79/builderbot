@@ -1,6 +1,7 @@
 /**
- * The only place the product name and tagline are defined.
+ * The only place the product name, tagline, and owner contact are defined.
  * To rename the product, change `name`, `shortName`, and `tagline` here.
+ * Owner name and email are `ownerName` and `ownerEmail`.
  * Screens, page titles, the PWA manifest, and AI prompts read these fields.
  *
  * Do not put a website domain in this file. The live address can change.
@@ -17,6 +18,9 @@ export const brand = {
   foundingTitle: "Founding member offer",
   foundingDetail:
     "The first 100 tradespeople to sign up get Chuffed Quotes free for 12 months. No card needed.",
+  ownerName: "Michael Boylen",
+  ownerEmail: "wazzheed+chuffed@gmail.com",
+  ownerRole: "a sole trader in the United Kingdom",
 };
 
 /**

@@ -51,7 +51,10 @@ export default function FeedbackPage() {
       <h1 className="mt-3 text-3xl font-black text-ink">Tell us what to fix</h1>
       <p className="mt-2 text-sm text-stone-600">
         {brand.name} is free while in testing. A short note about what confused you is the most
-        useful thing you can send.
+        useful thing you can send. Or email{" "}
+        <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
+          {brand.ownerEmail}
+        </a>.
       </p>
       <form onSubmit={submit} className="mt-6 space-y-4">
         <label className="block text-sm font-semibold text-ink">
