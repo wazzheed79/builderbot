@@ -21,15 +21,13 @@ import {
   Camera,
 } from "lucide-react";
 import {
-  Customer,
   LineItem,
-  getCustomers,
   saveQuote,
   roundMoney,
-  getBusinessProfile,
-  BusinessProfile,
   getPricingMemory,
+  DEFAULT_BUSINESS_PROFILE,
 } from "@/lib/storage";
+import { useBusinessProfile, useCustomerList } from "@/lib/live-store";
 import QuoteTemplatesBar, {
   QuoteTemplate,
   DEFAULT_QUOTE_TEMPLATES,
@@ -43,6 +41,7 @@ import {
   getWhatsAppFollowUpUrl,
   formatWhatsAppFollowUpMessage,
 } from "@/lib/share";
+import { getAuthHeaders } from "@/lib/supabase";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -76,35 +75,22 @@ export default function QuotesClient() {
   const searchParams = useSearchParams();
   const customerIdParam = searchParams.get("customerId");
 
-  // Load Customers cleanly with lazy state initializer
-  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers());
+  const customers = useCustomerList();
+  const profile = useBusinessProfile();
 
-  useEffect(() => {
-    const handleUpdate = () => {
-      setCustomers(getCustomers());
-    };
-    window.addEventListener("builderbot_storage_updated", handleUpdate);
-    return () => window.removeEventListener("builderbot_storage_updated", handleUpdate);
-  }, []);
-
-  const initialCustomer = customerIdParam
-    ? customers.find((c) => c.id === customerIdParam)
-    : undefined;
-
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(
-    initialCustomer?.id ?? ""
-  );
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [appliedCustomerParam, setAppliedCustomerParam] = useState("");
 
   // Active Quote tracking (prevents duplicate re-saving)
   const [activeQuoteId, setActiveQuoteId] = useState<string | null>(null);
   const [activeToken, setActiveToken] = useState<string | null>(null);
 
   // Client Details
-  const [clientName, setClientName] = useState(initialCustomer?.name ?? "");
-  const [clientCompany, setClientCompany] = useState(initialCustomer?.company ?? "");
-  const [clientAddress, setClientAddress] = useState(initialCustomer?.address ?? "");
-  const [clientPhone, setClientPhone] = useState(initialCustomer?.phone ?? "");
-  const [clientEmail, setClientEmail] = useState(initialCustomer?.email ?? "");
+  const [clientName, setClientName] = useState("");
+  const [clientCompany, setClientCompany] = useState("");
+  const [clientAddress, setClientAddress] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
 
   const [quoteTitle, setQuoteTitle] = useState("");
   const [notesInput, setNotesInput] = useState("");
@@ -116,17 +102,41 @@ export default function QuotesClient() {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
-  const [profile] = useState<BusinessProfile>(() => getBusinessProfile());
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [vatEnabled, setVatEnabled] = useState(() => getBusinessProfile().vatRegistered ?? true);
-  const [depositPercent, setDepositPercent] = useState(() => getBusinessProfile().defaultDepositPercent ?? 20);
+  const [vatEnabled, setVatEnabled] = useState(DEFAULT_BUSINESS_PROFILE.vatRegistered ?? true);
+  const [depositPercent, setDepositPercent] = useState(DEFAULT_BUSINESS_PROFILE.defaultDepositPercent ?? 20);
   const [isAiDraft, setIsAiDraft] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Line items
   const [items, setItems] = useState<LineItem[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [ratesReadyFor, setRatesReadyFor] = useState("");
+
+  if (
+    customerIdParam &&
+    appliedCustomerParam !== customerIdParam &&
+    customers.some((customer) => customer.id === customerIdParam)
+  ) {
+    const match = customers.find((customer) => customer.id === customerIdParam);
+    if (match) {
+      setAppliedCustomerParam(customerIdParam);
+      setSelectedCustomerId(match.id);
+      setClientName(match.name || "");
+      setClientCompany(match.company || "");
+      setClientAddress(match.address || "");
+      setClientPhone(match.phone || "");
+      setClientEmail(match.email || "");
+    }
+  }
+
+  const rateStamp = `${profile.vatRegistered}:${profile.defaultDepositPercent}`;
+  if (ratesReadyFor !== rateStamp) {
+    setRatesReadyFor(rateStamp);
+    setVatEnabled(profile.vatRegistered ?? true);
+    setDepositPercent(profile.defaultDepositPercent ?? 20);
+  }
 
   // Handle Customer Selection Dropdown
   const handleSelectCustomer = (id: string) => {
@@ -216,7 +226,7 @@ export default function QuotesClient() {
     try {
       const res = await fetch("/api/quote/expand", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           notes: notesInput.trim(),
           title: quoteTitle.trim(),
@@ -230,8 +240,8 @@ export default function QuotesClient() {
         if (data.title && !quoteTitle) setQuoteTitle(data.title);
         triggerToast(
           data.aiPowered
-            ? "✨ Gemini AI expanded your notes into professional scope!"
-            : "Scope expanded into clear, professional wording!"
+            ? "AI expanded your notes. Read them before you send the quote."
+            : data.notice || "Kept your own notes. Sign in for an AI rewrite when it is switched on."
         );
       } else {
         triggerToast(data.error || "Could not expand scope. Please try again.");
@@ -279,7 +289,7 @@ export default function QuotesClient() {
     try {
       const res = await fetch("/api/quote/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           notes: notesInput.trim(),
           trade: profile.trade,
@@ -318,12 +328,8 @@ export default function QuotesClient() {
 
         triggerToast(
           data.aiPowered
-            ? (photos && photos.length > 0
-                ? `✨ Gemini inspected ${photos.length} site photo(s) & calculated itemized trade pricing!`
-                : "✨ Gemini AI calculated itemized trade breakdown & pricing!")
-            : (photos && photos.length > 0
-                ? `Line items populated with ${photos.length} site inspection photo(s)!`
-                : "Line items populated from job notes!")
+            ? "AI suggested prices. Change anything that does not look right before you send it."
+            : "Rough estimate only. Edit every price before you send this quote."
         );
       } else {
         triggerToast(data.error || "Could not generate quote items.");
@@ -409,7 +415,7 @@ export default function QuotesClient() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <FileText className="w-8 h-8 text-blue-600" />
+            <FileText className="w-8 h-8 text-clay-700" />
             <span>Quote Builder</span>
           </h1>
           <p className="text-slate-600 text-sm mt-1">
@@ -454,12 +460,12 @@ export default function QuotesClient() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-600" />
+                <User className="w-4 h-4 text-clay-700" />
                 <span>Link to Customer Record</span>
               </label>
               <Link
                 href="/customers"
-                className="text-xs text-blue-600 font-semibold hover:underline"
+                className="text-xs text-clay-700 font-semibold hover:underline"
               >
                 + New Customer
               </Link>
@@ -480,10 +486,10 @@ export default function QuotesClient() {
           </div>
 
           {/* Voice & Text Prompt Box */}
-          <div className="bg-gradient-to-br from-blue-50/70 via-white to-slate-50 p-5 sm:p-6 rounded-2xl border-2 border-blue-200/90 shadow-xs">
+          <div className="bg-gradient-to-br from-paper/70 via-white to-slate-50 p-5 sm:p-6 rounded-2xl border-2 border-clay-200/90 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
               <label className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600" />
+                <Sparkles className="w-4 h-4 text-clay-700" />
                 <span>Job Notes & Van Voice Dictation</span>
               </label>
 
@@ -494,7 +500,7 @@ export default function QuotesClient() {
                 className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[46px] rounded-xl text-xs sm:text-sm font-extrabold transition-all shadow-md active:scale-95 ${
                   isRecording
                     ? "bg-red-600 hover:bg-red-700 text-white ring-4 ring-red-400/50 shadow-red-500/25 animate-pulse"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-clay-700 hover:bg-clay-800 text-white"
                 }`}
                 title="Speak your quote from your van"
               >
@@ -543,7 +549,7 @@ export default function QuotesClient() {
               </div>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-100/80">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-clay-100/80">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -576,7 +582,7 @@ export default function QuotesClient() {
                   type="button"
                   onClick={handleGenerateAI}
                   disabled={isGenerating || !notesInput.trim()}
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>
@@ -595,6 +601,9 @@ export default function QuotesClient() {
 
           {/* Job Site & Inspection Photos Uploader */}
           <SitePhotosUploader photos={photos} onChange={setPhotos} />
+          <p className="text-xs text-stone-600">
+            Photos stay on this phone until the database photo step has been run and you are signed in.
+          </p>
 
           {/* Mode Switcher Tabs */}
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
@@ -697,7 +706,7 @@ export default function QuotesClient() {
             {/* Header */}
             <div className="bg-slate-900 text-white p-5 sm:p-6">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold tracking-widest text-blue-400">
+                <span className="text-xs uppercase font-extrabold tracking-widest text-clay-300">
                   Quote Summary
                 </span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
@@ -724,7 +733,7 @@ export default function QuotesClient() {
                       type="checkbox"
                       checked={vatEnabled}
                       onChange={(e) => setVatEnabled(e.target.checked)}
-                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                      className="rounded text-clay-700 focus:ring-clay-600 h-4 w-4"
                     />
                     <span>Add 20% VAT</span>
                   </label>
@@ -800,7 +809,7 @@ export default function QuotesClient() {
                         triggerToast("Save the quote first to generate a shareable WhatsApp link.");
                         return;
                       }
-                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://www.tradematequotes.co.uk";
+                      const siteOrigin = window.location.origin;
                       const params = {
                         quoteId: activeQuoteId || "",
                         token: activeToken || activeQuoteId || "",
@@ -832,7 +841,7 @@ export default function QuotesClient() {
                         triggerToast("Save the quote first to generate a follow-up link.");
                         return;
                       }
-                      const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://www.tradematequotes.co.uk";
+                      const siteOrigin = window.location.origin;
                       const params = {
                         quoteId: activeQuoteId || "",
                         token: activeToken || activeQuoteId || "",
@@ -851,18 +860,18 @@ export default function QuotesClient() {
                       window.open(waFollowUpUrl, "_blank");
                       triggerToast("WhatsApp opened with warm follow-up message!");
                     }}
-                    className="col-span-2 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-semibold py-2 px-3 rounded-xl text-xs transition"
+                    className="col-span-2 flex items-center justify-center gap-1.5 bg-clay-50 hover:bg-clay-100 text-clay-800 border border-clay-200 font-semibold py-2 px-3 rounded-xl text-xs transition"
                     title="Send a polite follow-up message if the customer hasn't responded"
                   >
-                    <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                    <MessageCircle className="w-3.5 h-3.5 text-clay-700" />
                     <span>Send Polite Follow-Up (WhatsApp)</span>
                   </button>
                 </div>
               </div>
 
               {/* Note */}
-              <div className="p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl flex items-start gap-2 text-xs text-blue-800">
-                <HelpCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="p-3 bg-clay-50/70 border border-clay-200/60 rounded-xl flex items-start gap-2 text-xs text-clay-800">
+                <HelpCircle className="w-4 h-4 text-clay-700 shrink-0 mt-0.5" />
                 <span>
                   Quotes get a unique, unguessable customer link where clients can sign digitally from any smartphone.
                 </span>
@@ -889,10 +898,7 @@ export default function QuotesClient() {
             <button
               type="button"
               onClick={() => {
-                const siteOrigin =
-                  typeof window !== "undefined"
-                    ? window.location.origin
-                    : "https://www.tradematequotes.co.uk";
+                const siteOrigin = window.location.origin;
                 const params = {
                   quoteId: activeQuoteId || "",
                   token: activeToken || activeQuoteId || "",
@@ -920,7 +926,7 @@ export default function QuotesClient() {
             <button
               type="button"
               onClick={() => handleSaveQuote()}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold px-4 py-2 min-h-[46px] rounded-xl text-xs sm:text-sm shadow-md active:scale-95 transition"
+              className="inline-flex items-center gap-1.5 bg-clay-700 hover:bg-clay-800 active:bg-blue-800 text-white font-extrabold px-4 py-2 min-h-[46px] rounded-xl text-xs sm:text-sm shadow-md active:scale-95 transition"
             >
               <Save className="w-4 h-4" />
               <span>Save Quote</span>

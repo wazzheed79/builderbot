@@ -18,7 +18,6 @@ import {
   Share2,
   Receipt,
   Camera,
-  CreditCard,
   MessageSquare,
 } from "lucide-react";
 import {
@@ -27,14 +26,28 @@ import {
   markQuoteViewed,
   Quote,
   Invoice,
-  getInvoices,
   convertQuoteToInvoice,
-  getBusinessProfile,
   BusinessProfile,
   calculateQuoteExpiry,
 } from "@/lib/storage";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 import { getWhatsAppShareUrl } from "@/lib/share";
+import { brand } from "@/lib/brand.mjs";
+import {
+  useBusinessProfile,
+  useClientReady,
+  useInvoiceList,
+  useQuoteList,
+  useSiteOrigin,
+} from "@/lib/live-store";
+
+function viewStatus(quote: Quote | undefined, remoteExpired: boolean) {
+  if (!quote) return "pending" as const;
+  if (quote.status === "Accepted") return "accepted" as const;
+  if (quote.status === "Rejected") return "rejected" as const;
+  if (quote.status === "Expired" || remoteExpired) return "expired" as const;
+  return "pending" as const;
+}
 
 export default function CustomerQuoteClient({
   params,
@@ -43,91 +56,69 @@ export default function CustomerQuoteClient({
 }) {
   const resolvedParams = use(params);
   const quoteId = resolvedParams.id || "";
-
-  // Lazy initialize quote from local storage
-  const [loadedQuote, setLoadedQuote] = useState<Quote | undefined>(() =>
-    getQuoteById(quoteId)
-  );
-
-  const [isLoadingCloud, setIsLoadingCloud] = useState(() => !getQuoteById(quoteId));
-
-  const [status, setStatus] = useState<"pending" | "accepted" | "rejected" | "expired">(() => {
-    const q = getQuoteById(quoteId);
-    if (q?.status === "Accepted") return "accepted";
-    if (q?.status === "Rejected") return "rejected";
-    if (q?.status === "Expired") return "expired";
-    return "pending";
+  const siteOrigin = useSiteOrigin();
+  const ready = useClientReady();
+  const quotes = useQuoteList();
+  const invoices = useInvoiceList();
+  const profile = useBusinessProfile();
+  const storedQuote = quotes.find((q) => {
+    const lower = quoteId.toLowerCase();
+    return q.id.toLowerCase() === lower || q.token.toLowerCase() === lower;
   });
 
-  const [signatureName, setSignatureName] = useState(
-    () => getQuoteById(quoteId)?.acceptedSignatureName ?? ""
-  );
+  const [quoteOverride, setQuoteOverride] = useState<Quote | undefined>(undefined);
+  const [cloudQuote, setCloudQuote] = useState<Quote | undefined>(undefined);
+  const [cloudSettled, setCloudSettled] = useState(false);
+  const [remoteExpired, setRemoteExpired] = useState(false);
+  const [signatureName, setSignatureName] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [selectedModalPhoto, setSelectedModalPhoto] = useState<string | null>(null);
-  const [profile] = useState<BusinessProfile>(() => getBusinessProfile());
   const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
+  const [invoiceOverride, setInvoiceOverride] = useState<Invoice | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
 
-  const [createdInvoice, setCreatedInvoice] = useState<Invoice | null>(() => {
-    const q = getQuoteById(quoteId);
-    if (!q) return null;
-    return getInvoices().find((i) => i.quoteId === q.id) || null;
-  });
+  const loadedQuote = quoteOverride ?? cloudQuote ?? storedQuote;
+  const status = viewStatus(loadedQuote, remoteExpired);
+  const createdInvoice =
+    invoiceOverride ??
+    (loadedQuote ? invoices.find((invoice) => invoice.quoteId === loadedQuote.id) ?? null : null);
 
   const handleCreateInvoice = () => {
     if (!loadedQuote) return;
-    const inv = convertQuoteToInvoice(loadedQuote, false);
-    setCreatedInvoice(inv);
+    setInvoiceOverride(convertQuoteToInvoice(loadedQuote, false));
   };
-
-  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
-  const [depositPaymentNotice, setDepositPaymentNotice] = useState<string | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("payment") === "success") {
-        setPaymentSuccess(true);
-      }
-    }
-  }, []);
 
   // Fetch from server / Supabase for external client devices
   useEffect(() => {
-    if (!loadedQuote) {
-      let isMounted = true;
-      fetch(`/api/quote/${quoteId}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (!isMounted) return;
-          if (data?.quote) {
-            setLoadedQuote(data.quote);
-            if (data.quote.status === "Accepted") setStatus("accepted");
-            else if (data.quote.status === "Rejected") setStatus("rejected");
-            else if (data.quote.status === "Expired" || data.isExpired) setStatus("expired");
-            else setStatus("pending");
-
-            if (data.quote.acceptedSignatureName) {
-              setSignatureName(data.quote.acceptedSignatureName);
-            }
-            if (data.contractor) {
-              setServerContractor(data.contractor);
-            }
+    if (!ready || storedQuote || quoteOverride) return;
+    let isMounted = true;
+    fetch(`/api/quote/${quoteId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isMounted) return;
+        if (data?.quote) {
+          setCloudQuote(data.quote);
+          if (data.isExpired) setRemoteExpired(true);
+          if (data.quote.acceptedSignatureName) {
+            setSignatureName(data.quote.acceptedSignatureName);
           }
-          setIsLoadingCloud(false);
-        })
-        .catch(() => {
-          if (isMounted) setIsLoadingCloud(false);
-        });
+          if (data.contractor) {
+            setServerContractor(data.contractor);
+          }
+        }
+        setCloudSettled(true);
+      })
+      .catch(() => {
+        if (isMounted) setCloudSettled(true);
+      });
 
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [loadedQuote, quoteId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [ready, storedQuote, quoteOverride, quoteId]);
 
   // Mark quote as Viewed when customer opens the link
   useEffect(() => {
@@ -136,11 +127,11 @@ export default function CustomerQuoteClient({
     }
   }, [loadedQuote]);
 
-  if (isLoadingCloud) {
+  if (!ready || (!loadedQuote && !cloudSettled)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-md max-w-sm w-full text-center space-y-3">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
+          <Loader2 className="w-8 h-8 text-clay-700 animate-spin mx-auto" />
           <p className="text-sm font-bold text-slate-900">Retrieving Quotation...</p>
           <p className="text-xs text-slate-500">Connecting to secure trade link</p>
         </div>
@@ -163,9 +154,9 @@ export default function CustomerQuoteClient({
           <div className="pt-2">
             <Link
               href="/"
-              className="text-xs font-semibold text-blue-600 hover:underline"
+              className="text-xs font-semibold text-clay-700 hover:underline"
             >
-              Return to BuilderBot Home
+              Return to {brand.name}
             </Link>
           </div>
         </div>
@@ -184,107 +175,98 @@ export default function CustomerQuoteClient({
     loadedQuote.createdAt,
     activeProfile.quoteValidityDays || 30
   );
-  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot.co.uk";
   const quoteLiveUrl = `${siteOrigin}/q/${loadedQuote.token || loadedQuote.id}`;
 
-  const handleConfirmAccept = () => {
-    if (!signatureName.trim() || !agreedToTerms) return;
+  const handleConfirmAccept = async () => {
+    if (!loadedQuote || !signatureName.trim() || !agreedToTerms) return;
 
     const trimmedName = signatureName.trim();
-    const updated = updateQuoteStatus(quoteId, "Accepted", {
-      signatureName: trimmedName,
-    });
+    const localQuote = getQuoteById(quoteId);
+    setDecisionError(null);
 
-    if (updated) {
-      setLoadedQuote(updated);
-    } else if (loadedQuote) {
-      setLoadedQuote({
+    if (localQuote) {
+      const updated = updateQuoteStatus(quoteId, "Accepted", {
+        signatureName: trimmedName,
+      });
+      if (!updated) {
+        setDecisionError("This quote cannot be accepted. Drafts and expired quotes stay unsigned.");
+        return;
+      }
+      setQuoteOverride(updated);
+      setShowSignModal(false);
+      fetch(`/api/quote/${quoteId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Accepted", signatureName: trimmedName }),
+      }).catch(() => {});
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/quote/${quoteId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Accepted", signatureName: trimmedName }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDecisionError(data.error || "This quote cannot be accepted.");
+        return;
+      }
+      setQuoteOverride({
         ...loadedQuote,
         status: "Accepted",
         acceptedSignatureName: trimmedName,
         acceptedAt: new Date().toISOString(),
       });
+      setShowSignModal(false);
+    } catch {
+      setDecisionError("Could not reach the quote. Nothing was signed.");
     }
-    setStatus("accepted");
-
-    fetch(`/api/quote/${quoteId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: "Accepted",
-        signatureName: trimmedName,
-      }),
-    }).catch(() => {});
-
-    setShowSignModal(false);
   };
 
-  const handleConfirmDecline = () => {
+  const handleConfirmDecline = async () => {
+    if (!loadedQuote) return;
     const trimmedReason = declineReason.trim();
-    const updated = updateQuoteStatus(quoteId, "Rejected", {
-      reason: trimmedReason,
-    });
+    const localQuote = getQuoteById(quoteId);
+    setDecisionError(null);
 
-    if (updated) {
-      setLoadedQuote(updated);
-    } else if (loadedQuote) {
-      setLoadedQuote({
+    if (localQuote) {
+      const updated = updateQuoteStatus(quoteId, "Rejected", { reason: trimmedReason });
+      if (!updated) {
+        setDecisionError("This quote cannot be declined from its current status.");
+        return;
+      }
+      setQuoteOverride(updated);
+      setShowDeclineModal(false);
+      fetch(`/api/quote/${quoteId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Rejected", reason: trimmedReason }),
+      }).catch(() => {});
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/quote/${quoteId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Rejected", reason: trimmedReason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDecisionError(data.error || "This quote cannot be declined.");
+        return;
+      }
+      setQuoteOverride({
         ...loadedQuote,
         status: "Rejected",
         rejectedReason: trimmedReason,
         rejectedAt: new Date().toISOString(),
       });
-    }
-    setStatus("rejected");
-
-    fetch(`/api/quote/${quoteId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: "Rejected",
-        reason: trimmedReason,
-      }),
-    }).catch(() => {});
-
-    setShowDeclineModal(false);
-  };
-
-  const handlePayStripeDeposit = async () => {
-    if (!loadedQuote) return;
-    setIsProcessingDeposit(true);
-    setDepositPaymentNotice(null);
-
-    try {
-      const res = await fetch("/api/stripe/deposit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quoteId: loadedQuote.id,
-          quoteTitle: loadedQuote.title || `Quotation #${loadedQuote.id}`,
-          depositAmount: loadedQuote.deposit,
-          contractorName: contractorName,
-          customerEmail: loadedQuote.clientEmail || undefined,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url;
-      } else if (data.demo) {
-        setDepositPaymentNotice(
-          `Deposit payment preview: £${loadedQuote.deposit.toFixed(2)} deposit confirmed! (Stripe Test/Preview Mode — Card & Apple Pay activate once Stripe keys are set)`
-        );
-      } else {
-        setDepositPaymentNotice(
-          data.error || "Unable to process online card deposit right now. Please use bank transfer details below."
-        );
-      }
+      setShowDeclineModal(false);
     } catch {
-      setDepositPaymentNotice(
-        "Connection error reaching payment gateway. Please use bank transfer details below."
-      );
-    } finally {
-      setIsProcessingDeposit(false);
+      setDecisionError("Could not reach the quote. Nothing was changed.");
     }
   };
 
@@ -302,7 +284,7 @@ export default function CustomerQuoteClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/80 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-paper py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Banner / Notice for Customer */}
         <div className="no-print space-y-4">
@@ -313,10 +295,8 @@ export default function CustomerQuoteClient({
               <span>Job Progress Tracker</span>
               <span className="font-semibold text-slate-500">
                 {status === "accepted"
-                  ? paymentSuccess
-                    ? "Step 4 of 4: Booking Reserved"
-                    : "Step 3 of 4: Signed — Deposit Pending"
-                  : "Step 2 of 4: Awaiting Your Review"}
+                  ? "Signed"
+                  : "Waiting for your review"}
               </span>
             </div>
             <div className="grid grid-cols-4 gap-2 text-center relative">
@@ -331,8 +311,8 @@ export default function CustomerQuoteClient({
 
               {/* Step 2 */}
               <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                <div className="w-8 h-8 rounded-full bg-clay-100 text-clay-800 flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-clay-700" />
                 </div>
                 <span className="text-[11px] font-bold text-slate-900 leading-tight">2. Viewed</span>
                 <span className="text-[10px] text-slate-400 hidden sm:block">Under Review</span>
@@ -344,7 +324,7 @@ export default function CustomerQuoteClient({
                   className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs transition ${
                     status === "accepted"
                       ? "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500/20"
-                      : "bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse"
+                      : "bg-clay-700 text-white ring-4 ring-clay-100 animate-pulse"
                   }`}
                 >
                   {status === "accepted" ? (
@@ -355,13 +335,13 @@ export default function CustomerQuoteClient({
                 </div>
                 <span
                   className={`text-[11px] font-bold leading-tight ${
-                    status === "accepted" ? "text-slate-900" : "text-blue-600"
+                    status === "accepted" ? "text-slate-900" : "text-clay-700"
                   }`}
                 >
                   3. {status === "accepted" ? "Accepted" : "Sign & Accept"}
                 </span>
                 <span className="text-[10px] text-slate-400 hidden sm:block">
-                  {status === "accepted" ? (paymentSuccess ? "Deposit Paid" : "Deposit Due") : "Online / 1-Tap"}
+                  {status === "accepted" ? "Signed" : "Your decision"}
                 </span>
               </div>
 
@@ -369,18 +349,12 @@ export default function CustomerQuoteClient({
               <div className="flex flex-col items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs ${
-                    status === "accepted" && paymentSuccess
-                      ? "bg-emerald-600 text-white ring-4 ring-emerald-100 animate-bounce"
-                      : status === "accepted"
+                    status === "accepted"
                       ? "bg-emerald-100 text-emerald-700"
                       : "bg-slate-100 text-slate-400"
                   }`}
                 >
-                  {status === "accepted" && paymentSuccess ? (
-                    <CheckCircle2 className="w-4 h-4 text-white" />
-                  ) : (
-                    <span>4</span>
-                  )}
+                  <span>4</span>
                 </div>
                 <span
                   className={`text-[11px] font-bold leading-tight ${
@@ -417,58 +391,7 @@ export default function CustomerQuoteClient({
               </div>
             </div>
 
-            {/* Payment Received Alert if returned from Stripe */}
-            {paymentSuccess && (
-              <div className="bg-emerald-800/90 border border-emerald-400 p-4 rounded-xl text-white text-xs flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
-                <div>
-                  <span className="font-bold text-sm block">Deposit Payment Received via Card!</span>
-                  <span>Thank you. Your £{loadedQuote.deposit.toFixed(2)} deposit has cleared and your booking is reserved.</span>
-                </div>
-              </div>
-            )}
-
-            {/* One-Tap Online Deposit Payment (Stripe Card / Apple Pay) */}
-            {!paymentSuccess && loadedQuote.deposit > 0 && (
-              <div className="bg-white text-slate-900 p-4 rounded-xl shadow-md border border-emerald-300 space-y-2.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-700 block">
-                      Pay Booking Deposit Online
-                    </span>
-                    <span className="text-xs text-slate-600">
-                      Fast &amp; secure via Debit Card, Credit Card, Apple Pay or Google Pay.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handlePayStripeDeposit}
-                    disabled={isProcessingDeposit}
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black px-4 py-3 rounded-xl text-xs sm:text-sm shadow-md transition active:scale-95 shrink-0"
-                  >
-                    {isProcessingDeposit ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                        <span>Connecting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4 text-emerald-200" />
-                        <span>Pay £{loadedQuote.deposit.toFixed(2)} Deposit Online</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {depositPaymentNotice && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 font-medium">
-                    {depositPaymentNotice}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeProfile.bankAccountNumber && (
+            {status === "accepted" && activeProfile.bankAccountNumber && (
               <div className="bg-emerald-700/60 border border-emerald-500/40 rounded-xl p-4 text-xs space-y-2">
                 <p className="font-bold text-emerald-100 uppercase tracking-wider text-[11px]">
                   Deposit Payment Instructions (Bank Transfer):
@@ -515,12 +438,12 @@ export default function CustomerQuoteClient({
             </div>
           </div>
         ) : (
-          <div className="bg-blue-600 text-white px-5 py-3 rounded-xl shadow-md flex items-center justify-between text-xs sm:text-sm font-semibold">
+          <div className="bg-clay-700 text-white px-5 py-3 rounded-xl shadow-md flex items-center justify-between text-xs sm:text-sm font-semibold">
             <span className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-200" />
+              <Sparkles className="w-4 h-4 text-clay-100" />
               Official Trade Quotation #{loadedQuote.id}
             </span>
-            <span className="bg-blue-700/80 px-2.5 py-1 rounded text-xs">
+            <span className="bg-clay-800 px-2.5 py-1 rounded text-xs">
               Valid for {activeProfile.quoteValidityDays || 30} Days
             </span>
           </div>
@@ -528,10 +451,10 @@ export default function CustomerQuoteClient({
         </div>
 
         {/* Main Document Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print-page">
+        <div className="quote-document bg-[#fffdf8] rounded-2xl shadow-xl border border-stone-200 border-t-8 border-t-clay-700 overflow-hidden print-page">
           {/* Header & Contractor Details */}
-          <div className="p-6 sm:p-8 bg-slate-900 text-white">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-800">
+          <div className="p-6 sm:p-8 bg-[#fffdf8] text-ink border-b border-stone-200">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-stone-200">
               <div className="flex items-start gap-4">
                 {activeProfile.logoUrl && (
                   <div className="w-16 h-16 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
@@ -544,17 +467,17 @@ export default function CustomerQuoteClient({
                   </div>
                 )}
                 <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/30 text-blue-300 text-xs font-bold border border-blue-500/30 mb-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-clay-50 text-clay-800 text-xs font-bold border border-clay-200 mb-2">
                     <Wrench className="w-3.5 h-3.5" />
                     <span>{profile.trade || "Licensed Trade Contractor"}</span>
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-white">
+                  <h1 className="text-2xl sm:text-3xl font-black text-ink">
                     {contractorName}
                   </h1>
                 {profile.tradingName && (
-                  <p className="text-xs text-blue-300 font-medium">{profile.tradingName}</p>
+                  <p className="text-xs text-clay-800 font-medium">{profile.tradingName}</p>
                 )}
-                <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                <p className="text-xs sm:text-sm text-stone-500 mt-1">
                   Quotation Ref: {loadedQuote.id}
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
@@ -566,39 +489,33 @@ export default function CustomerQuoteClient({
                       const isWaste = lower.includes("waste carrier") || lower.includes("environment agency");
 
                       const badgeClasses = isGasSafe
-                        ? "bg-amber-950/80 text-amber-300 border-amber-600/60"
+                        ? "bg-amber-50 text-amber-900 border-amber-300"
                         : isElectric
-                        ? "bg-blue-950/80 text-blue-300 border-blue-600/60"
+                        ? "bg-sky-50 text-sky-900 border-sky-200"
                         : isWaste
-                        ? "bg-emerald-950/80 text-emerald-300 border-emerald-600/60"
-                        : "bg-slate-800 text-slate-200 border-slate-700";
+                        ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                        : "bg-stone-50 text-stone-800 border-stone-200";
 
                       return (
                         <span
                           key={i}
                           className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-md font-bold border shadow-xs ${badgeClasses}`}
                         >
-                          {isGasSafe ? (
-                            <span>🔥</span>
-                          ) : isElectric ? (
-                            <span>⚡</span>
-                          ) : isWaste ? (
-                            <span>♻️</span>
-                          ) : (
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          {isGasSafe || isElectric || isWaste ? null : (
+                            <ShieldCheck className="w-3.5 h-3.5 text-clay-700" />
                           )}
                           <span>{acc}</span>
                         </span>
                       );
                     })
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md font-medium border border-slate-700">
-                      <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-stone-50 text-stone-700 px-2.5 py-1 rounded-md font-medium border border-stone-200">
+                      <ShieldCheck className="w-3 h-3 text-clay-700" />
                       Direct Trade Quotation
                     </span>
                   )}
                   {activeProfile.vatRegistered && activeProfile.vatNumber && (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md font-mono font-bold border border-slate-700">
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-stone-50 text-stone-800 px-2.5 py-1 rounded-md font-mono font-bold border border-stone-200">
                       VAT: {activeProfile.vatNumber}
                     </span>
                   )}
@@ -609,32 +526,32 @@ export default function CustomerQuoteClient({
             {/* Contractor Contact */}
               <div className="sm:text-right space-y-1">
                 <div className="flex flex-wrap items-center sm:justify-end gap-1.5 pb-1">
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-blue-400 border border-slate-700">
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-clay-50 text-clay-800 border border-clay-200">
                     {loadedQuote.id}
                   </span>
                   {expiry.isExpired ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-950 text-red-300 border border-red-800">
-                      <Clock className="w-3 h-3 text-red-400" />
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-800 border border-red-200">
+                      <Clock className="w-3 h-3 text-red-700" />
                       Expired
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-amber-300 border border-slate-700">
-                      <Clock className="w-3 h-3 text-amber-400" />
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                      <Clock className="w-3 h-3 text-amber-700" />
                       Valid: {expiry.daysLeft}d left
                     </span>
                   )}
                 </div>
-                <p className="pt-2 flex items-center sm:justify-end gap-1.5 text-slate-300">
-                  <Phone className="w-3.5 h-3.5 text-blue-400" />
+                <p className="pt-2 flex items-center sm:justify-end gap-1.5 text-stone-700">
+                  <Phone className="w-3.5 h-3.5 text-clay-700" />
                   <span>{contactPhone}</span>
                 </p>
-                <p className="flex items-center sm:justify-end gap-1.5 text-slate-300">
-                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                <p className="flex items-center sm:justify-end gap-1.5 text-stone-700">
+                  <Mail className="w-3.5 h-3.5 text-clay-700" />
                   <span>{contactEmail}</span>
                 </p>
                 {profile.address && (
-                  <p className="flex items-center sm:justify-end gap-1.5 text-slate-400 text-[11px]">
-                    <MapPin className="w-3 h-3 text-slate-500" />
+                  <p className="flex items-center sm:justify-end gap-1.5 text-stone-500 text-[11px]">
+                    <MapPin className="w-3 h-3 text-stone-400" />
                     <span>{profile.address}</span>
                   </p>
                 )}
@@ -644,33 +561,33 @@ export default function CustomerQuoteClient({
             {/* Client Info Grid */}
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-slate-400 uppercase font-bold tracking-wider">Prepared For</span>
-                <p className="text-sm font-bold text-white mt-0.5">
+                <span className="text-stone-500 uppercase font-bold tracking-wider">Prepared For</span>
+                <p className="text-sm font-bold text-ink mt-0.5">
                   {loadedQuote.clientName} {loadedQuote.clientCompany ? `(${loadedQuote.clientCompany})` : ""}
                 </p>
-                <p className="text-slate-400 flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                <p className="text-stone-600 flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-stone-400" />
                   {loadedQuote.clientAddress}
                 </p>
                 {loadedQuote.clientPhone && (
-                  <p className="text-slate-400 flex items-center gap-1 mt-0.5 text-[11px]">
-                    <Phone className="w-3.5 h-3.5 text-slate-500" />
+                  <p className="text-stone-600 flex items-center gap-1 mt-0.5 text-[11px]">
+                    <Phone className="w-3.5 h-3.5 text-stone-400" />
                     {loadedQuote.clientPhone}
                   </p>
                 )}
                 {loadedQuote.clientEmail && (
-                  <p className="text-slate-400 flex items-center gap-1 mt-0.5 text-[11px]">
-                    <Mail className="w-3.5 h-3.5 text-slate-500" />
+                  <p className="text-stone-600 flex items-center gap-1 mt-0.5 text-[11px]">
+                    <Mail className="w-3.5 h-3.5 text-stone-400" />
                     {loadedQuote.clientEmail}
                   </p>
                 )}
               </div>
               <div>
-                <span className="text-slate-400 uppercase font-bold tracking-wider">Project Specification</span>
-                <p className="text-sm font-bold text-white mt-0.5">{loadedQuote.title}</p>
-                <p className="text-slate-400 mt-0.5">Date Issued: {loadedQuote.createdAt}</p>
+                <span className="text-stone-500 uppercase font-bold tracking-wider">Project Specification</span>
+                <p className="text-sm font-bold text-ink mt-0.5">{loadedQuote.title}</p>
+                <p className="text-stone-600 mt-0.5">Date Issued: {loadedQuote.createdAt}</p>
                 {profile.ownerName && (
-                  <p className="text-slate-400 mt-0.5 text-[11px]">Estimator: {profile.ownerName}</p>
+                  <p className="text-stone-600 mt-0.5 text-[11px]">Estimator: {profile.ownerName}</p>
                 )}
               </div>
             </div>
@@ -694,31 +611,20 @@ export default function CustomerQuoteClient({
               <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-3">
                 Itemized Cost Breakdown
               </h2>
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
-                    <tr>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4 text-center">Type</th>
-                      <th className="py-3 px-4 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {loadedQuote.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-3.5 px-4 font-medium text-slate-900">{item.description}</td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                            {item.type}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-semibold text-slate-900">
-                          £{(item.quantity * item.rate).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
+                {loadedQuote.items.map((item, idx) => (
+                  <div key={idx} className="p-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                    <div className="min-w-0">
+                      <p className="font-medium text-stone-900">{item.description}</p>
+                      <p className="text-[11px] uppercase tracking-wider text-stone-500 mt-1">
+                        {item.type} · {item.quantity} {item.unit} × £{item.rate.toFixed(2)}
+                      </p>
+                    </div>
+                    <p className="font-semibold tabular-nums text-stone-900 sm:text-right">
+                      £{(item.quantity * item.rate).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -736,12 +642,12 @@ export default function CustomerQuoteClient({
                   <span className="font-medium text-slate-900">£{loadedQuote.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>20% VAT:</span>
+                  <span>{loadedQuote.vatEnabled ? "VAT (20%):" : "VAT:"}</span>
                   <span className="font-medium text-slate-900">£{loadedQuote.vat.toFixed(2)}</span>
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline font-black">
                   <span className="text-base text-slate-900">Total Price:</span>
-                  <span className="text-2xl text-blue-600">£{loadedQuote.total.toFixed(2)}</span>
+                  <span className="text-2xl text-clay-700">£{loadedQuote.total.toFixed(2)}</span>
                 </div>
                 <div className="pt-1 flex justify-between text-xs text-emerald-700 font-bold">
                   <span>Deposit Required:</span>
@@ -771,7 +677,7 @@ export default function CustomerQuoteClient({
             {loadedQuote.photos && loadedQuote.photos.length > 0 && (
               <div className="pt-4 border-t border-slate-200">
                 <div className="flex items-center gap-2 mb-3">
-                  <Camera className="w-4 h-4 text-blue-600" />
+                  <Camera className="w-4 h-4 text-clay-700" />
                   <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">
                     Job Site & Inspection Reference Photos ({loadedQuote.photos.length})
                   </h3>
@@ -810,6 +716,12 @@ export default function CustomerQuoteClient({
               </div>
             )}
 
+            {decisionError && (
+              <p className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3 no-print">
+                {decisionError}
+              </p>
+            )}
+
             {/* Action Bar for Customer */}
             <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3 no-print">
               {status === "pending" ? (
@@ -826,10 +738,10 @@ export default function CustomerQuoteClient({
                   <button
                     type="button"
                     onClick={handleRequestChanges}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold py-3.5 px-5 rounded-xl border border-blue-200 transition active:scale-[0.98]"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-clay-50 hover:bg-clay-100 text-clay-800 font-bold py-3.5 px-5 rounded-xl border border-clay-200 transition active:scale-[0.98]"
                     title="Send a quick WhatsApp or message to query or adjust scope"
                   >
-                    <MessageSquare className="w-4 h-4 text-blue-600" />
+                    <MessageSquare className="w-4 h-4 text-clay-700" />
                     <span>Ask Question / Request Changes</span>
                   </button>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -22,21 +22,24 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
-  getCustomerById,
-  getCustomerMetrics,
-  getBusinessProfile,
-  Customer,
   Job,
   Invoice,
   Quote,
-  getJobsByCustomer,
-  getInvoicesByCustomer,
   saveJob,
   deleteJob,
   saveInvoice,
   convertQuoteToInvoice,
 } from "@/lib/storage";
 import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl } from "@/lib/share";
+import {
+  useClientReady,
+  useCustomerList,
+  useQuoteList,
+  useJobList,
+  useInvoiceList,
+  useBusinessProfile,
+  useSiteOrigin,
+} from "@/lib/live-store";
 
 export default function CustomerProfileClient({
   params,
@@ -45,21 +48,47 @@ export default function CustomerProfileClient({
 }) {
   const resolvedParams = use(params);
   const customerId = resolvedParams.id || "";
-  const [customer] = useState<Customer | undefined>(() => getCustomerById(customerId));
-  const [metrics, setMetrics] = useState(() => (customer ? getCustomerMetrics(customer.id) : null));
-  const [businessProfile] = useState(() => getBusinessProfile());
+  const ready = useClientReady();
+  const siteOrigin = useSiteOrigin();
+  const customer = useCustomerList().find((item) => item.id === customerId);
+  const businessProfile = useBusinessProfile();
+  const allQuotes = useQuoteList();
+  const allJobs = useJobList();
+  const allInvoices = useInvoiceList();
 
   // Tabs: quotes | jobs | invoices
   const [activeTab, setActiveTab] = useState<"quotes" | "jobs" | "invoices">("quotes");
 
   // Jobs and Invoices state
-  const [jobs, setJobs] = useState<Job[]>(() => (customer ? getJobsByCustomer(customer.id) : []));
-  const [invoices, setInvoices] = useState<Invoice[]>(() => (customer ? getInvoicesByCustomer(customer.id) : []));
+  const jobs = useMemo(
+    () => allJobs.filter((job) => job.customerId === customerId),
+    [allJobs, customerId]
+  );
+  const invoices = useMemo(
+    () => allInvoices.filter((invoice) => invoice.customerId === customerId),
+    [allInvoices, customerId]
+  );
+  const metrics = useMemo(() => {
+    const quotes = allQuotes.filter(
+      (quote) =>
+        quote.customerId === customerId ||
+        (customer ? quote.clientName.toLowerCase() === customer.name.toLowerCase() : false)
+    );
+    const accepted = quotes.filter((quote) => quote.status === "Accepted");
+    const decided = quotes.filter((quote) => quote.status === "Accepted" || quote.status === "Rejected").length;
+    const totalWon = accepted.reduce((sum, quote) => sum + quote.total, 0);
+    return {
+      totalQuotes: quotes.length,
+      totalWon,
+      winRate: decided > 0 ? Math.round((accepted.length / decided) * 100) : 0,
+      quotes,
+    };
+  }, [allQuotes, customer, customerId]);
 
   // Modal / Creator states
   const [showAddJobModal, setShowAddJobModal] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState("");
-  const [newJobAddress, setNewJobAddress] = useState(customer?.address || "");
+  const [newJobAddress, setNewJobAddress] = useState("");
   const [newJobStatus, setNewJobStatus] = useState<Job["status"]>("Scheduled");
   const [newJobNotes, setNewJobNotes] = useState("");
   const [newJobQuoteId, setNewJobQuoteId] = useState("");
@@ -67,17 +96,9 @@ export default function CustomerProfileClient({
   // Toast / Feedback message
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  // Storage listener for cross-tab or background synchronization
-  useEffect(() => {
-    if (!customer) return;
-    const handleUpdate = () => {
-      setMetrics(getCustomerMetrics(customer.id));
-      setJobs(getJobsByCustomer(customer.id));
-      setInvoices(getInvoicesByCustomer(customer.id));
-    };
-    window.addEventListener("builderbot_storage_updated", handleUpdate);
-    return () => window.removeEventListener("builderbot_storage_updated", handleUpdate);
-  }, [customer]);
+  if (!ready) {
+    return <div className="max-w-4xl mx-auto px-4 py-16 text-sm text-stone-600">Loading customer…</div>;
+  }
 
   if (!customer) {
     return (
@@ -91,7 +112,7 @@ export default function CustomerProfileClient({
         </p>
         <Link
           href="/customers"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm transition"
+          className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm transition"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Customers</span>
@@ -125,7 +146,6 @@ export default function CustomerProfileClient({
       quoteId: newJobQuoteId || undefined,
     });
 
-    setJobs(getJobsByCustomer(customer.id));
     setShowAddJobModal(false);
     setNewJobTitle("");
     setNewJobNotes("");
@@ -139,19 +159,16 @@ export default function CustomerProfileClient({
       ...job,
       status: newStatus,
     });
-    setJobs(getJobsByCustomer(customer.id));
   };
 
   const handleDeleteJob = (jobId: string) => {
     if (confirm("Are you sure you want to delete this job record?")) {
       deleteJob(jobId);
-      setJobs(getJobsByCustomer(customer.id));
     }
   };
 
   const handleConvertQuoteToInvoice = (quote: Quote, depositOnly: boolean = false) => {
     const inv = convertQuoteToInvoice(quote, depositOnly);
-    setInvoices(getInvoicesByCustomer(customer.id));
     setActiveTab("invoices");
     setActionNotice(`Invoice ${inv.id} generated from quote ${quote.id}.`);
     setTimeout(() => setActionNotice(null), 4000);
@@ -165,12 +182,9 @@ export default function CustomerProfileClient({
       balanceDue: 0,
       paidAt: new Date().toISOString(),
     });
-    setInvoices(getInvoicesByCustomer(customer.id));
     setActionNotice(`Invoice ${inv.id} marked as fully settled.`);
     setTimeout(() => setActionNotice(null), 3500);
   };
-
-  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://builderbot.co.uk";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
@@ -196,7 +210,7 @@ export default function CustomerProfileClient({
       {/* Profile Header Banner */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-start sm:items-center gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-clay-700 to-indigo-600 text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
             {initials}
           </div>
           <div className="space-y-1">
@@ -254,7 +268,7 @@ export default function CustomerProfileClient({
 
           <Link
             href={`/quotes?customerId=${customer.id}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-clay-700 hover:bg-clay-800 text-white shadow-sm transition active:scale-[0.98]"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create Quote</span>
@@ -271,7 +285,7 @@ export default function CustomerProfileClient({
               <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalQuotes}</p>
               <p className="text-xs text-slate-500 mt-0.5">Projects quoted</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+            <div className="w-12 h-12 rounded-xl bg-clay-50 border border-clay-200 flex items-center justify-center text-clay-700">
               <FileText className="w-6 h-6" />
             </div>
           </div>
@@ -376,13 +390,13 @@ export default function CustomerProfileClient({
         {/* Right Column: Interactive Tabs for Quotes, Jobs & Invoices (8 cols) */}
         <div className="lg:col-span-8 space-y-6">
           {/* Tab Navigation Pill Bar */}
-          <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-1.5">
+          <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-3 gap-1.5 min-w-0">
             <button
               type="button"
               onClick={() => setActiveTab("quotes")}
               className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
                 activeTab === "quotes"
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-clay-700 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
@@ -390,7 +404,7 @@ export default function CustomerProfileClient({
               <span>Quotes</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  activeTab === "quotes" ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-600"
+                  activeTab === "quotes" ? "bg-clay-500 text-white" : "bg-slate-100 text-slate-600"
                 }`}
               >
                 {metrics?.quotes.length || 0}
@@ -402,15 +416,15 @@ export default function CustomerProfileClient({
               onClick={() => setActiveTab("jobs")}
               className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
                 activeTab === "jobs"
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-clay-700 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               <Wrench className="w-4 h-4" />
-              <span>Jobs & Schedule</span>
+              <span className="truncate">Jobs</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  activeTab === "jobs" ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-600"
+                  activeTab === "jobs" ? "bg-clay-500 text-white" : "bg-slate-100 text-slate-600"
                 }`}
               >
                 {jobs.length}
@@ -422,15 +436,15 @@ export default function CustomerProfileClient({
               onClick={() => setActiveTab("invoices")}
               className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
                 activeTab === "invoices"
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-clay-700 text-white shadow-sm"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               <Receipt className="w-4 h-4" />
-              <span>Invoices & Billing</span>
+              <span className="truncate">Invoices</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  activeTab === "invoices" ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-600"
+                  activeTab === "invoices" ? "bg-clay-500 text-white" : "bg-slate-100 text-slate-600"
                 }`}
               >
                 {invoices.length}
@@ -451,7 +465,7 @@ export default function CustomerProfileClient({
 
                 <Link
                   href={`/quotes?customerId=${customer.id}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-clay-700 hover:text-clay-800 bg-clay-50 px-3 py-1.5 rounded-lg transition"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>New Quote</span>
@@ -467,14 +481,14 @@ export default function CustomerProfileClient({
                   </p>
                   <Link
                     href={`/quotes?customerId=${customer.id}`}
-                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm mt-2"
+                    className="inline-flex items-center gap-1.5 bg-clay-700 hover:bg-clay-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm mt-2"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Build First Quote</span>
                   </Link>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="stack-table">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50/70 border-b border-slate-100 text-xs font-semibold uppercase text-slate-400">
                       <tr>
@@ -506,7 +520,7 @@ export default function CustomerProfileClient({
                                   : q.status === "Viewed"
                                   ? "bg-amber-100 text-amber-900 border border-amber-300"
                                   : q.status === "Sent"
-                                  ? "bg-blue-100 text-blue-800"
+                                  ? "bg-clay-100 text-clay-800"
                                   : q.status === "Rejected"
                                   ? "bg-rose-100 text-rose-800"
                                   : q.status === "Expired"
@@ -561,7 +575,7 @@ export default function CustomerProfileClient({
                             </a>
                             <Link
                               href={`/q/${q.token || q.id}`}
-                              className="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1"
+                              className="text-xs font-semibold text-clay-700 hover:underline inline-flex items-center gap-1"
                             >
                               <span>Review</span>
                               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -590,7 +604,7 @@ export default function CustomerProfileClient({
                 <button
                   type="button"
                   onClick={() => setShowAddJobModal(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl transition shadow-sm"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-clay-700 hover:bg-clay-800 px-3.5 py-2 rounded-xl transition shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>New Job</span>
@@ -607,7 +621,7 @@ export default function CustomerProfileClient({
                   <button
                     type="button"
                     onClick={() => setShowAddJobModal(true)}
-                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm mt-2"
+                    className="inline-flex items-center gap-1.5 bg-clay-700 hover:bg-clay-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm mt-2"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Create First Job</span>
@@ -639,7 +653,7 @@ export default function CustomerProfileClient({
                             onChange={(e) => handleJobStatusChange(job, e.target.value as Job["status"])}
                             className={`text-xs font-bold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${
                               job.status === "In Progress"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                ? "bg-clay-50 text-clay-800 border-clay-200"
                                 : job.status === "Scheduled"
                                 ? "bg-amber-50 text-amber-700 border-amber-200"
                                 : job.status === "Completed"
@@ -675,7 +689,7 @@ export default function CustomerProfileClient({
                           ) : (
                             <Link
                               href={`/quotes?customerId=${customer.id}&title=${encodeURIComponent(job.title)}`}
-                              className="text-blue-600 font-bold hover:underline flex items-center gap-1 text-xs"
+                              className="text-clay-700 font-bold hover:underline flex items-center gap-1 text-xs"
                             >
                               <span>Build Quote</span>
                               <ChevronRight className="w-3 h-3" />
@@ -719,7 +733,7 @@ export default function CustomerProfileClient({
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="stack-table">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50/70 border-b border-slate-100 text-xs font-semibold uppercase text-slate-400">
                       <tr>
@@ -753,7 +767,7 @@ export default function CustomerProfileClient({
                                 inv.status === "Paid"
                                   ? "bg-emerald-100 text-emerald-800"
                                   : inv.status === "Partially Paid"
-                                  ? "bg-blue-100 text-blue-800"
+                                  ? "bg-clay-100 text-clay-800"
                                   : inv.status === "Overdue"
                                   ? "bg-rose-100 text-rose-800"
                                   : "bg-amber-100 text-amber-900"
@@ -814,7 +828,7 @@ export default function CustomerProfileClient({
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <Wrench className="w-5 h-5 text-blue-600" />
+                <Wrench className="w-5 h-5 text-clay-700" />
                 <span>Schedule New Job</span>
               </h3>
               <button
@@ -913,7 +927,7 @@ export default function CustomerProfileClient({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition"
+                  className="flex-1 py-2.5 text-xs font-bold text-white bg-clay-700 hover:bg-clay-800 rounded-xl shadow-md transition"
                 >
                   Save Job
                 </button>

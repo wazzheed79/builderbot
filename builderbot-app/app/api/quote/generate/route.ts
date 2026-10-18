@@ -4,6 +4,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { roundMoney } from "@/lib/storage";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
+import { getSignedInUserId } from "@/lib/ai-access";
+import { brand } from "@/lib/brand.mjs";
 
 const GenerateRequestSchema = z.object({
   notes: z
@@ -74,12 +76,20 @@ export async function POST(request: NextRequest) {
 
     const { notes, trade, photos, pricingMemory } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const userId = await getSignedInUserId(request);
 
-    if (apiKey) {
+    if (apiKey && userId) {
+      const userLimit = checkRateLimit(`ai-generate:user:${userId}`, 20, 60 * 60 * 1000);
+      if (!userLimit.allowed) {
+        return NextResponse.json(
+          { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
+          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+        );
+      }
       const ai = new GoogleGenAI({ apiKey });
 
       let systemInstruction =
-        "You are TradeMate AI, an expert trade quantity surveyor for UK builders, electricians, plumbers, roofers, landscapers, and carpenters. " +
+        `You are the quoting assistant for ${brand.name}, helping UK builders, electricians, plumbers, roofers, landscapers, and carpenters. ` +
         "Given tradesperson notes, return realistic UK trade itemized breakdowns in JSON format. " +
         "Use realistic UK market rates in GBP (£): skilled labor should be £40-£65/hr or £220-£350/day. " +
         "Materials at realistic trade supplier prices. " +
@@ -241,7 +251,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
-    const estimate = estimateTradeJob(notes, trade, pricingMemory as any, photos);
+    const estimate = estimateTradeJob(notes, trade || "", pricingMemory, photos);
 
     return NextResponse.json({
       title: estimate.title,
@@ -249,7 +259,9 @@ export async function POST(request: NextRequest) {
       suggestedDepositPercent: estimate.suggestedDepositPercent,
       items: estimate.items,
       aiPowered: false,
-      notice: "Add GEMINI_API_KEY in .env.local to activate bespoke Gemini 2.5 Flash intelligence.",
+      estimateOnly: true,
+      notice:
+        "Rough estimate only. Change every price before you send it. Signed-in AI pricing runs only when an AI key is set up.",
     });
   } catch (error) {
     console.error("Error generating quote:", error);

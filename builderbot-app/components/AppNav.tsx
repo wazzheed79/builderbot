@@ -8,7 +8,6 @@ import {
   FileText,
   Users,
   PlusCircle,
-  Sparkles,
   Settings,
   LogIn,
   LogOut,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import DemoBanner from "./DemoBanner";
+import { brand } from "@/lib/brand.mjs";
 
 export default function AppNav() {
   const pathname = usePathname();
@@ -37,29 +37,29 @@ export default function AppNav() {
   return (
     <>
       {/* Top Desktop & Mobile Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo & Brand */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:bg-blue-700 transition">
+      <header className="sticky top-0 z-40 w-full border-b border-stone-200 bg-white/95 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 min-w-0">
+          {/* Logo & Brand. The graphic has no wordmark, so a rename stays in brand.mjs. */}
+          <Link href="/" className="flex items-center gap-2.5 group min-w-0">
+            <div className="w-9 h-9 shrink-0 rounded-xl bg-clay-700 text-white flex items-center justify-center shadow-md shadow-clay-700/20 group-hover:bg-clay-800 transition">
               <Wrench className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-lg tracking-tight text-slate-900 flex items-center gap-1.5">
-                TradeMate
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                  <Sparkles className="w-2.5 h-2.5 mr-0.5 text-blue-600" />
-                  AI Trade
+            <div className="flex flex-col min-w-0">
+              <span className="font-extrabold text-lg tracking-tight text-ink flex items-center gap-1.5 min-w-0">
+                <span className="sm:hidden truncate">{brand.shortName}</span>
+                <span className="hidden sm:inline truncate">{brand.name}</span>
+                <span className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-clay-50 text-clay-800 border border-clay-200">
+                  Free beta
                 </span>
               </span>
-              <span className="text-[11px] font-medium text-slate-500 -mt-1 hidden sm:block">
-                Quotes & Invoices in &lt; 2 minutes
+              <span className="text-[11px] font-medium text-stone-500 -mt-1 hidden xl:block">
+                {brand.tagline}
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* Desktop Navigation Links — tablet keeps the bottom bar so this row does not overflow. */}
+          <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -69,11 +69,11 @@ export default function AppNav() {
                   href={item.href}
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition ${
                     isActive
-                      ? "bg-blue-50 text-blue-700 shadow-sm"
+                      ? "bg-clay-50 text-clay-800 shadow-sm"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-clay-700" : "text-slate-400"}`} />
                   {item.name}
                 </Link>
               );
@@ -89,7 +89,7 @@ export default function AppNav() {
                   <span>Cloud Synced</span>
                 </div>
                 <div
-                  className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200"
+                  className="w-8 h-8 rounded-full bg-clay-100 text-clay-800 font-bold text-xs flex items-center justify-center border border-clay-200"
                   title={user.email || "Trade Account"}
                 >
                   {user.email ? user.email.slice(0, 2).toUpperCase() : "TB"}
@@ -123,7 +123,7 @@ export default function AppNav() {
 
             <Link
               href="/quotes"
-              className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 sm:gap-2 bg-clay-700 hover:bg-clay-800 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition active:scale-[0.98] shrink-0"
             >
               <PlusCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Create Quote</span>
@@ -137,7 +137,7 @@ export default function AppNav() {
       <DemoBanner />
 
       {/* Mobile Bottom Navigation Bar (High-Contrast, 48px+ touch targets for van/site work) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1.5 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1.5 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
         <div className="grid grid-cols-5 gap-1 max-w-md mx-auto items-center">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -148,14 +148,14 @@ export default function AppNav() {
                 href={item.href}
                 className={`flex flex-col items-center justify-center min-h-[52px] min-w-[48px] py-1 px-1 rounded-xl text-[11px] transition-all duration-75 active:scale-90 select-none relative ${
                   isActive
-                    ? "bg-blue-50 text-blue-700 font-bold shadow-xs"
+                    ? "bg-clay-50 text-clay-800 font-bold shadow-xs"
                     : "text-slate-500 hover:text-slate-900 active:bg-slate-100 font-medium"
                 }`}
               >
                 {isActive && (
-                  <span className="absolute top-1 w-5 h-1 bg-blue-600 rounded-full" />
+                  <span className="absolute top-1 w-5 h-1 bg-clay-700 rounded-full" />
                 )}
-                <Icon className={`w-6 h-6 mt-1 transition-transform ${isActive ? "text-blue-600 scale-105" : "text-slate-500"}`} />
+                <Icon className={`w-6 h-6 mt-1 transition-transform ${isActive ? "text-clay-700 scale-105" : "text-slate-500"}`} />
                 <span className="truncate mt-0.5 tracking-tight text-[10.5px]">{item.name}</span>
               </Link>
             );

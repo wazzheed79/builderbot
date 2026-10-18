@@ -1,14 +1,17 @@
-// End-to-end live testing suite for TradeMate (https://www.tradematequotes.co.uk)
-// Runs directly against live production endpoints to verify complete system health.
+// Live checks. Set E2E_BASE_URL or NEXT_PUBLIC_APP_URL to the site you want to test.
+import { brand } from "../lib/brand.mjs";
 
-const BASE_URL = "https://www.tradematequotes.co.uk";
+const BASE_URL = process.env.E2E_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "";
 
 const SAMPLE_PHOTO_BASE64 =
   "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=";
 
 async function runTestSuite() {
   console.log(`\n======================================================`);
-  console.log(`🚀 TradeMate Live Production E2E Verification Suite`);
+  console.log(`🚀 ${brand.name} live check`);
+  if (!BASE_URL) {
+    throw new Error("Set E2E_BASE_URL or NEXT_PUBLIC_APP_URL before running this live check.");
+  }
   console.log(`   Target: ${BASE_URL}`);
   console.log(`   Time:   ${new Date().toISOString()}`);
   console.log(`======================================================\n`);
@@ -35,8 +38,8 @@ async function runTestSuite() {
     const res = await fetch(`${BASE_URL}/`);
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     const text = await res.text();
-    if (!text.includes("TradeMate") && !text.includes("trademate")) {
-      throw new Error("Landing page content missing TradeMate branding");
+    if (!text.includes(brand.name) && !text.includes(brand.shortName)) {
+      throw new Error(`Landing page content missing ${brand.name}`);
     }
   });
 

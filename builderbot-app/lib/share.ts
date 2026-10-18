@@ -1,5 +1,5 @@
 /**
- * Trade-optimized sharing and communication suite for BuilderBot.
+ * Sharing helpers for quote and invoice messages.
  * Handles WhatsApp deep linking, UK phone normalization, and message templating.
  */
 

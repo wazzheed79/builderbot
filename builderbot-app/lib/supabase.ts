@@ -28,6 +28,16 @@ export function getSupabase(): SupabaseClient | null {
   return clientInstance;
 }
 
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const sb = getSupabase();
+  if (!sb) return headers;
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
 // Server-Side Client (Uses service role if available for secure token-based lookups)
 export function getServerSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured()) return null;
@@ -67,6 +77,7 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
     rejectedReason: row.rejected_reason ? String(row.rejected_reason) : undefined,
     rejectedAt: row.rejected_at ? String(row.rejected_at) : undefined,
     createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+    photos: Array.isArray(row.photos) ? (row.photos as string[]).slice(0, 6) : undefined,
   };
 }
 
@@ -323,8 +334,11 @@ export async function syncQuoteToCloud(quote: Quote): Promise<boolean> {
     if (!ownerId) return false; // Private: requires logged-in user
 
     const recalculated = recalculateQuoteTotals(quote.items, quote.vatEnabled, quote.depositPercent);
+    const photos = Array.isArray(quote.photos)
+      ? quote.photos.filter((photo) => photo.length < 180_000).slice(0, 4)
+      : [];
 
-    const { error } = await sb.from("quotes").upsert({
+    const row = {
       id: quote.id,
       token: quote.token,
       owner_id: ownerId,
@@ -348,8 +362,18 @@ export async function syncQuoteToCloud(quote: Quote): Promise<boolean> {
       accepted_at: quote.acceptedAt || null,
       rejected_reason: quote.rejectedReason || null,
       rejected_at: quote.rejectedAt || null,
-    });
-    return !error;
+      photos,
+    };
+
+    const first = await sb.from("quotes").upsert(row);
+    if (first.error && /photo/i.test(first.error.message || "")) {
+      const withoutPhotos = Object.fromEntries(
+        Object.entries(row).filter(([key]) => key !== "photos")
+      );
+      const retry = await sb.from("quotes").upsert(withoutPhotos);
+      return !retry.error;
+    }
+    return !first.error;
   } catch {
     return false;
   }

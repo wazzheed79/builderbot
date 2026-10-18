@@ -53,13 +53,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
         rate: 120.0,
       }
     );
-  } else if (
-    lower.includes("boiler") ||
-    lower.includes("radiator") ||
-    lower.includes("heating") ||
-    lower.includes("plumb") ||
-    lower.includes("cylinder")
-  ) {
+  } else if (lower.includes("boiler") || lower.includes("combi")) {
     title = "Heating & Plumbing Installation";
     suggestedDepositPercent = 25;
     items.push(
@@ -325,31 +319,63 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
         rate: 70.0,
       }
     );
-  } else {
-    // General Building & Renovation default
-    title = "Specified Trade Works & Labor";
-    suggestedDepositPercent = 20;
+  } else if (
+    lower.includes("tap") ||
+    lower.includes("leak") ||
+    lower.includes("radiator") ||
+    lower.includes("plumb") ||
+    lower.includes("cylinder") ||
+    lower.includes("heating")
+  ) {
+    title = "Plumbing Call-Out & Repair";
+    suggestedDepositPercent = 0;
     items.push(
       {
-        type: "material",
-        description: `Primary trade materials & fixings for: ${notes.slice(0, 45)}...`,
-        quantity: 1,
-        unit: "lot",
-        rate: 340.0,
+        type: "labor",
+        description: "Plumber call-out and repair time",
+        quantity: 2,
+        unit: "hrs",
+        rate: 55.0,
       },
       {
-        type: "labor",
-        description: "Skilled trade execution, surface preparation, and structural assembly",
-        quantity: 12,
-        unit: "hrs",
-        rate: 48.0,
+        type: "material",
+        description: "Small materials allowance (washers, olives, valves) — check on site",
+        quantity: 1,
+        unit: "allowance",
+        rate: 25.0,
       },
       {
         type: "service",
-        description: "Full site cleanup and licensed trade waste disposal",
+        description: "Local waste and consumables",
         quantity: 1,
         unit: "service",
-        rate: 90.0,
+        rate: 15.0,
+      }
+    );
+  } else {
+    title = "Specified Trade Works & Labor";
+    suggestedDepositPercent = 0;
+    items.push(
+      {
+        type: "material",
+        description: "Small materials allowance — replace with the real list before sending",
+        quantity: 1,
+        unit: "allowance",
+        rate: 25.0,
+      },
+      {
+        type: "labor",
+        description: "Starter labour allowance — change the hours and rate",
+        quantity: 2,
+        unit: "hrs",
+        rate: 45.0,
+      },
+      {
+        type: "service",
+        description: "Travel and tidy-up allowance",
+        quantity: 1,
+        unit: "service",
+        rate: 15.0,
       }
     );
   }
@@ -370,10 +396,15 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   const photoNote = Array.isArray(photos) && photos.length > 0
     ? ` Specification cross-referenced with ${photos.length} site inspection photo(s).`
     : "";
+  const tradeNote = String(trade || "").trim() ? ` Trade: ${String(trade).trim()}.` : "";
+  const roughPrefix =
+    title === "Specified Trade Works & Labor" || title === "Plumbing Call-Out & Repair"
+      ? "ROUGH ESTIMATE — edit every price before sending. "
+      : "";
 
   return {
     title,
-    scopeOfWork: `Scope of works: ${notes.trim()}.${photoNote} Includes supply of quality trade materials, professional installation by experienced tradespeople, and complete site clearance upon completion.`,
+    scopeOfWork: `${roughPrefix}Scope of works: ${notes.trim()}.${tradeNote}${photoNote} Check materials, hours, and rates before sending this to a customer.`,
     suggestedDepositPercent,
     items,
   };

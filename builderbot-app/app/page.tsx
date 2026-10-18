@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { brand } from "@/lib/brand.mjs";
 import {
   Wrench,
   Sparkles,
@@ -18,6 +19,27 @@ export default function Home() {
     "Roofers",
     "Painters & Decorators",
     "Landscapers",
+  ];
+
+  const previewLines = [
+    {
+      description: "Thermostatic Bar Shower Kit & Riser Rail",
+      qty: "1",
+      rate: "£245.00",
+      total: "£245.00",
+    },
+    {
+      description: "Chrome Heated Towel Rail (1200x500mm) + Valves",
+      qty: "1",
+      rate: "£165.00",
+      total: "£165.00",
+    },
+    {
+      description: "Certified Plumbing Labor & System Power Flush",
+      qty: "8 hrs",
+      rate: "£55.00",
+      total: "£440.00",
+    },
   ];
 
   const features = [
@@ -46,19 +68,19 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/70 via-white to-slate-50 pt-12 pb-20 lg:pt-20 lg:pb-28">
+      <section className="relative overflow-hidden bg-gradient-to-b from-paper/70 via-white to-slate-50 pt-12 pb-20 lg:pt-20 lg:pb-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto">
             {/* Pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100/80 text-blue-800 text-xs sm:text-sm font-semibold mb-6 border border-blue-200 shadow-xs">
-              <Sparkles className="w-4 h-4 text-blue-600" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-clay-100/80 text-clay-800 text-xs sm:text-sm font-semibold mb-6 border border-clay-200 shadow-xs">
+              <Sparkles className="w-4 h-4 text-clay-700" />
               <span>AI-Powered Quoting for Hardworking Trades</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
               Turn job notes into quotes in{" "}
-              <span className="text-blue-600 underline decoration-blue-300 decoration-wavy decoration-2">
+              <span className="text-clay-700 underline decoration-clay-300 decoration-wavy decoration-2">
                 under 2 minutes
               </span>
               .
@@ -67,14 +89,14 @@ export default function Home() {
             {/* Subtitle */}
             <p className="mt-6 text-lg sm:text-xl text-slate-600 leading-relaxed font-normal">
               No more losing evenings to quoting spreadsheets. Enter rough job notes
-              or voice memos, and TradeMate generates itemized, professional quotes ready to send.
+              or voice memos, and {brand.name} turns them into itemized quotes you can edit before sending.
             </p>
 
             {/* CTAs */}
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               <Link
                 href="/quotes"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl text-base shadow-lg shadow-blue-600/25 transition active:scale-[0.98]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold px-8 py-4 rounded-xl text-base shadow-lg shadow-clay-700/25 transition active:scale-[0.98]"
               >
                 <span>Create Your First Quote</span>
                 <ArrowRight className="w-5 h-5" />
@@ -121,11 +143,11 @@ export default function Home() {
               {/* Header Bar */}
               <div className="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm">
-                    BB
+                  <div className="w-8 h-8 rounded-lg bg-clay-700 flex items-center justify-center">
+                    <Wrench className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm tracking-wide">Apex Plumbing & Heating Ltd</h3>
+                    <h3 className="font-bold text-sm tracking-wide">Premier Trade Services</h3>
                     <p className="text-xs text-slate-400">Quote #BB-1042 • 16 Oct 2026</p>
                   </div>
                 </div>
@@ -151,49 +173,43 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Line Items Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-400 text-xs font-semibold uppercase">
-                        <th className="pb-2">Description</th>
-                        <th className="pb-2 text-right">Qty/Hrs</th>
-                        <th className="pb-2 text-right">Rate</th>
-                        <th className="pb-2 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      <tr>
-                        <td className="py-3 font-medium text-slate-900">Thermostatic Bar Shower Kit & Riser Rail</td>
-                        <td className="py-3 text-right">1</td>
-                        <td className="py-3 text-right">£245.00</td>
-                        <td className="py-3 text-right font-semibold">£245.00</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-medium text-slate-900">Chrome Heated Towel Rail (1200x500mm) + Valves</td>
-                        <td className="py-3 text-right">1</td>
-                        <td className="py-3 text-right">£165.00</td>
-                        <td className="py-3 text-right font-semibold">£165.00</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-medium text-slate-900">Certified Plumbing Labor & System Power Flush</td>
-                        <td className="py-3 text-right">8 hrs</td>
-                        <td className="py-3 text-right">£55.00</td>
-                        <td className="py-3 text-right font-semibold">£440.00</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                {/* Line items. Each amount has its own label and column so rate and total cannot run together. */}
+                <div className="divide-y divide-slate-100 text-sm">
+                  {previewLines.map((line) => (
+                    <div
+                      key={line.description}
+                      className="py-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_18rem] md:items-end md:gap-8"
+                    >
+                      <p className="font-medium text-slate-900 leading-snug">{line.description}</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Qty</p>
+                          <p className="mt-0.5 tabular-nums whitespace-nowrap text-slate-700">{line.qty}</p>
+                        </div>
+                        <div data-price="rate" className="min-w-0 border-l border-slate-200 pl-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rate</p>
+                          <p className="mt-0.5 tabular-nums whitespace-nowrap text-slate-700">{line.rate}</p>
+                        </div>
+                        <div data-price="total" className="min-w-0 border-l border-slate-200 pl-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total</p>
+                          <p className="mt-0.5 tabular-nums whitespace-nowrap font-semibold text-slate-900">{line.total}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Totals & Quick Action */}
-                <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-xs text-slate-500">
-                    💡 <span className="font-medium text-slate-700">AI auto-calculated:</span> 20% deposit (£170.00) required on signing.
+                <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="text-xs text-slate-600 space-y-1">
+                    <p>Net £850.00</p>
+                    <p>VAT at 20% £170.00</p>
+                    <p className="font-semibold text-slate-800">Deposit 20% of the total £204.00</p>
                   </div>
                   <div className="flex items-center gap-6 self-end sm:self-center">
                     <div className="text-right">
-                      <span className="text-xs text-slate-400 uppercase font-semibold">Total Inc. VAT</span>
-                      <p className="text-2xl font-black text-slate-900">£850.00</p>
+                      <span className="text-xs text-slate-400 uppercase font-semibold">Total inc. VAT</span>
+                      <p className="text-2xl font-black text-slate-900">£1,020.00</p>
                     </div>
                     <Link
                       href="/quotes"
@@ -209,18 +225,18 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Why Builders Choose BuilderBot: Old Way vs. BuilderBot */}
+      {/* Old way compared with this product */}
       <section className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-clay-700 bg-clay-50 px-3 py-1 rounded-full border border-clay-200">
               The Modern Trade Advantage
             </span>
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-3">
-              Why Trades Choose TradeMate
+              Why trades choose {brand.name}
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Compare the traditional painful quoting routine with the TradeMate workflow.
+              Compare the old quoting routine with the {brand.shortName} workflow.
             </p>
           </div>
 
@@ -263,14 +279,14 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* With TradeMate */}
-            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-blue-600 shadow-xl shadow-blue-600/10 relative overflow-hidden ring-4 ring-blue-500/10">
-              <div className="flex items-center justify-between pb-4 border-b border-blue-100">
+            {/* With this product */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-blue-600 shadow-xl shadow-clay-700/10 relative overflow-hidden ring-4 ring-clay-600/10">
+              <div className="flex items-center justify-between pb-4 border-b border-clay-100">
                 <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                  <span className="w-7 h-7 rounded-full bg-clay-700 text-white flex items-center justify-center font-bold text-sm">
                     ✓
                   </span>
-                  <h3 className="text-lg font-extrabold text-slate-900">With TradeMate</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900">With {brand.name}</h3>
                 </div>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   ⚡ Fast & Professional
@@ -292,7 +308,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                  <span><strong>1-Click acceptance link:</strong> Customers sign on their phone and deposits get locked in.</span>
+                  <span><strong>Acceptance link:</strong> Customers can read the quote and sign on their phone.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-emerald-600 font-bold shrink-0">✓</span>
@@ -322,9 +338,9 @@ export default function Home() {
               return (
                 <div
                   key={idx}
-                  className="p-6 rounded-2xl bg-slate-50 border border-slate-200/70 hover:shadow-md hover:border-blue-200 transition"
+                  className="p-6 rounded-2xl bg-slate-50 border border-slate-200/70 hover:shadow-md hover:border-clay-200 transition"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mb-5 font-bold">
+                  <div className="w-12 h-12 rounded-xl bg-clay-100 text-clay-800 flex items-center justify-center mb-5 font-bold">
                     <Icon className="w-6 h-6" />
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 mb-2">{feature.title}</h3>
@@ -340,7 +356,7 @@ export default function Home() {
       <section className="py-16 bg-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-blue-400 font-semibold text-xs uppercase tracking-widest">
+            <span className="text-clay-300 font-semibold text-xs uppercase tracking-widest">
               Simple 3-Step Process
             </span>
             <h2 className="text-3xl font-extrabold mt-2">
@@ -350,7 +366,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm mb-4">
+              <div className="w-8 h-8 rounded-full bg-clay-700 text-white flex items-center justify-center font-bold text-sm mb-4">
                 1
               </div>
               <h3 className="font-bold text-lg mb-2">Speak or Type Job Notes</h3>
@@ -360,17 +376,17 @@ export default function Home() {
             </div>
 
             <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm mb-4">
+              <div className="w-8 h-8 rounded-full bg-clay-700 text-white flex items-center justify-center font-bold text-sm mb-4">
                 2
               </div>
               <h3 className="font-bold text-lg mb-2">AI Calculates Breakdown</h3>
               <p className="text-slate-400 text-sm leading-relaxed">
-                TradeMate splits out trade materials, estimated labor hours, and totals with standard markup.
+                {brand.name} suggests materials, hours, and totals. You check every price before it is sent.
               </p>
             </div>
 
             <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm mb-4">
+              <div className="w-8 h-8 rounded-full bg-clay-700 text-white flex items-center justify-center font-bold text-sm mb-4">
                 3
               </div>
               <h3 className="font-bold text-lg mb-2">Send & Track Acceptance</h3>
@@ -383,7 +399,7 @@ export default function Home() {
           <div className="mt-12 text-center">
             <Link
               href="/quotes"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-3.5 rounded-xl shadow-lg transition"
+              className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-600 text-white font-bold px-7 py-3.5 rounded-xl shadow-lg transition"
             >
               <span>Try Generating a Quote Now</span>
               <ArrowRight className="w-4 h-4" />
@@ -396,22 +412,22 @@ export default function Home() {
       <section className="py-16 sm:py-20 bg-slate-100/70 border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white p-8 sm:p-10 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-8">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-clay-700 to-clay-800 text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
               MB
             </div>
 
             <div className="space-y-3 text-center md:text-left">
-              <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-clay-700 bg-clay-50 px-3 py-1 rounded-full border border-clay-200">
                 A Note from the Founder
               </span>
               <h2 className="text-2xl font-black text-slate-900">
                 Built for Hardworking UK Tradespeople
               </h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                &ldquo;Hi, I&apos;m Michael Boylen. I built TradeMate because hardworking trades shouldn&apos;t have to sacrifice their evenings to spreadsheets and paperwork after a 10-hour day on site. TradeMate gives you the power to price your work, generate an itemized quote, and send it via WhatsApp before you even leave the customer&apos;s driveway.&rdquo;
+                &ldquo;Hi, I&apos;m Michael Boylen. I built {brand.name} because trades shouldn&apos;t have to spend the evening after a long day turning site notes into a quote.&rdquo;
               </p>
               <p className="text-xs font-bold text-slate-900 pt-1">
-                — Michael Boylen, Founder of TradeMate
+                — Michael Boylen, founder of {brand.name}
               </p>
             </div>
           </div>
@@ -422,27 +438,27 @@ export default function Home() {
       <footer className="bg-white border-t border-slate-200 py-10 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+            <div className="w-6 h-6 rounded-md bg-clay-700 text-white flex items-center justify-center font-bold text-xs">
               <Wrench className="w-3.5 h-3.5" />
             </div>
-            <span className="font-bold text-slate-800 text-sm">TradeMate</span>
-            <span>— AI Quoting & Invoicing for Trades</span>
+            <span className="font-bold text-slate-800 text-sm">{brand.name}</span>
+            <span>— {brand.tagline}</span>
           </div>
-          <div className="flex items-center gap-6 font-medium">
-            <Link href="/pricing" className="hover:text-blue-600 transition">
-              Pricing Plans
+          <div className="flex flex-wrap items-center justify-center gap-4 font-medium">
+            <Link href="/pricing" className="hover:text-clay-700 transition">
+              Free beta
             </Link>
-            <Link href="/quotes" className="hover:text-blue-600 transition">
-              Quotes
+            <Link href="/feedback" className="hover:text-clay-700 transition">
+              Feedback
             </Link>
-            <Link href="/dashboard" className="hover:text-blue-600 transition">
-              Dashboard
+            <Link href="/privacy" className="hover:text-clay-700 transition">
+              Privacy
             </Link>
-            <Link href="/settings" className="hover:text-blue-600 transition">
-              Settings
+            <Link href="/terms" className="hover:text-clay-700 transition">
+              Terms
             </Link>
           </div>
-          <p>© 2026 TradeMate. Created by Michael Boylen for UK Trades.</p>
+          <p>© 2026 {brand.name}. Free while in testing.</p>
         </div>
       </footer>
     </div>

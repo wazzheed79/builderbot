@@ -1,7 +1,7 @@
-# 🏗️ TradeMate (BuilderBot) Official Roadmap & Milestones
+# Chuffed Quotes roadmap
 
 ## Vision
-TradeMate helps builders, plumbers, electricians, roofers, landscapers and other tradespeople create professional quotations and get paid deposits in under 2 minutes.
+Chuffed Quotes helps tradespeople create professional quotations. The name lives in `lib/brand.mjs`. The website address is set on the host.
 
 The goal is to remove paperwork and allow tradespeople to spend more time earning money and less time creating quotes.
 
@@ -84,7 +84,7 @@ One working tradesperson says: **"I would pay for this."**
 1. **Free Starter** (£0)
    - 5 quotes per month
    - Core PDF generation
-   - Watermarked with *"Created with TradeMate"*
+   - Card payments are off during the free beta
 2. **Pro - Founder Early Bird** (£9.99/month, moving to £14.99/month)
    - Unlimited quotes & invoices
    - Custom business logo & brand colours on PDFs
@@ -111,6 +111,6 @@ One working tradesperson says: **"I would pay for this."**
 # Founder Note
 *By Michael Boylen*
 
-> *"TradeMate is being built as a real-world learning project.*  
+> *"Chuffed Quotes is being built as a real-world learning project.*  
 > *The mission is simple: Help tradespeople win more work while spending less time on paperwork.*  
 > *Every feature we build must serve this mission."*
