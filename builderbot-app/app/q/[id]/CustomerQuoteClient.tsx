@@ -305,7 +305,98 @@ export default function CustomerQuoteClient({
     <div className="min-h-screen bg-slate-100/80 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Banner / Notice for Customer */}
-        <div className="no-print">
+        <div className="no-print space-y-4">
+        {/* Customer Job Progress Stepper */}
+        {status !== "rejected" && status !== "expired" && (
+          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200">
+            <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+              <span>Job Progress Tracker</span>
+              <span className="font-semibold text-slate-500">
+                {status === "accepted"
+                  ? paymentSuccess
+                    ? "Step 4 of 4: Booking Reserved"
+                    : "Step 3 of 4: Signed — Deposit Pending"
+                  : "Step 2 of 4: Awaiting Your Review"}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center relative">
+              {/* Step 1 */}
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                </div>
+                <span className="text-[11px] font-bold text-slate-900 leading-tight">1. Prepared</span>
+                <span className="text-[10px] text-slate-400 hidden sm:block">By {contractorName}</span>
+              </div>
+
+              {/* Step 2 */}
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                </div>
+                <span className="text-[11px] font-bold text-slate-900 leading-tight">2. Viewed</span>
+                <span className="text-[10px] text-slate-400 hidden sm:block">Under Review</span>
+              </div>
+
+              {/* Step 3 */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs transition ${
+                    status === "accepted"
+                      ? "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500/20"
+                      : "bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse"
+                  }`}
+                >
+                  {status === "accepted" ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <span>3</span>
+                  )}
+                </div>
+                <span
+                  className={`text-[11px] font-bold leading-tight ${
+                    status === "accepted" ? "text-slate-900" : "text-blue-600"
+                  }`}
+                >
+                  3. {status === "accepted" ? "Accepted" : "Sign & Accept"}
+                </span>
+                <span className="text-[10px] text-slate-400 hidden sm:block">
+                  {status === "accepted" ? (paymentSuccess ? "Deposit Paid" : "Deposit Due") : "Online / 1-Tap"}
+                </span>
+              </div>
+
+              {/* Step 4 */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs ${
+                    status === "accepted" && paymentSuccess
+                      ? "bg-emerald-600 text-white ring-4 ring-emerald-100 animate-bounce"
+                      : status === "accepted"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  {status === "accepted" && paymentSuccess ? (
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  ) : (
+                    <span>4</span>
+                  )}
+                </div>
+                <span
+                  className={`text-[11px] font-bold leading-tight ${
+                    status === "accepted" ? "text-emerald-700" : "text-slate-400"
+                  }`}
+                >
+                  4. Scheduled
+                </span>
+                <span className="text-[10px] text-slate-400 hidden sm:block">
+                  {status === "accepted" ? "Booking Confirmed" : "Start Date Agreed"}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {status === "accepted" ? (
           <div className="bg-emerald-600 text-white p-6 sm:p-7 rounded-2xl shadow-xl space-y-4 animate-in fade-in duration-300">
             <div className="flex items-start gap-4">

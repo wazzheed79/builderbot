@@ -61,3 +61,13 @@ test("estimateTradeJob: calibrates labor rates using contractor pricingMemory DN
   assert.ok(laborItem);
   assert.equal(laborItem.rate, 62.5);
 });
+
+test("estimateTradeJob: cross-references site inspection photos in scope of work", () => {
+  const withPhotos = estimateTradeJob(
+    "Replace damaged garden fence",
+    "Fencing",
+    null,
+    ["data:image/jpeg;base64,sample1", "data:image/jpeg;base64,sample2"]
+  );
+  assert.ok(withPhotos.scopeOfWork.includes("2 site inspection photo(s)"));
+});

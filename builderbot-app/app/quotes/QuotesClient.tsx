@@ -18,6 +18,7 @@ import {
   Eye,
   Save,
   MessageCircle,
+  Camera,
 } from "lucide-react";
 import {
   Customer,
@@ -282,6 +283,7 @@ export default function QuotesClient() {
         body: JSON.stringify({
           notes: notesInput.trim(),
           trade: profile.trade,
+          photos: photos && photos.length > 0 ? photos : undefined,
           pricingMemory: getPricingMemory(),
         }),
       });
@@ -316,8 +318,12 @@ export default function QuotesClient() {
 
         triggerToast(
           data.aiPowered
-            ? "✨ Gemini AI calculated itemized trade breakdown & pricing!"
-            : "Line items populated from job notes!"
+            ? (photos && photos.length > 0
+                ? `✨ Gemini inspected ${photos.length} site photo(s) & calculated itemized trade pricing!`
+                : "✨ Gemini AI calculated itemized trade breakdown & pricing!")
+            : (photos && photos.length > 0
+                ? `Line items populated with ${photos.length} site inspection photo(s)!`
+                : "Line items populated from job notes!")
         );
       } else {
         triggerToast(data.error || "Could not generate quote items.");
@@ -558,15 +564,32 @@ export default function QuotesClient() {
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handleGenerateAI}
-                disabled={isGenerating || !notesInput.trim()}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>{isGenerating ? "Itemizing..." : "Generate Items"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {photos.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                    <Camera className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>{photos.length} photo{photos.length > 1 ? "s" : ""} included</span>
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleGenerateAI}
+                  disabled={isGenerating || !notesInput.trim()}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>
+                    {isGenerating
+                      ? photos.length > 0
+                        ? "Inspecting Photos & Itemizing..."
+                        : "Itemizing..."
+                      : photos.length > 0
+                      ? `Generate Items (Voice + ${photos.length} Photos)`
+                      : "Generate Items"}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 

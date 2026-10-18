@@ -5,8 +5,9 @@
  * @param {string} [notes]
  * @param {string} [trade]
  * @param {any} [pricingMemory]
+ * @param {string[]} [photos]
  */
-export function estimateTradeJob(notes = "", trade = "", pricingMemory = null) {
+export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, photos = []) {
   const lower = notes.toLowerCase();
   const items = [];
   let title = "Trade Works Specification";
@@ -366,9 +367,13 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null) {
     }
   }
 
+  const photoNote = Array.isArray(photos) && photos.length > 0
+    ? ` Specification cross-referenced with ${photos.length} site inspection photo(s).`
+    : "";
+
   return {
     title,
-    scopeOfWork: `Scope of works: ${notes.trim()}. Includes supply of quality trade materials, professional installation by experienced tradespeople, and complete site clearance upon completion.`,
+    scopeOfWork: `Scope of works: ${notes.trim()}.${photoNote} Includes supply of quality trade materials, professional installation by experienced tradespeople, and complete site clearance upon completion.`,
     suggestedDepositPercent,
     items,
   };

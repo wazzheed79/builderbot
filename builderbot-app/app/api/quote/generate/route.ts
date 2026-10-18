@@ -16,6 +16,7 @@ const GenerateRequestSchema = z.object({
     .trim()
     .max(100)
     .optional(),
+  photos: z.array(z.string()).max(6).optional(),
   pricingMemory: z
     .object({
       laborHourlyRate: z.number().positive().optional(),
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes, trade, pricingMemory } = parseResult.data;
+    const { notes, trade, photos, pricingMemory } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (apiKey) {
@@ -94,6 +95,27 @@ export async function POST(request: NextRequest) {
         systemInstruction += ` CONTRACTOR PRICING DNA: The contractor typically charges ${customLabor} for labour and expects approximately ${pricingMemory.preferredMarkupPercent || 20}% material markup. Calibrate your line item rates to this contractor's personal pricing profile.`;
       }
 
+      // Extract up to 3 site photos for multimodal AI visual assessment
+      const imageParts = (photos || [])
+        .slice(0, 3)
+        .map((photoUrl) => {
+          const match = photoUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+          if (match) {
+            return {
+              inlineData: {
+                mimeType: match[1],
+                data: match[2],
+              },
+            };
+          }
+          return null;
+        })
+        .filter((p): p is { inlineData: { mimeType: string; data: string } } => Boolean(p));
+
+      if (imageParts.length > 0) {
+        systemInstruction += ` MULTIMODAL SITE INSPECTION: ${imageParts.length} site photo(s) have been provided. Inspect visible site conditions, materials, dimensions, damages, and required prep/demolition work. Include any visually detected requirements as explicit line items.`;
+      }
+
       // Separate system instruction from user content to resist prompt injection
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -105,6 +127,7 @@ export async function POST(request: NextRequest) {
                 text: `Target Trade Category: ${trade || "General Building & Renovation"}\nItemize the following job notes into UK trade line items:`,
               },
               { text: notes },
+              ...imageParts,
             ],
           },
         ],
@@ -218,7 +241,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
-    const estimate = estimateTradeJob(notes, trade, pricingMemory as any);
+    const estimate = estimateTradeJob(notes, trade, pricingMemory as any, photos);
 
     return NextResponse.json({
       title: estimate.title,

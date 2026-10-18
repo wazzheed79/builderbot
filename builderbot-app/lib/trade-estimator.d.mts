@@ -22,5 +22,6 @@ export interface TradeEstimatorResult {
 export function estimateTradeJob(
   notes?: string,
   trade?: string,
-  pricingMemory?: PricingMemoryInput | null
+  pricingMemory?: PricingMemoryInput | null,
+  photos?: string[]
 ): TradeEstimatorResult;
