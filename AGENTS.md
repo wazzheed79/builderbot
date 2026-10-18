@@ -54,7 +54,7 @@ stateDiagram-v2
 - [x] **Free public beta**: One product name in `lib/brand.mjs` (Chuffed Quotes), empty start instead of fake customers, AI only for signed-in users, card payments switched off, quote accept rules, pinch-zoom, and layout that stays on the page at phone, tablet, and desktop widths.
 - [x] **Project Scaffolding**: Initialized Next.js App Router app with TypeScript and Tailwind CSS.
 - [x] **Navigation & Shell**: Created unified responsive navigation (`components/AppNav.tsx`) with desktop header and thumb-friendly mobile bottom navigation bar.
-- [x] **Landing Page & Comparison**: High-converting trade landing page with **"The Old Way vs. BuilderBot"** side-by-side contrast section (`app/page.tsx`).
+- [x] **Landing Page & Comparison**: High-converting trade landing page with a side-by-side contrast section (`app/page.tsx`).
 - [x] **Unified Persistence Layer (`lib/storage.ts`)**: Central client data repository managing real Customers, Quotes, Line Items, and computed Dashboard KPI metrics.
 - [x] **Real Customer Management CRM (`app/customers/page.tsx`)**: Add, edit, and delete real customers with company, phone, email, address, notes, and 1-click quote creation.
 - [x] **Connected Quote Builder (`app/quotes/QuotesClient.tsx`)**: Select real customers from directory, add custom line items, calculate margins, and save permanent quotes (`BB-1043`).
@@ -65,7 +65,7 @@ stateDiagram-v2
 - [x] **Customer Acceptance Page (`/q/[id]`)**: Full public client-facing page with contractor accreditation badges, digital signature capture, acceptance confirmation, and decline feedback linked to storage.
 - [x] **Live Dashboard Metrics (`app/dashboard/page.tsx`)**: Real-time KPI metrics (Quotes Sent, Won Contract Value, Win Rate %, Pending Value) dynamically calculated from stored quotes.
 - [x] **Repository & CI/CD**: Verified with clean Next.js 16 build and pushed to GitHub (`wazzheed79/builderbot`).
-- [x] **Business Profile & Branding System (`app/settings/page.tsx`, `lib/storage.ts`)**: User-editable profile for company details, trading name, bank details for wire deposits, and legitimate trade accreditations (eliminated hardcoded Apex Plumbing and fake Gas Safe numbers).
+- [x] **Business Profile & Branding System (`app/settings/page.tsx`, `lib/storage.ts`)**: User-editable profile for company details, trading name, bank details for wire deposits, and legitimate trade accreditations (removed the hardcoded sample company and one-tap fake registration badges).
 - [x] **Real Server-Side Gemini AI Endpoints (`app/api/quote/generate`, `app/api/quote/expand`)**: Official `@google/genai` SDK integration with `gemini-2.5-flash` and strict JSON schemas, providing intelligent itemization, market rates, and contract-ready scopes with fallback.
 - [x] **Supabase Multi-Device Cloud Sync (`lib/supabase.ts`, `app/api/quote/[id]`, `supabase/schema.sql`)**: Postgres tables with RLS and public token resolution allowing clients on any smartphone or browser to view, accept, and sign quotes remotely.
 - [x] **Clean Zero-Warning Production Build**: Resolved all 14 ESLint errors and Next.js 16 partial prerendering issues.
@@ -76,7 +76,7 @@ stateDiagram-v2
 
 ### Phase 1: Core Quoting & Foundations
 - [x] Responsive trade app shell & mobile navigation
-- [x] Landing page with "The Old Way vs. BuilderBot" comparison
+- [x] Landing page with the old way compared with Chuffed Quotes
 - [x] Unified persistence layer for Customers, Quotes, and Metrics
 - [x] Real Customer Management (CRM)
 - [x] Real Quote Builder with Customer linking & saving

@@ -27,6 +27,13 @@ body {
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
 }
 
+input,
+textarea,
+select {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Quote rows that must stay on the page at every width. */
 .stack-table {
   overflow-x: visible;
