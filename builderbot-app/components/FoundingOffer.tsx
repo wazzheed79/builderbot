@@ -10,7 +10,7 @@ export default function FoundingOffer({ compact = false }: { compact?: boolean }
         {brand.foundingDetail}
       </p>
       <p className="mt-1 text-xs text-stone-600">
-        No card needed. This is 12 months, not forever. There is no live counter on this page.
+        No card needed. The free period is 12 months from sign-up. There is no live counter on this page.
       </p>
     </div>
   );
