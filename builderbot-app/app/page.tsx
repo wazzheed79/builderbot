@@ -20,6 +20,27 @@ export default function Home() {
     "Landscapers",
   ];
 
+  const previewLines = [
+    {
+      description: "Thermostatic Bar Shower Kit & Riser Rail",
+      qty: "1",
+      rate: "£245.00",
+      total: "£245.00",
+    },
+    {
+      description: "Chrome Heated Towel Rail (1200x500mm) + Valves",
+      qty: "1",
+      rate: "£165.00",
+      total: "£165.00",
+    },
+    {
+      description: "Certified Plumbing Labor & System Power Flush",
+      qty: "8 hrs",
+      rate: "£55.00",
+      total: "£440.00",
+    },
+  ];
+
   const features = [
     {
       icon: Clock,
@@ -151,38 +172,30 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Line Items Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-400 text-xs font-semibold uppercase">
-                        <th className="pb-2">Description</th>
-                        <th className="pb-2 text-right">Qty/Hrs</th>
-                        <th className="pb-2 text-right">Rate</th>
-                        <th className="pb-2 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      <tr>
-                        <td className="py-3 font-medium text-slate-900">Thermostatic Bar Shower Kit & Riser Rail</td>
-                        <td className="py-3 text-right">1</td>
-                        <td className="py-3 text-right">£245.00</td>
-                        <td className="py-3 text-right font-semibold">£245.00</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-medium text-slate-900">Chrome Heated Towel Rail (1200x500mm) + Valves</td>
-                        <td className="py-3 text-right">1</td>
-                        <td className="py-3 text-right">£165.00</td>
-                        <td className="py-3 text-right font-semibold">£165.00</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-medium text-slate-900">Certified Plumbing Labor & System Power Flush</td>
-                        <td className="py-3 text-right">8 hrs</td>
-                        <td className="py-3 text-right">£55.00</td>
-                        <td className="py-3 text-right font-semibold">£440.00</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                {/* Line items. Each amount has its own label and column so rate and total cannot run together. */}
+                <div className="divide-y divide-slate-100 text-sm">
+                  {previewLines.map((line) => (
+                    <div
+                      key={line.description}
+                      className="py-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_18rem] md:items-end md:gap-8"
+                    >
+                      <p className="font-medium text-slate-900 leading-snug">{line.description}</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Qty</p>
+                          <p className="mt-0.5 tabular-nums whitespace-nowrap text-slate-700">{line.qty}</p>
+                        </div>
+                        <div data-price="rate" className="min-w-0 border-l border-slate-200 pl-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rate</p>
+                          <p className="mt-0.5 tabular-nums whitespace-nowrap text-slate-700">{line.rate}</p>
+                        </div>
+                        <div data-price="total" className="min-w-0 border-l border-slate-200 pl-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total</p>
+                          <p className="mt-0.5 tabular-nums whitespace-nowrap font-semibold text-slate-900">{line.total}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Totals & Quick Action */}
