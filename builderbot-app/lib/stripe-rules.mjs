@@ -1,5 +1,5 @@
-// Pure JavaScript rules for Stripe subscription tiers and pricing calculations.
-// Usable in both Node test runners and Next.js / TypeScript modules.
+// Subscription numbers kept for tests. The free beta does not sell these plans.
+import { brand } from "./brand.mjs";
 
 export const SUBSCRIPTION_PLANS = {
   free: {
@@ -14,7 +14,7 @@ export const SUBSCRIPTION_PLANS = {
       "Standard PDF quote downloads",
       "Basic customer contact book",
       "Accept & digital signature links",
-      "TradeMate footer watermark on PDFs",
+      `${brand.name} name shown on shared pages`,
     ],
     highlight: false,
     ctaText: "Current Plan",
@@ -22,14 +22,14 @@ export const SUBSCRIPTION_PLANS = {
   pro: {
     id: "pro",
     name: "Pro Sole Trader",
-    badge: "Founder Special",
+    badge: "Not on sale",
     monthlyPriceGbp: 9.99,
     yearlyPriceGbp: 99.0, // Save ~£20/year
     quoteLimitPerMonth: Infinity,
     features: [
       "Unlimited quotes & invoices",
       "Upload your company logo & trade badges",
-      "Remove all TradeMate watermarks",
+      `Option to hide the ${brand.name} name`,
       "1-tap WhatsApp quote dispatch",
       "Online customer deposit card collection",
       "Full customer & job history archive",

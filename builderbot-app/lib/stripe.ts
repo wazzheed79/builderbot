@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { brand } from "./brand.mjs";
 import {
   SUBSCRIPTION_PLANS,
   canCreateQuote,
@@ -29,7 +30,7 @@ export const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 /**
- * Creates a Stripe Checkout Session for a TradeMate SaaS subscription.
+ * Creates a Stripe Checkout Session for a subscription. Card checkout is off during the free beta.
  */
 export async function createSubscriptionCheckoutSession({
   planId,
@@ -66,7 +67,7 @@ export async function createSubscriptionCheckoutSession({
         price_data: {
           currency: "gbp",
           product_data: {
-            name: `TradeMate ${plan.name}`,
+            name: `${brand.name} ${plan.name}`,
             description: `${plan.badge} - Unlimited AI quoting, custom branding, and WhatsApp dispatch`,
           },
           unit_amount: unitAmountInPence,

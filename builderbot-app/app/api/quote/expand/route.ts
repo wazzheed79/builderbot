@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { GoogleGenAI, Type } from "@google/genai";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getSignedInUserId } from "@/lib/ai-access";
+import { brand } from "@/lib/brand.mjs";
 
 const ExpandRequestSchema = z.object({
   notes: z
@@ -59,8 +61,16 @@ export async function POST(request: NextRequest) {
 
     const { notes, title: initialTitle, trade } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const userId = await getSignedInUserId(request);
 
-    if (apiKey) {
+    if (apiKey && userId) {
+      const userLimit = checkRateLimit(`ai-expand:user:${userId}`, 20, 60 * 60 * 1000);
+      if (!userLimit.allowed) {
+        return NextResponse.json(
+          { error: "AI limit reached for this hour. You can keep your own notes." },
+          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+        );
+      }
       const ai = new GoogleGenAI({ apiKey });
 
       // Pass user notes securely as content parts, not prompt interpolation
@@ -79,7 +89,7 @@ export async function POST(request: NextRequest) {
         ],
         config: {
           systemInstruction:
-            "You are BuilderBot AI, an expert trade specification writer for UK tradespeople. " +
+            `You write scopes of work for ${brand.name}, for UK tradespeople. ` +
             "Expand the user's raw notes into a formal, professional scope of works suitable for a customer contract. " +
             "Detail preparation, safety, materials installation methodology, quality checks, and site clearance. " +
             "CRITICAL: NEVER hallucinate or claim regulatory registrations (e.g. Gas Safe, NICEIC, Part P) unless explicitly mentioned in the notes. " +
@@ -121,32 +131,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Heuristic fallback if GEMINI_API_KEY is not configured
-    const lower = notes.toLowerCase();
-    let title = initialTitle || "Trade Works Specification";
-    let scopeOfWork = "";
-
-    if (lower.includes("garden wall") || lower.includes("wall") || lower.includes("brick")) {
-      title = initialTitle || "Brick Garden Wall Construction";
-      scopeOfWork =
-        "Excavate trench to firm ground. Pour C20/25 concrete strip foundation to building standards. Supply and construct double-skin brick wall with Class M4 mortar bedding, weep holes, and decorative coping crest. Remove all spoil and debris upon completion.";
-    } else if (lower.includes("fence") || lower.includes("panel")) {
-      title = initialTitle || "Timber Fencing & Post Installation";
-      scopeOfWork =
-        "Supply and erect pressure-treated lap fence panels. Excavate post holes to 600mm minimum depth, set posts in rapid-setting Postcrete, secure gravel boards, and clear all dismantled old fencing from site.";
-    } else if (lower.includes("boiler") || lower.includes("heating")) {
-      title = initialTitle || "High-Efficiency Boiler Installation";
-      scopeOfWork =
-        "Drain system and remove existing boiler. Supply and install high-efficiency condensing boiler, connect flue, powerflush heating loop, fit magnetic system filter, and install wireless programmable thermostat. Commission system and issue benchmark documentation.";
-    } else {
-      scopeOfWork = `Scope of works: ${notes}. Includes delivery and handling of required trade materials, surface and site preparation, skilled trade execution, and complete site cleanup upon completion.`;
-    }
-
     return NextResponse.json({
-      title,
-      scopeOfWork,
+      title: initialTitle || "Trade works",
+      scopeOfWork: notes,
       aiPowered: false,
-      notice: "Add GEMINI_API_KEY in .env.local to activate real-time Gemini 2.5 Flash intelligence.",
+      notice: "These are your own notes, not an AI rewrite. Sign in to expand them when AI is switched on.",
     });
   } catch (error) {
     console.error("Error expanding scope:", error);

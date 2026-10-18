@@ -3,9 +3,12 @@
 import { Printer, ArrowLeft, Sparkles, CheckCircle2, Smartphone, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
+import { brand } from "@/lib/brand.mjs";
+import { useSiteHost, useSiteOrigin } from "@/lib/live-store";
 
 export default function TradeFlyerPage() {
-  const liveUrl = "https://www.tradematequotes.co.uk";
+  const liveUrl = useSiteOrigin();
+  const hostLabel = useSiteHost() || "Open this site";
 
   const handlePrint = () => {
     window.print();
@@ -35,7 +38,7 @@ export default function TradeFlyerPage() {
         <button
           type="button"
           onClick={handlePrint}
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md shadow-blue-500/25 transition active:scale-[0.98]"
+          className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md shadow-clay-700/25 transition active:scale-[0.98]"
         >
           <Printer className="w-4 h-4" />
           <span>Print Flyer</span>
@@ -63,6 +66,7 @@ export default function TradeFlyerPage() {
             <span>For UK Builders • Plumbers • Sparks • Roofers • Carpenters</span>
           </div>
 
+          <p className="text-sm font-black tracking-wide text-amber-200 mb-2">{brand.name}</p>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight uppercase">
             Still writing quotes at <br />
             <span className="text-amber-400 underline decoration-amber-400/50 decoration-wavy decoration-2">
@@ -80,7 +84,7 @@ export default function TradeFlyerPage() {
           <div className="space-y-3.5">
             {/* Pillar 1 */}
             <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-slate-200 shadow-xs">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 font-bold mt-0.5">
+              <div className="w-9 h-9 rounded-xl bg-clay-100 text-clay-800 flex items-center justify-center shrink-0 font-bold mt-0.5">
                 <Smartphone className="w-5 h-5" />
               </div>
               <div>
@@ -88,7 +92,7 @@ export default function TradeFlyerPage() {
                   1. Speak or Type in the Van (Under 2 Mins)
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                  Dictate the job: <em>&quot;Fit 6 fence panels and concrete posts&quot;</em>. TradeMate calculates realistic UK materials, labour hours & day rates automatically.
+                  Dictate the job: <em>&quot;Fit 6 fence panels and concrete posts&quot;</em>. {brand.name} drafts materials and hours. You check every price.
                 </p>
               </div>
             </div>
@@ -118,7 +122,7 @@ export default function TradeFlyerPage() {
                   3. Collect Deposits & Digital Signatures
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                  Homeowners approve the quote online and pay their booking deposit by debit/credit card or bank transfer before you leave the driveway.
+                  Homeowners can read the quote and sign it on their phone. Card payments are not switched on during the beta.
                 </p>
               </div>
             </div>
@@ -129,7 +133,7 @@ export default function TradeFlyerPage() {
             <div className="space-y-1.5 flex-1">
               <div className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-amber-400">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>100% Free Forever Plan</span>
+                <span>Free while in testing</span>
               </div>
               <h4 className="text-lg font-black text-white leading-tight">
                 Scan with Phone Camera to Try Free:
@@ -139,7 +143,7 @@ export default function TradeFlyerPage() {
               </p>
               <div className="pt-1">
                 <span className="font-mono text-xs font-bold text-amber-300 bg-slate-800 px-2.5 py-1 rounded-md border border-slate-700 inline-block">
-                  tradematequotes.co.uk
+                  {hostLabel}
                 </span>
               </div>
             </div>
@@ -166,19 +170,19 @@ export default function TradeFlyerPage() {
         {/* Bottom Tear-off Style Tabs */}
         <div className="bg-slate-100 border-t-2 border-dashed border-slate-300 p-3 grid grid-cols-4 gap-2 text-center text-[10px] font-mono text-slate-700">
           <div className="border-r border-slate-300 pr-1">
-            <span className="font-bold block text-blue-700">TradeMate</span>
-            <span className="text-[9px] text-slate-500 truncate block">tradematequotes.co.uk</span>
+            <span className="font-bold block text-clay-800">{brand.shortName}</span>
+            <span className="text-[9px] text-slate-500 truncate block">{hostLabel}</span>
           </div>
           <div className="border-r border-slate-300 pr-1">
-            <span className="font-bold block text-blue-700">Quotes in &lt;2m</span>
-            <span className="text-[9px] text-slate-500 truncate block">Try Free Today</span>
+            <span className="font-bold block text-clay-800">{brand.tagline}</span>
+            <span className="text-[9px] text-slate-500 truncate block">Free while testing</span>
           </div>
           <div className="border-r border-slate-300 pr-1">
-            <span className="font-bold block text-blue-700">TradeMate</span>
-            <span className="text-[9px] text-slate-500 truncate block">tradematequotes.co.uk</span>
+            <span className="font-bold block text-clay-800">{brand.shortName}</span>
+            <span className="text-[9px] text-slate-500 truncate block">{hostLabel}</span>
           </div>
           <div>
-            <span className="font-bold block text-blue-700">WhatsApp Quotes</span>
+            <span className="font-bold block text-clay-800">WhatsApp Quotes</span>
             <span className="text-[9px] text-slate-500 truncate block">Scan QR Code</span>
           </div>
         </div>

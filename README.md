@@ -1,6 +1,6 @@
-# BuilderBot
+# Chuffed Quotes
 
-BuilderBot is an AI-powered quoting platform built for builders, plumbers, electricians and other trades.
+Chuffed Quotes is a quoting app for builders, plumbers, electricians and other trades. The name and tagline live in `builderbot-app/lib/brand.mjs`.
 
 ## Mission
 
@@ -21,7 +21,7 @@ Create and send a professional quote in under two minutes.
 - TypeScript
 - Tailwind CSS
 - Supabase
-- OpenAI
+- Google Gemini
 - Stripe
 - Vercel
 

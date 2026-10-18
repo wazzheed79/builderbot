@@ -1,11 +1,11 @@
-# BuilderBot — Agent Instructions & Collaboration Hub
+# Chuffed Quotes — Agent Instructions & Collaboration Hub
 
 > **Note for AI Agents**: This document tracks project context, architecture, completed milestones, conventions, active roadmap, and feature ideas. Whenever you make significant changes, update the **Changelog & Completed Work** section, check off completed roadmap items, and append new ideas to the **Ideas & Future Improvements** section before pushing.
 
 ---
 
 ## 📌 Project Overview
-- **Name:** BuilderBot
+- **Name:** Chuffed Quotes (short form Chuffed). Change it only in `builderbot-app/lib/brand.mjs`. The GitHub repo folder is still called builderbot.
 - **Mission:** Create and send a professional, itemized quote in under two minutes for tradespeople (builders, plumbers, electricians, roofers, landscapers).
 - **The Killer Differentiator:** **"Speak your quote and let AI build it."** A tradesperson taps a single button in their van, dictates the job in plain English, and AI expands, prices, and formats a client-ready quote with deposit collection.
 - **Primary Repository:** `https://github.com/wazzheed79/builderbot.git`
@@ -51,6 +51,7 @@ stateDiagram-v2
 
 ## 📝 Changelog & Completed Work
 - [x] **Homepage sample quote spacing**: Qty, rate, and line total on the landing-page quote preview each have a label and their own column, so the prices no longer run together on a phone.
+- [x] **Free public beta**: One product name in `lib/brand.mjs` (Chuffed Quotes), empty start instead of fake customers, AI only for signed-in users, card payments switched off, quote accept rules, pinch-zoom, and layout that stays on the page at phone, tablet, and desktop widths.
 - [x] **Project Scaffolding**: Initialized Next.js App Router app with TypeScript and Tailwind CSS.
 - [x] **Navigation & Shell**: Created unified responsive navigation (`components/AppNav.tsx`) with desktop header and thumb-friendly mobile bottom navigation bar.
 - [x] **Landing Page & Comparison**: High-converting trade landing page with **"The Old Way vs. BuilderBot"** side-by-side contrast section (`app/page.tsx`).

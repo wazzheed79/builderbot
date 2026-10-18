@@ -38,7 +38,7 @@ export default function LineItemEditor({
           <button
             type="button"
             onClick={() => onAddItem("labor")}
-            className="min-h-[40px] px-3.5 py-2 text-xs font-bold bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-800 border border-blue-200 rounded-xl transition inline-flex items-center gap-1.5 active:scale-95 shadow-2xs"
+            className="min-h-[40px] px-3.5 py-2 text-xs font-bold bg-clay-50 hover:bg-clay-100 active:bg-blue-200 text-clay-800 border border-clay-200 rounded-xl transition inline-flex items-center gap-1.5 active:scale-95 shadow-2xs"
           >
             <Plus className="w-3.5 h-3.5" /> Labour
           </button>
@@ -80,7 +80,7 @@ export default function LineItemEditor({
               <span
                 className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shrink-0 ${
                   item.type === "labor"
-                    ? "bg-blue-100 text-blue-800"
+                    ? "bg-clay-100 text-clay-800"
                     : item.type === "material"
                     ? "bg-amber-100 text-amber-800"
                     : "bg-emerald-100 text-emerald-800"

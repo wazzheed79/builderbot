@@ -1,7 +1,7 @@
 /**
- * Pure trade communication logic and message templating for BuilderBot.
- * Shared between Node.js test runners and Next.js client/server bundles.
+ * Trade message templates shared by the app and the Node tests.
  */
+import { brand } from "./brand.mjs";
 
 /**
  * Normalizes phone numbers to international format without spaces or symbols.
@@ -111,7 +111,7 @@ export function getWhatsAppInvoiceShareUrl(params) {
  */
 export function getEmailShareUrl(params, clientEmail, siteOrigin) {
   const subject = encodeURIComponent(
-    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${params.companyName || "TradeMate"})`
+    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${params.companyName || brand.name})`
   );
   const body = encodeURIComponent(formatWhatsAppQuoteMessage(params, siteOrigin));
   return `mailto:${clientEmail}?subject=${subject}&body=${body}`;

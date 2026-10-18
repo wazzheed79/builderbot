@@ -72,7 +72,7 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
       <div>
         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-          <Calculator className="w-5 h-5 text-blue-600" />
+          <Calculator className="w-5 h-5 text-clay-700" />
           <span>Materials & Labour Margin Calculator</span>
         </h2>
         <p className="text-xs text-slate-500 mt-1">
@@ -101,7 +101,7 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
             <label className="block text-xs font-bold text-slate-700">
               Material Markup (%)
             </label>
-            <span className="text-xs font-extrabold text-blue-600">
+            <span className="text-xs font-extrabold text-clay-700">
               +{materialMarkup}%
             </span>
           </div>
@@ -182,7 +182,7 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
       </div>
 
       {/* Live Margin Calculation Summary Card */}
-      <div className="bg-blue-50/70 p-5 rounded-xl border border-blue-200 space-y-3">
+      <div className="bg-clay-50/70 p-5 rounded-xl border border-clay-200 space-y-3">
         <h3 className="text-xs font-extrabold uppercase tracking-wider text-blue-900">
           Margin Breakdown & Cost Analysis
         </h3>
@@ -220,14 +220,14 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
           </div>
         </div>
 
-        <div className="pt-3 border-t border-blue-200/80 flex items-center justify-between">
+        <div className="pt-3 border-t border-clay-200/80 flex items-center justify-between">
           <span className="text-xs font-medium text-slate-600">
             Ready to populate your quote?
           </span>
           <button
             type="button"
             onClick={handleApply}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-sm transition active:scale-95"
+            className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-sm transition active:scale-95"
           >
             <span>Apply These Figures to Quote</span>
             <ArrowRight className="w-3.5 h-3.5" />

@@ -7,7 +7,7 @@ import {
   isSupabaseConfigured,
   pullUserDataFromCloud,
 } from "@/lib/supabase";
-import { hydrateLocalCache, loadDemoSampleData, clearLocalData } from "@/lib/storage";
+import { hydrateLocalCache, clearLocalData } from "@/lib/storage";
 
 interface AuthContextType {
   user: User | null;
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setSession(null);
-    loadDemoSampleData();
+    clearLocalData();
   };
 
   const isDemoMode = !user;

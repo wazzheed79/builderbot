@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import "./globals.css";
 import AppNav from "@/components/AppNav";
 import { AuthProvider } from "@/components/AuthProvider";
+import ClientErrorReporter from "@/components/ClientErrorReporter";
+import { brand } from "@/lib/brand.mjs";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,21 +18,19 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0F172A",
+  themeColor: "#c4522a",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export const metadata: Metadata = {
-  title: "TradeMate — AI Quoting & Invoicing for Trades",
-  description: "Create and send professional trade quotes in under two minutes with AI. Built by Michael Boylen for UK trades.",
+  title: `${brand.name} — ${brand.tagline}`,
+  description: brand.description,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "TradeMate",
+    statusBarStyle: "default",
+    title: brand.shortName,
   },
   icons: {
     icon: "/icon.svg",
@@ -48,9 +48,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 pb-20 md:pb-0">
+      <body className="min-h-full flex flex-col bg-paper text-ink pb-24 lg:pb-0">
         <AuthProvider>
-          <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-white" />}>
+          <ClientErrorReporter />
+          <Suspense fallback={<div className="h-16 border-b border-stone-200 bg-white" />}>
             <AppNav />
           </Suspense>
           <div className="flex-1 flex flex-col">{children}</div>

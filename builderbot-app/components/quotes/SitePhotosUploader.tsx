@@ -97,7 +97,7 @@ export default function SitePhotosUploader({
     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <Camera className="w-4 h-4 text-blue-600" />
+          <Camera className="w-4 h-4 text-clay-700" />
           <h3 className="font-bold text-sm text-slate-900">Job Site & Inspection Photos</h3>
         </div>
         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
@@ -152,7 +152,7 @@ export default function SitePhotosUploader({
 
         {/* Add Photo Button (Camera or Gallery) */}
         {photos.length < maxPhotos && (
-          <label className="aspect-4/3 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/70 hover:bg-blue-50/50 flex flex-col items-center justify-center cursor-pointer transition p-3 text-center group">
+          <label className="aspect-4/3 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/70 hover:bg-clay-50/50 flex flex-col items-center justify-center cursor-pointer transition p-3 text-center group">
             <input
               type="file"
               accept="image/*"
@@ -161,14 +161,14 @@ export default function SitePhotosUploader({
               disabled={isProcessing}
               className="hidden"
             />
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-1 group-hover:scale-110 transition">
+            <div className="w-8 h-8 rounded-full bg-clay-100 text-clay-700 flex items-center justify-center mb-1 group-hover:scale-110 transition">
               {isProcessing ? (
                 <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Plus className="w-4 h-4" />
               )}
             </div>
-            <span className="text-xs font-bold text-slate-700 group-hover:text-blue-700">
+            <span className="text-xs font-bold text-slate-700 group-hover:text-clay-800">
               {isProcessing ? "Processing..." : "Take / Add Photo"}
             </span>
             <span className="text-[10px] text-slate-400 mt-0.5">Camera or library</span>

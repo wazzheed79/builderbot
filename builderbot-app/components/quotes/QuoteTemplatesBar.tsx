@@ -338,7 +338,7 @@ export default function QuoteTemplatesBar({
     <div className="mt-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
       <div className="flex items-center justify-between mb-2.5">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+          <Sparkles className="w-3.5 h-3.5 text-clay-700" />
           1-Click Job Templates
         </span>
         <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
@@ -351,9 +351,9 @@ export default function QuoteTemplatesBar({
             key={tpl.name}
             type="button"
             onClick={() => onSelectTemplate(tpl)}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 hover:bg-blue-50 text-slate-800 hover:text-blue-700 border border-slate-200 hover:border-blue-300 transition shadow-2xs active:scale-95"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 hover:bg-clay-50 text-slate-800 hover:text-clay-800 border border-slate-200 hover:border-blue-300 transition shadow-2xs active:scale-95"
           >
-            <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100/80 text-blue-800">
+            <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-clay-100/80 text-clay-800">
               {tpl.category}
             </span>
             <span>{tpl.name}</span>

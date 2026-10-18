@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -19,16 +19,15 @@ import {
 } from "lucide-react";
 import {
   Customer,
-  Quote,
-  getCustomers,
   saveCustomer,
   deleteCustomer,
-  getQuotes,
 } from "@/lib/storage";
+import { useClientReady, useCustomerList, useQuoteList } from "@/lib/live-store";
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers());
-  const [quotes, setQuotes] = useState<Quote[]>(() => getQuotes());
+  const ready = useClientReady();
+  const customers = useCustomerList();
+  const quotes = useQuoteList();
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -42,15 +41,9 @@ export default function CustomersPage() {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
 
-  const loadData = () => {
-    setCustomers(getCustomers());
-    setQuotes(getQuotes());
-  };
-
-  useEffect(() => {
-    window.addEventListener("builderbot_storage_updated", loadData);
-    return () => window.removeEventListener("builderbot_storage_updated", loadData);
-  }, []);
+  if (!ready) {
+    return <div className="max-w-7xl mx-auto px-4 py-16 text-sm text-stone-600">Loading customers…</div>;
+  }
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -93,7 +86,6 @@ export default function CustomersPage() {
       notes: notes.trim() || undefined,
     });
 
-    loadData();
     setShowModal(false);
     triggerToast(editingCustomer ? "Customer profile updated!" : "New customer record added!");
   };
@@ -101,7 +93,6 @@ export default function CustomersPage() {
   const handleDelete = (id: string, customerName: string) => {
     if (confirm(`Are you sure you want to delete ${customerName}?`)) {
       deleteCustomer(id);
-      loadData();
       triggerToast("Customer deleted.");
     }
   };
@@ -127,7 +118,7 @@ export default function CustomersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Users className="w-8 h-8 text-blue-600" />
+            <Users className="w-8 h-8 text-clay-700" />
             Customer Directory (CRM)
           </h1>
           <p className="text-slate-600 text-sm mt-1">
@@ -137,7 +128,7 @@ export default function CustomersPage() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md transition self-start sm:self-auto active:scale-[0.98]"
+          className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md transition self-start sm:self-auto active:scale-[0.98]"
         >
           <Plus className="w-4 h-4" />
           <span>Add Customer</span>
@@ -176,7 +167,7 @@ export default function CustomersPage() {
           return (
             <div
               key={customer.id}
-              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-blue-200 transition space-y-4 flex flex-col justify-between"
+              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-clay-200 transition space-y-4 flex flex-col justify-between"
             >
               <div>
                 {/* Header */}
@@ -184,10 +175,10 @@ export default function CustomersPage() {
                   <div>
                     <Link
                       href={`/customers/${customer.id}`}
-                      className="font-bold text-base text-slate-900 hover:text-blue-600 transition inline-flex items-center gap-1 group"
+                      className="font-bold text-base text-slate-900 hover:text-clay-700 transition inline-flex items-center gap-1 group"
                     >
                       <span>{customer.name}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition" />
+                      <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-clay-700 transition" />
                     </Link>
                     {customer.company && (
                       <p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-0.5">
@@ -260,7 +251,7 @@ export default function CustomersPage() {
                   </Link>
                   <Link
                     href={`/quotes?customerId=${customer.id}`}
-                    className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-lg transition"
+                    className="inline-flex items-center gap-1.5 bg-clay-50 hover:bg-clay-100 text-clay-800 font-bold px-3 py-1.5 rounded-lg transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Quote</span>
@@ -278,7 +269,7 @@ export default function CustomersPage() {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
+                <Users className="w-5 h-5 text-clay-700" />
                 <span>{editingCustomer ? "Edit Customer Record" : "Add New Customer"}</span>
               </h3>
               <button
@@ -382,7 +373,7 @@ export default function CustomersPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition"
+                  className="flex-1 py-2.5 text-xs font-bold text-white bg-clay-700 hover:bg-clay-800 rounded-xl shadow-md transition"
                 >
                   {editingCustomer ? "Update Customer" : "Save Customer"}
                 </button>

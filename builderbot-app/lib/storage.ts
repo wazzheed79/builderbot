@@ -284,7 +284,7 @@ const DEFAULT_CUSTOMERS: Customer[] = [
 const DEFAULT_QUOTES: Quote[] = [
   {
     id: "BB-1042",
-    token: "q_demo_bathroom",
+    token: "q_demo_bathroom_link",
     customerId: "cust-1",
     clientName: "Sarah Jenkins",
     clientCompany: "Private Homeowner",
@@ -399,7 +399,7 @@ const DEFAULT_QUOTES: Quote[] = [
   },
   {
     id: "BB-1040",
-    token: "q_demo_boiler",
+    token: "q_demo_boiler_link",
     customerId: "cust-3",
     clientName: "Oakfield Management Ltd",
     clientCompany: "Commercial Property",
@@ -460,11 +460,11 @@ export const DEFAULT_JOBS: Job[] = [
   {
     id: "job-102",
     customerId: "cust-2",
-    title: "Boundary Featheredge Fence Replacement (28m)",
+    title: "Full Consumer Unit Upgrade & 8 Downlights",
     address: "12 Meadow Lane, Bath, BA1 5TT",
     status: "Scheduled",
-    notes: "Old panels dismantled and stacked. Installation scheduled for Monday 8:00 AM.",
-    quoteId: "BB-1043",
+    notes: "Consumer unit and downlights from the accepted quote. Installation scheduled for Monday 8:00 AM.",
+    quoteId: "BB-1041",
     createdAt: "2026-10-12",
   },
   {
@@ -474,7 +474,7 @@ export const DEFAULT_JOBS: Job[] = [
     address: "Suite 4, Oakfield Business Park, Bristol, BS1 2AB",
     status: "Quoted",
     notes: "Requires out-of-hours technician access certificate.",
-    quoteId: "BB-1044",
+    quoteId: "BB-1040",
     createdAt: "2026-10-14",
   },
 ];
@@ -497,7 +497,7 @@ export const DEFAULT_INVOICES: Invoice[] = [
         description: "Ensuite refurbishment procurement & initial deposit payment",
         quantity: 1,
         unit: "stage",
-        rate: 894.0,
+        rate: 745.0,
       },
     ],
     subtotal: 745.0,
@@ -518,22 +518,21 @@ const QUOTES_KEY = "builderbot_quotes_v1";
 const JOBS_KEY = "builderbot_jobs_v1";
 const INVOICES_KEY = "builderbot_invoices_v1";
 
+function readStoredList<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 // Customers Repository
 export function getCustomers(): Customer[] {
-  if (typeof window === "undefined") return DEFAULT_CUSTOMERS;
-  try {
-    const raw = localStorage.getItem(CUSTOMERS_KEY);
-    if (!raw) {
-      if (localStorage.getItem("builderbot_data_source") === "cloud") {
-        return [];
-      }
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(DEFAULT_CUSTOMERS));
-      return DEFAULT_CUSTOMERS;
-    }
-    return JSON.parse(raw);
-  } catch {
-    return DEFAULT_CUSTOMERS;
-  }
+  return readStoredList<Customer>(CUSTOMERS_KEY);
 }
 
 export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id?: string }): Customer {
@@ -582,20 +581,7 @@ export function getCustomerById(id: string): Customer | undefined {
 
 // Quotes Repository
 export function getQuotes(): Quote[] {
-  if (typeof window === "undefined") return DEFAULT_QUOTES;
-  try {
-    const raw = localStorage.getItem(QUOTES_KEY);
-    if (!raw) {
-      if (localStorage.getItem("builderbot_data_source") === "cloud") {
-        return [];
-      }
-      localStorage.setItem(QUOTES_KEY, JSON.stringify(DEFAULT_QUOTES));
-      return DEFAULT_QUOTES;
-    }
-    return JSON.parse(raw);
-  } catch {
-    return DEFAULT_QUOTES;
-  }
+  return readStoredList<Quote>(QUOTES_KEY);
 }
 
 export function getQuoteById(idOrToken: string): Quote | undefined {
@@ -682,6 +668,21 @@ export function updateQuoteStatus(
   const lower = idOrToken.toLowerCase();
   const now = new Date().toISOString();
 
+  if (status === "Accepted" || status === "Rejected" || status === "Viewed") {
+    const existing = current.find(
+      (q) => q.id.toLowerCase() === lower || q.token.toLowerCase() === lower
+    );
+    if (!existing) return undefined;
+    const profile = getBusinessProfile();
+    const expiry = calculateQuoteExpiry(existing.createdAt, profile.quoteValidityDays || 30);
+    const check = validateStatusTransition(
+      existing.status,
+      status,
+      existing.status === "Expired" || expiry.isExpired
+    );
+    if (!check.allowed) return undefined;
+  }
+
   const updated = current.map((q) => {
     if (q.id.toLowerCase() === lower || q.token.toLowerCase() === lower) {
       target = {
@@ -752,18 +753,7 @@ export function deleteQuote(id: string): void {
 
 // Jobs Repository
 export function getJobs(): Job[] {
-  if (typeof window === "undefined") return DEFAULT_JOBS;
-  try {
-    const raw = localStorage.getItem(JOBS_KEY);
-    if (!raw) {
-      if (localStorage.getItem("builderbot_data_source") === "cloud") return [];
-      localStorage.setItem(JOBS_KEY, JSON.stringify(DEFAULT_JOBS));
-      return DEFAULT_JOBS;
-    }
-    return JSON.parse(raw);
-  } catch {
-    return DEFAULT_JOBS;
-  }
+  return readStoredList<Job>(JOBS_KEY);
 }
 
 export function getJobById(id: string): Job | undefined {
@@ -816,18 +806,7 @@ export function deleteJob(id: string): void {
 
 // Invoices Repository
 export function getInvoices(): Invoice[] {
-  if (typeof window === "undefined") return DEFAULT_INVOICES;
-  try {
-    const raw = localStorage.getItem(INVOICES_KEY);
-    if (!raw) {
-      if (localStorage.getItem("builderbot_data_source") === "cloud") return [];
-      localStorage.setItem(INVOICES_KEY, JSON.stringify(DEFAULT_INVOICES));
-      return DEFAULT_INVOICES;
-    }
-    return JSON.parse(raw);
-  } catch {
-    return DEFAULT_INVOICES;
-  }
+  return readStoredList<Invoice>(INVOICES_KEY);
 }
 
 export function getInvoiceById(id: string): Invoice | undefined {

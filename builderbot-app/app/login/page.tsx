@@ -4,15 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { brand } from "@/lib/brand.mjs";
 import {
   Wrench,
   Mail,
   Lock,
   ArrowRight,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
   Zap,
 } from "lucide-react";
 
@@ -43,7 +42,7 @@ export default function LoginPage() {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => router.push("/dashboard")}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm transition"
+              className="w-full bg-clay-700 hover:bg-clay-800 text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm transition"
             >
               Go to Trade Dashboard
             </button>
@@ -115,12 +114,12 @@ export default function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Brand Header */}
         <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25">
+          <div className="w-12 h-12 rounded-2xl bg-clay-700 text-white flex items-center justify-center shadow-lg shadow-clay-700/25">
             <Wrench className="w-7 h-7" />
           </div>
         </div>
         <h2 className="text-center text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Sign in to TradeMate
+          Sign in to {brand.name}
         </h2>
         <p className="mt-2 text-center text-sm text-slate-600 max-w-sm mx-auto">
           Fast quoting, customer CRM, and live quote acceptance tracking across your phone, tablet, and van.
@@ -141,7 +140,7 @@ export default function LoginPage() {
                   </p>
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-1.5 font-bold text-blue-700 hover:text-blue-800 underline"
+                    className="inline-flex items-center gap-1.5 font-bold text-clay-800 hover:text-clay-800 underline"
                   >
                     <span>Continue in Free Demo Mode</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -166,7 +165,7 @@ export default function LoginPage() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Zap className="w-3.5 h-3.5 text-blue-600" />
+              <Zap className="w-3.5 h-3.5 text-clay-700" />
               <span>1-Click Magic Link</span>
             </button>
             <button
@@ -208,7 +207,7 @@ export default function LoginPage() {
               </p>
               <button
                 onClick={() => setMagicLinkSent(false)}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline"
+                className="text-xs font-semibold text-clay-700 hover:text-clay-800 underline"
               >
                 Use a different email address
               </button>
@@ -242,7 +241,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] transition shadow-md shadow-blue-500/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-clay-700 hover:bg-clay-800 active:scale-[0.99] transition shadow-md shadow-clay-700/20 disabled:opacity-50"
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
@@ -311,7 +310,7 @@ export default function LoginPage() {
                     setPasswordMode(passwordMode === "signin" ? "signup" : "signin");
                     setErrorMsg(null);
                   }}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 underline"
+                  className="text-xs font-bold text-clay-700 hover:text-clay-800 underline"
                 >
                   {passwordMode === "signin" ? "Create Account" : "Sign In Instead"}
                 </button>
@@ -320,7 +319,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] transition shadow-md shadow-blue-500/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-clay-700 hover:bg-clay-800 active:scale-[0.99] transition shadow-md shadow-clay-700/20 disabled:opacity-50"
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
@@ -344,22 +343,18 @@ export default function LoginPage() {
               className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition inline-flex items-center gap-1.5"
             >
               <span>Want to explore first?</span>
-              <span className="text-blue-600 underline">Continue as Guest in Demo Mode &rarr;</span>
+              <span className="text-clay-700 underline">Continue as Guest in Demo Mode &rarr;</span>
             </Link>
           </div>
         </div>
 
         {/* Security Assurance Footer */}
-        <div className="mt-6 text-center flex items-center justify-center gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            256-Bit Encrypted
-          </span>
-          <span className="flex items-center gap-1">
-            <Sparkles className="w-4 h-4 text-blue-600" />
-            Supabase Protected
-          </span>
-        </div>
+        <p className="mt-6 text-center text-xs text-stone-500">
+          {brand.name} is free while in testing.{" "}
+          <Link href="/privacy" className="underline">
+            Privacy
+          </Link>
+        </p>
       </div>
     </div>
   );

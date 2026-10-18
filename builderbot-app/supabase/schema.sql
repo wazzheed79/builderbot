@@ -336,3 +336,17 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'status', new_decision);
 END;
 $$;
+
+-- Photos on quotes. Safe to run again on a database that already exists.
+ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS photos JSONB DEFAULT '[]'::jsonb;
+
+-- Feedback from the free beta. No public policies: only the server service role can write.
+CREATE TABLE IF NOT EXISTS public.feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  message TEXT NOT NULL,
+  contact TEXT,
+  page TEXT
+);
+
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
