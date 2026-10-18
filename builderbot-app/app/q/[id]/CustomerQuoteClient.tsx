@@ -816,7 +816,7 @@ export default function CustomerQuoteClient({
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 px-4 rounded-xl text-xs transition shadow-sm"
               >
                 <Share2 className="w-4 h-4" />
-                <span>Share WhatsApp</span>
+                <span>Share on WhatsApp</span>
               </a>
 
               <button

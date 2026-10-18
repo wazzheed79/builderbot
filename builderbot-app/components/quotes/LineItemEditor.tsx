@@ -9,6 +9,7 @@ interface LineItemEditorProps {
   onUpdateItem: (id: string, field: keyof LineItem, value: string | number) => void;
   onDeleteItem: (id: string) => void;
   isAiDraft: boolean;
+  estimateOnly?: boolean;
   onAcknowledgeAiDraft: () => void;
 }
 
@@ -18,6 +19,7 @@ export default function LineItemEditor({
   onUpdateItem,
   onDeleteItem,
   isAiDraft,
+  estimateOnly = false,
   onAcknowledgeAiDraft,
 }: LineItemEditorProps) {
   return (
@@ -51,7 +53,17 @@ export default function LineItemEditor({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
-              <strong>AI Estimate Draft:</strong> Please verify trade quantities, materials, and day rates for site accuracy before issuing.
+              {estimateOnly ? (
+                <>
+                  <strong>Rough estimate.</strong> These prices are a starting point, not an AI look
+                  at the job. Change every figure before you send it.
+                </>
+              ) : (
+                <>
+                  <strong>AI suggestion.</strong> Check the quantities, materials, and rates before
+                  you send this quote.
+                </>
+              )}
             </span>
           </div>
           <button

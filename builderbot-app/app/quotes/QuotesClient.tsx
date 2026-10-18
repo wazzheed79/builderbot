@@ -27,7 +27,8 @@ import {
   getPricingMemory,
   DEFAULT_BUSINESS_PROFILE,
 } from "@/lib/storage";
-import { useBusinessProfile, useCustomerList } from "@/lib/live-store";
+import { useBusinessProfile, useClientReady, useCustomerList } from "@/lib/live-store";
+import { HOME_NOTES_KEY } from "@/lib/home-notes";
 import QuoteTemplatesBar, {
   QuoteTemplate,
   DEFAULT_QUOTE_TEMPLATES,
@@ -77,6 +78,7 @@ export default function QuotesClient() {
 
   const customers = useCustomerList();
   const profile = useBusinessProfile();
+  const ready = useClientReady();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [appliedCustomerParam, setAppliedCustomerParam] = useState("");
@@ -107,6 +109,9 @@ export default function QuotesClient() {
   const [vatEnabled, setVatEnabled] = useState(DEFAULT_BUSINESS_PROFILE.vatRegistered ?? true);
   const [depositPercent, setDepositPercent] = useState(DEFAULT_BUSINESS_PROFILE.defaultDepositPercent ?? 20);
   const [isAiDraft, setIsAiDraft] = useState(false);
+  const [estimateOnly, setEstimateOnly] = useState(false);
+  const [homeNotesApplied, setHomeNotesApplied] = useState(false);
+  const [fromHome, setFromHome] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Line items
@@ -130,6 +135,20 @@ export default function QuotesClient() {
       setClientEmail(match.email || "");
     }
   }
+
+  if (ready && !homeNotesApplied) {
+    const pending = sessionStorage.getItem(HOME_NOTES_KEY);
+    setHomeNotesApplied(true);
+    if (pending) {
+      setNotesInput(pending.slice(0, 2000));
+      setFromHome(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!homeNotesApplied) return;
+    sessionStorage.removeItem(HOME_NOTES_KEY);
+  }, [homeNotesApplied]);
 
   const rateStamp = `${profile.vatRegistered}:${profile.defaultDepositPercent}`;
   if (ratesReadyFor !== rateStamp) {
@@ -322,6 +341,7 @@ export default function QuotesClient() {
 
         setItems(mappedItems);
         setIsAiDraft(true);
+        setEstimateOnly(!data.aiPowered);
         if (data.title && !quoteTitle) setQuoteTitle(data.title);
         if (data.scopeOfWork) setNotesInput(data.scopeOfWork);
         if (data.suggestedDepositPercent) setDepositPercent(data.suggestedDepositPercent);
@@ -329,7 +349,8 @@ export default function QuotesClient() {
         triggerToast(
           data.aiPowered
             ? "AI suggested prices. Change anything that does not look right before you send it."
-            : "Rough estimate only. Edit every price before you send this quote."
+            : data.notice ||
+                "Rough estimate only. Edit every price. Sign in with an AI key for a fuller suggestion."
         );
       } else {
         triggerToast(data.error || "Could not generate quote items.");
@@ -367,6 +388,31 @@ export default function QuotesClient() {
   const vat = roundMoney(vatEnabled ? subtotal * 0.2 : 0);
   const total = roundMoney(subtotal + vat);
   const deposit = roundMoney((total * depositPercent) / 100);
+
+  const shareOnWhatsApp = () => {
+    if (!activeQuoteId && !activeToken) {
+      triggerToast("Save the quote first. Then you can send the customer link on WhatsApp.");
+      return;
+    }
+    const siteOrigin = window.location.origin;
+    const params = {
+      quoteId: activeQuoteId || "",
+      token: activeToken || activeQuoteId || "",
+      clientName: clientName || "there",
+      clientPhone: clientPhone,
+      quoteTitle: quoteTitle,
+      companyName: profile.companyName,
+      contractorName: profile.ownerName,
+      total,
+      deposit,
+      depositPercent,
+    };
+    const waUrl = getWhatsAppShareUrl(params, siteOrigin);
+    const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
+    navigator.clipboard.writeText(shareText).catch(() => {});
+    window.open(waUrl, "_blank", "noopener,noreferrer");
+    triggerToast("WhatsApp is opening with the customer link in the message.");
+  };
 
   // Save to Repository (Updates existing if activeQuoteId set)
   const handleSaveQuote = (status: "Draft" | "Sent" = "Sent") => {
@@ -497,7 +543,7 @@ export default function QuotesClient() {
               <button
                 type="button"
                 onClick={handleToggleVoice}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[46px] rounded-xl text-xs sm:text-sm font-extrabold transition-all shadow-md active:scale-95 ${
+                className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 min-h-12 rounded-xl text-sm font-extrabold transition-all shadow-md active:scale-95 ${
                   isRecording
                     ? "bg-red-600 hover:bg-red-700 text-white ring-4 ring-red-400/50 shadow-red-500/25 animate-pulse"
                     : "bg-clay-700 hover:bg-clay-800 text-white"
@@ -513,18 +559,31 @@ export default function QuotesClient() {
                 ) : (
                   <>
                     <Mic className="w-4 h-4 text-amber-300" />
-                    <span>Dictate Quote in Van</span>
+                    <span>Tap and talk</span>
                   </>
                 )}
               </button>
             </div>
+            <p className="mb-3 text-xs leading-relaxed text-stone-600">
+              Talking works in Chrome, Safari, and Edge. Typing works on any phone. If you are not
+              signed in, or an AI key is not set, Build the quote still gives a rough estimate and
+              says so. Photos are not read in that case.
+            </p>
+
+            {fromHome && (
+              <p className="mb-3 rounded-xl border border-clay-200 bg-white px-3 py-2 text-sm text-ink">
+                Notes from the homepage are in the box. Tap Build the quote. If you are not signed
+                in, or an AI key is not set, you get a rough estimate and a clear label. You can
+                still edit every line.
+              </p>
+            )}
 
             <textarea
-              rows={3}
+              rows={4}
               value={notesInput}
               onChange={(e) => setNotesInput(e.target.value)}
               placeholder="Speak or type job notes: 'Build brick garden wall 10 meters long, 2 days labor for two men...'"
-              className="w-full p-3.5 text-xs sm:text-sm font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent shadow-2xs text-slate-900"
+              className="w-full min-w-0 p-3.5 text-base font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-clay-600 focus:border-transparent shadow-2xs text-slate-900"
             />
 
             {/* Live Recording Status Banner */}
@@ -582,18 +641,10 @@ export default function QuotesClient() {
                   type="button"
                   onClick={handleGenerateAI}
                   disabled={isGenerating || !notesInput.trim()}
-                  className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
+                  className="inline-flex min-h-12 items-center gap-2 bg-clay-700 hover:bg-clay-800 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>
-                    {isGenerating
-                      ? photos.length > 0
-                        ? "Inspecting Photos & Itemizing..."
-                        : "Itemizing..."
-                      : photos.length > 0
-                      ? `Generate Items (Voice + ${photos.length} Photos)`
-                      : "Generate Items"}
-                  </span>
+                  <span>{isGenerating ? "Building your quote…" : "Build the quote"}</span>
                 </button>
               </div>
             </div>
@@ -602,7 +653,9 @@ export default function QuotesClient() {
           {/* Job Site & Inspection Photos Uploader */}
           <SitePhotosUploader photos={photos} onChange={setPhotos} />
           <p className="text-xs text-stone-600">
-            Photos stay on this phone until the database photo step has been run and you are signed in.
+            Photos stay on this phone. They are sent to AI only if you are signed in and an AI key
+            is set. Otherwise the quote is a rough estimate and the photos are not read.
+            {photos.length > 0 ? ` ${photos.length} photo${photos.length > 1 ? "s" : ""} saved here.` : ""}
           </p>
 
           {/* Mode Switcher Tabs */}
@@ -691,6 +744,7 @@ export default function QuotesClient() {
                 onUpdateItem={handleUpdateItem}
                 onDeleteItem={handleDeleteItem}
                 isAiDraft={isAiDraft}
+                estimateOnly={estimateOnly}
                 onAcknowledgeAiDraft={() => setIsAiDraft(false)}
               />
             </div>
@@ -773,7 +827,7 @@ export default function QuotesClient() {
               </div>
 
               {/* Delivery & Persistence Actions */}
-              <div className="pt-4 space-y-2.5">
+              <div id="quote-share" className="pt-4 space-y-2.5">
                 <button
                   type="button"
                   onClick={() => handleSaveQuote("Sent")}
@@ -783,7 +837,16 @@ export default function QuotesClient() {
                   <span>{activeQuoteId ? "Update & Issue Quote" : "Save & Issue Quote to Client"}</span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={shareOnWhatsApp}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-extrabold text-emerald-900 hover:bg-emerald-100"
+                >
+                  <Share2 className="h-4 w-4 text-emerald-700" />
+                  <span>Share on WhatsApp</span>
+                </button>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <Link
                     href={activeToken ? `/q/${activeToken}` : activeQuoteId ? `/q/${activeQuoteId}` : "#"}
                     onClick={(e) => {
@@ -792,47 +855,15 @@ export default function QuotesClient() {
                         triggerToast("Please save the quote first to generate a customer link.");
                       }
                     }}
-                    className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold transition ${
+                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                       activeQuoteId || activeToken
                         ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
                         : "bg-slate-100 text-slate-400 cursor-not-allowed"
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>Customer Link</span>
+                    <span>Customer link</span>
                   </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!activeQuoteId && !activeToken) {
-                        triggerToast("Save the quote first to generate a shareable WhatsApp link.");
-                        return;
-                      }
-                      const siteOrigin = window.location.origin;
-                      const params = {
-                        quoteId: activeQuoteId || "",
-                        token: activeToken || activeQuoteId || "",
-                        clientName: clientName || "there",
-                        clientPhone: clientPhone,
-                        quoteTitle: quoteTitle,
-                        companyName: profile.companyName,
-                        contractorName: profile.ownerName,
-                        total,
-                        deposit,
-                        depositPercent,
-                      };
-                      const waUrl = getWhatsAppShareUrl(params, siteOrigin);
-                      const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
-                      navigator.clipboard.writeText(shareText);
-                      window.open(waUrl, "_blank");
-                      triggerToast("WhatsApp opened & message copied to clipboard!");
-                    }}
-                    className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold py-2.5 px-3 rounded-xl text-xs transition"
-                  >
-                    <Share2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>WhatsApp</span>
-                  </button>
 
                   <button
                     type="button"
@@ -860,7 +891,7 @@ export default function QuotesClient() {
                       window.open(waFollowUpUrl, "_blank");
                       triggerToast("WhatsApp opened with warm follow-up message!");
                     }}
-                    className="col-span-2 flex items-center justify-center gap-1.5 bg-clay-50 hover:bg-clay-100 text-clay-800 border border-clay-200 font-semibold py-2 px-3 rounded-xl text-xs transition"
+                    className="flex min-h-11 items-center justify-center gap-1.5 bg-clay-50 hover:bg-clay-100 text-clay-800 border border-clay-200 font-semibold py-2 px-3 rounded-xl text-xs transition sm:col-span-2"
                     title="Send a polite follow-up message if the customer hasn't responded"
                   >
                     <MessageCircle className="w-3.5 h-3.5 text-clay-700" />
@@ -897,26 +928,7 @@ export default function QuotesClient() {
           {activeQuoteId || activeToken ? (
             <button
               type="button"
-              onClick={() => {
-                const siteOrigin = window.location.origin;
-                const params = {
-                  quoteId: activeQuoteId || "",
-                  token: activeToken || activeQuoteId || "",
-                  clientName: clientName || "there",
-                  clientPhone: clientPhone,
-                  quoteTitle: quoteTitle,
-                  companyName: profile.companyName,
-                  contractorName: profile.ownerName,
-                  total,
-                  deposit,
-                  depositPercent,
-                };
-                const waUrl = getWhatsAppShareUrl(params, siteOrigin);
-                const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
-                navigator.clipboard.writeText(shareText);
-                window.open(waUrl, "_blank");
-                triggerToast("WhatsApp opened & message copied to clipboard!");
-              }}
+              onClick={shareOnWhatsApp}
               className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-3.5 py-2 min-h-[46px] rounded-xl text-xs shadow-md active:scale-95 transition"
             >
               <Share2 className="w-4 h-4" />

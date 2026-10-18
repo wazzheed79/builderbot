@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { brand } from "@/lib/brand.mjs";
+import FoundingOffer from "@/components/FoundingOffer";
+import HomeVoice from "@/components/HomeVoice";
 import {
   Wrench,
   Sparkles,
   ArrowRight,
   CheckCircle2,
-  Clock,
   Smartphone,
   ShieldCheck,
+  Mic,
 } from "lucide-react";
 
 export default function Home() {
@@ -44,14 +46,14 @@ export default function Home() {
 
   const features = [
     {
-      icon: Clock,
-      title: "Quote in Under 2 Minutes",
-      desc: "Stop spending late evenings after long days on site. Type or speak the job details and generate a full quote before you leave the driveway.",
+      icon: Mic,
+      title: "Talk in the van",
+      desc: "About 30 seconds of plain English is enough. If the microphone is unavailable, type the same notes. You still get a quote to edit.",
     },
     {
       icon: Sparkles,
-      title: "AI Trade Estimator",
-      desc: "Our model breaks down labor, material quantities, markups, and day rates automatically with accurate trade terminology.",
+      title: "Prices you can check",
+      desc: "Signed-in AI pricing runs only when an AI key is set. Otherwise you get a rough estimate, clearly labelled, and you change every figure.",
     },
     {
       icon: Smartphone,
@@ -68,55 +70,32 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-paper/70 via-white to-slate-50 pt-12 pb-20 lg:pt-20 lg:pb-28">
+      <section className="relative overflow-hidden bg-gradient-to-b from-paper via-white to-paper pt-8 pb-16 lg:pt-16 lg:pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto">
-            {/* Pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-clay-100/80 text-clay-800 text-xs sm:text-sm font-semibold mb-6 border border-clay-200 shadow-xs">
-              <Sparkles className="w-4 h-4 text-clay-700" />
-              <span>AI-Powered Quoting for Hardworking Trades</span>
-            </div>
+          <div className="mx-auto max-w-xl lg:max-w-2xl">
+            <FoundingOffer />
 
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
-              Turn job notes into quotes in{" "}
-              <span className="text-clay-700 underline decoration-clay-300 decoration-wavy decoration-2">
-                under 2 minutes
-              </span>
-              .
+            <h1 className="mt-6 text-4xl font-black tracking-tight text-ink leading-[1.12] sm:text-5xl">
+              Talk for 30 seconds in the van. Get a professional quote.
             </h1>
 
-            {/* Subtitle */}
-            <p className="mt-6 text-lg sm:text-xl text-slate-600 leading-relaxed font-normal">
-              No more losing evenings to quoting spreadsheets. Enter rough job notes
-              or voice memos, and {brand.name} turns them into itemized quotes you can edit before sending.
+            <p className="mt-4 text-lg leading-relaxed text-stone-700">
+              Say the job in plain English, or type a few rough notes. {brand.name} turns them
+              into a price list you can check, then a link your customer can open.
             </p>
 
-            {/* CTAs */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-              <Link
-                href="/quotes"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold px-8 py-4 rounded-xl text-base shadow-lg shadow-clay-700/25 transition active:scale-[0.98]"
-              >
-                <span>Create Your First Quote</span>
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                href="/dashboard"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 font-semibold px-7 py-4 rounded-xl text-base border border-slate-300 shadow-xs transition"
-              >
-                <span>View Dashboard Demo</span>
-              </Link>
-            </div>
+            <HomeVoice />
 
-            {/* Trust badges */}
-            <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500 font-medium">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium text-stone-500">
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> No credit card required
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> No card needed
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Mobile & desktop ready
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Free while in testing
               </span>
+              <Link href="/dashboard" className="font-semibold text-clay-800 underline">
+                See an empty dashboard
+              </Link>
             </div>
 
             {/* Trades Served */}
@@ -137,29 +116,33 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Interactive Quote Preview Card Mockup */}
-          <div className="mt-14 max-w-4xl mx-auto">
-            <div className="bg-white rounded-2xl shadow-xl border border-slate-200/90 overflow-hidden">
-              {/* Header Bar */}
-              <div className="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-clay-700 flex items-center justify-center">
-                    <Wrench className="w-4 h-4" />
+          <div className="notes-to-quote relative mt-10 max-w-4xl mx-auto">
+            <p className="mb-3 text-center text-xs font-bold uppercase tracking-wider text-stone-500">
+              Rough notes, then a quote you can send
+            </p>
+            <div className="quote-document relative overflow-hidden rounded-2xl border border-stone-200 bg-[#fffdf8] shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-paper px-4 py-4 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-clay-700 text-white">
+                    <Wrench className="h-4 w-4" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm tracking-wide">Premier Trade Services</h3>
-                    <p className="text-xs text-slate-400">Quote #BB-1042 • 16 Oct 2026</p>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-ink">Premier Trade Services</h3>
+                    <p className="text-xs text-stone-500">Quote #BB-1042</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Draft Ready
-                  </span>
-                </div>
+                <span className="rounded-full border border-clay-200 bg-white px-2.5 py-1 text-xs font-semibold text-clay-800">
+                  Ready to check
+                </span>
               </div>
 
-              {/* Card Body */}
-              <div className="p-6 sm:p-8 space-y-6">
+              <div className="relative space-y-6 p-4 sm:p-8">
+                <div className="demo-notes pointer-events-none absolute inset-0 z-10 flex flex-col justify-center gap-3 bg-[#fffdf8] p-5 sm:p-8">
+                  <p className="text-xs font-bold uppercase tracking-wider text-clay-800">Spoken in the van</p>
+                  <p className="demo-line text-base font-medium text-ink">Kitchen tap is dripping.</p>
+                  <p className="demo-line text-base font-medium text-ink">Swap the tap and check the pipe.</p>
+                  <p className="demo-line text-base font-medium text-ink">About an hour on site.</p>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 border-b border-slate-100 text-sm">
                   <div>
                     <span className="text-xs uppercase text-slate-400 font-bold tracking-wider">Client</span>
@@ -206,16 +189,16 @@ export default function Home() {
                     <p>VAT at 20% £170.00</p>
                     <p className="font-semibold text-slate-800">Deposit 20% of the total £204.00</p>
                   </div>
-                  <div className="flex items-center gap-6 self-end sm:self-center">
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400 uppercase font-semibold">Total inc. VAT</span>
+                  <div className="flex w-full min-w-0 flex-wrap items-end justify-between gap-3 sm:w-auto sm:justify-end">
+                    <div className="text-left sm:text-right">
+                      <span className="text-xs uppercase font-semibold text-slate-400">Total inc. VAT</span>
                       <p className="text-2xl font-black text-slate-900">£1,020.00</p>
                     </div>
                     <Link
                       href="/quotes"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg shadow-sm transition"
+                      className="inline-flex min-h-11 items-center rounded-lg bg-clay-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-clay-800"
                     >
-                      Try Customizing
+                      Try it with your job
                     </Link>
                   </div>
                 </div>
@@ -243,7 +226,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
             {/* The Old Way */}
             <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-rose-200/80 shadow-xs relative overflow-hidden">
-              <div className="flex items-center justify-between pb-4 border-b border-rose-100">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-rose-100">
                 <div className="flex items-center gap-2">
                   <span className="w-7 h-7 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-sm">
                     ✕
@@ -280,8 +263,8 @@ export default function Home() {
             </div>
 
             {/* With this product */}
-            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-blue-600 shadow-xl shadow-clay-700/10 relative overflow-hidden ring-4 ring-clay-600/10">
-              <div className="flex items-center justify-between pb-4 border-b border-clay-100">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-clay-700 shadow-xl shadow-clay-700/10 relative overflow-hidden ring-4 ring-clay-600/10">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-clay-100">
                 <div className="flex items-center gap-2">
                   <span className="w-7 h-7 rounded-full bg-clay-700 text-white flex items-center justify-center font-bold text-sm">
                     ✓
@@ -296,7 +279,7 @@ export default function Home() {
               <ul className="mt-6 space-y-4 text-sm text-slate-700">
                 <li className="flex items-start gap-3">
                   <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                  <span><strong>Instant AI quotes:</strong> Itemized labor, materials, and VAT generated in seconds.</span>
+                  <span><strong>A price list from your notes:</strong> You read it and change anything before the customer sees it.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-emerald-600 font-bold shrink-0">✓</span>
@@ -379,9 +362,9 @@ export default function Home() {
               <div className="w-8 h-8 rounded-full bg-clay-700 text-white flex items-center justify-center font-bold text-sm mb-4">
                 2
               </div>
-              <h3 className="font-bold text-lg mb-2">AI Calculates Breakdown</h3>
+              <h3 className="font-bold text-lg mb-2">Check the prices</h3>
               <p className="text-slate-400 text-sm leading-relaxed">
-                {brand.name} suggests materials, hours, and totals. You check every price before it is sent.
+                {brand.name} suggests materials, hours, and totals. You change every price before it is sent.
               </p>
             </div>
 

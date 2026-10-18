@@ -394,7 +394,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   }
 
   const photoNote = Array.isArray(photos) && photos.length > 0
-    ? ` Specification cross-referenced with ${photos.length} site inspection photo(s).`
+    ? ` ${photos.length} site inspection photo(s) are saved on this phone. This rough estimate did not look at them.`
     : "";
   const tradeNote = String(trade || "").trim() ? ` Trade: ${String(trade).trim()}.` : "";
   const roughPrefix =

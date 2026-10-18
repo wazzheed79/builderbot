@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { brand } from "@/lib/brand.mjs";
+import FoundingOffer from "@/components/FoundingOffer";
 
 export default function PricingPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <p className="inline-flex rounded-full border border-clay-200 bg-clay-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-clay-800">
-        Free while in testing
-      </p>
+      <FoundingOffer />
       <h1 className="mt-4 text-3xl sm:text-4xl font-black tracking-tight text-ink">
         {brand.name} is free during the beta
       </h1>
