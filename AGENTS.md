@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Homepage sample quote spacing**: Qty, rate, and line total on the landing-page quote preview each have a label and their own column, so the prices no longer run together on a phone.
 - [x] **Project Scaffolding**: Initialized Next.js App Router app with TypeScript and Tailwind CSS.
 - [x] **Navigation & Shell**: Created unified responsive navigation (`components/AppNav.tsx`) with desktop header and thumb-friendly mobile bottom navigation bar.
 - [x] **Landing Page & Comparison**: High-converting trade landing page with **"The Old Way vs. BuilderBot"** side-by-side contrast section (`app/page.tsx`).
