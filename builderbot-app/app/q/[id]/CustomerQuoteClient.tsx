@@ -467,25 +467,48 @@ export default function CustomerQuoteClient({
                   Quotation Ref: {loadedQuote.id}
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
-                  {profile.accreditations && profile.accreditations.length > 0 ? (
-                    profile.accreditations.map((acc, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-emerald-300 px-2.5 py-1 rounded-md font-semibold border border-slate-700"
-                      >
-                        <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                        {acc}
-                      </span>
-                    ))
+                  {activeProfile.accreditations && activeProfile.accreditations.length > 0 ? (
+                    activeProfile.accreditations.map((acc, i) => {
+                      const lower = acc.toLowerCase();
+                      const isGasSafe = lower.includes("gas safe");
+                      const isElectric = lower.includes("niceic") || lower.includes("part p") || lower.includes("elecsa");
+                      const isWaste = lower.includes("waste carrier") || lower.includes("environment agency");
+
+                      const badgeClasses = isGasSafe
+                        ? "bg-amber-950/80 text-amber-300 border-amber-600/60"
+                        : isElectric
+                        ? "bg-blue-950/80 text-blue-300 border-blue-600/60"
+                        : isWaste
+                        ? "bg-emerald-950/80 text-emerald-300 border-emerald-600/60"
+                        : "bg-slate-800 text-slate-200 border-slate-700";
+
+                      return (
+                        <span
+                          key={i}
+                          className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-md font-bold border shadow-xs ${badgeClasses}`}
+                        >
+                          {isGasSafe ? (
+                            <span>🔥</span>
+                          ) : isElectric ? (
+                            <span>⚡</span>
+                          ) : isWaste ? (
+                            <span>♻️</span>
+                          ) : (
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          )}
+                          <span>{acc}</span>
+                        </span>
+                      );
+                    })
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md font-medium border border-slate-700">
                       <ShieldCheck className="w-3 h-3 text-emerald-400" />
                       Direct Trade Quotation
                     </span>
                   )}
-                  {profile.vatRegistered && profile.vatNumber && (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-400 px-2.5 py-1 rounded-md font-mono border border-slate-700">
-                      VAT: {profile.vatNumber}
+                  {activeProfile.vatRegistered && activeProfile.vatNumber && (
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md font-mono font-bold border border-slate-700">
+                      VAT: {activeProfile.vatNumber}
                     </span>
                   )}
                 </div>

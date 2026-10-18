@@ -469,6 +469,40 @@ export default function SettingsPage() {
             )}
           </div>
 
+          {/* Quick-Add Popular UK Trade Certifications */}
+          <div className="pt-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              1-Tap Quick Add Badges:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "🔥 Gas Safe Register", defaultText: "Gas Safe Registered (#123456)" },
+                { label: "⚡ NICEIC Approved", defaultText: "NICEIC Approved Contractor" },
+                { label: "🔌 Part P Domestic Installer", defaultText: "Part P Registered Installer" },
+                { label: "♻️ EA Licensed Waste Carrier", defaultText: "Environment Agency Registered Waste Carrier" },
+                { label: "🏗️ FMB Member", defaultText: "Federation of Master Builders (FMB)" },
+                { label: "⭐ Checkatrade Verified", defaultText: "Checkatrade Verified Member" },
+                { label: "🛡️ CHAS Health & Safety", defaultText: "CHAS Health & Safety Accredited" },
+              ].map((badge) => (
+                <button
+                  key={badge.label}
+                  type="button"
+                  onClick={() => {
+                    if (profile.accreditations.includes(badge.defaultText)) {
+                      triggerToast("This certification is already added.");
+                      return;
+                    }
+                    handleChange("accreditations", [...profile.accreditations, badge.defaultText]);
+                    triggerToast(`Added ${badge.label}! You can edit your registration number.`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-800 border border-slate-200 hover:border-indigo-300 transition active:scale-95 shadow-2xs"
+                >
+                  <span>{badge.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Add Accreditation Input */}
           <div className="flex gap-2">
             <input

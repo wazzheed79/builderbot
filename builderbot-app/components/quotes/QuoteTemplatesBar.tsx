@@ -226,10 +226,100 @@ export const DEFAULT_QUOTE_TEMPLATES: QuoteTemplate[] = [
       {
         id: "t5-4",
         type: "service",
-        description: "Building control notification & benchmark commissioning registration",
+        description: "Gas Safe Register notification, benchmark commissioning & Part L certificate",
         quantity: 1,
         unit: "cert",
-        rate: 60.0,
+        rate: 75.0,
+      },
+    ],
+  },
+  {
+    name: "Consumer Unit & EICR",
+    category: "Electrical",
+    title: "18th Edition Consumer Unit Upgrade & Electrical Testing",
+    notes:
+      "Decommission existing fuseboard. Supply and install 10-way metal dual RCD/RCBO consumer unit with Type 2 Surge Protection Device (SPD). Complete full testing of all domestic circuits with Electrical Installation Certificate (EICR) and Part P Building Regulations notification.",
+    items: [
+      {
+        id: "t6-1",
+        type: "material",
+        description: "10-Way Metal Consumer Unit + Type 2 SPD Surge Protection + RCBOs",
+        quantity: 1,
+        unit: "board",
+        rate: 225.0,
+      },
+      {
+        id: "t6-2",
+        type: "material",
+        description: "25mm Double Insulated Meter Tails, 16mm Earth & Metal Clamping Glands",
+        quantity: 1,
+        unit: "kit",
+        rate: 65.0,
+      },
+      {
+        id: "t6-3",
+        type: "labor",
+        description: "Certified electrical board replacement, circuit termination & earthing upgrades",
+        quantity: 8,
+        unit: "hrs",
+        rate: 55.0,
+      },
+      {
+        id: "t6-4",
+        type: "service",
+        description: "Full circuit test, EICR completion schedule & Part P NICEIC notification",
+        quantity: 1,
+        unit: "cert",
+        rate: 140.0,
+      },
+    ],
+  },
+  {
+    name: "Garden Brick Wall",
+    category: "Building",
+    title: "Front Garden Boundary Brick Wall (10m x 0.9m)",
+    notes:
+      "Excavate 450mm strip trench foundations. Pour C20 ready-mix concrete footing. Lay facing brickwork in Flemish bond with weep holes, expansion joints, and half-round brick coping headers. Includes licensed trade waste skip disposal.",
+    items: [
+      {
+        id: "t7-1",
+        type: "material",
+        description: "Selected Class B Facing Bricks (750 bricks) + Half-round Copings",
+        quantity: 750,
+        unit: "bricks",
+        rate: 0.85,
+      },
+      {
+        id: "t7-2",
+        type: "material",
+        description: "C20 Ready-Mix Concrete trench foundation footing mix (2 bulk bags)",
+        quantity: 2,
+        unit: "bags",
+        rate: 72.0,
+      },
+      {
+        id: "t7-3",
+        type: "material",
+        description: "Building Sand, Blue Circle Cement & Mortar Plasticiser",
+        quantity: 1,
+        unit: "set",
+        rate: 95.0,
+      },
+      {
+        id: "t7-4",
+        type: "labor",
+        description: "Excavation, footing pour & skilled bricklaying (2 days / 2 men)",
+        quantity: 20,
+        unit: "hrs",
+        rate: 48.0,
+      },
+      {
+        id: "t7-5",
+        type: "service",
+        description: "6-yard builder skip hire & Environment Agency licensed waste disposal",
+        quantity: 1,
+        unit: "skip",
+        rate: 260.0,
       },
     ],
   },
@@ -261,9 +351,11 @@ export default function QuoteTemplatesBar({
             key={tpl.name}
             type="button"
             onClick={() => onSelectTemplate(tpl)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-200 transition shadow-2xs active:scale-[0.98]"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 hover:bg-blue-50 text-slate-800 hover:text-blue-700 border border-slate-200 hover:border-blue-300 transition shadow-2xs active:scale-95"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100/80 text-blue-800">
+              {tpl.category}
+            </span>
             <span>{tpl.name}</span>
           </button>
         ))}
