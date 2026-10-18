@@ -325,7 +325,7 @@ const DEFAULT_QUOTES: Quote[] = [
       {
         id: "4",
         type: "labor",
-        description: "Certified plumbing labor, waste routing & pressure testing",
+        description: "Certified plumbing labour, waste routing and pressure testing",
         quantity: 16,
         unit: "hrs",
         rate: 55.0,

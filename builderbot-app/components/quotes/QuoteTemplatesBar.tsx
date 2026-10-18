@@ -342,7 +342,7 @@ export default function QuoteTemplatesBar({
           1-Click Job Templates
         </span>
         <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-          Loads pre-itemized trade materials & labor
+          Ready-made materials and labour
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">

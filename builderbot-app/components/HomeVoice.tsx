@@ -70,7 +70,7 @@ export default function HomeVoice() {
 
   const toggleVoice = () => {
     if (!recognitionRef.current) {
-      setHint("This browser cannot use the microphone. Type the job in the box. It still works.");
+      setHint("This phone can't use the microphone here. Type a few notes instead.");
       return;
     }
     if (recording) {
@@ -104,10 +104,8 @@ export default function HomeVoice() {
       <label htmlFor="home-notes" className="block text-sm font-black text-ink">
         Talk, or type the job
       </label>
-      <p className="mt-1 text-xs leading-relaxed text-stone-600">
-        Typing works on any phone. Talking works in Chrome, Safari, and Edge. If you are not
-        signed in, or an AI key is not set up, you still get a rough price list to edit. The quote
-        screen will say so.
+      <p className="mt-1 text-sm leading-relaxed text-stone-600">
+        Tap the button and describe the job, or type a few notes.
       </p>
       <button
         type="button"

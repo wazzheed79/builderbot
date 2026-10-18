@@ -90,8 +90,9 @@ export async function POST(request: NextRequest) {
 
       let systemInstruction =
         `You are the quoting assistant for ${brand.name}, helping UK builders, electricians, plumbers, roofers, landscapers, and carpenters. ` +
-        "Given tradesperson notes, return realistic UK trade itemized breakdowns in JSON format. " +
-        "Use realistic UK market rates in GBP (£): skilled labor should be £40-£65/hr or £220-£350/day. " +
+        "Given tradesperson notes, return realistic UK trade itemised breakdowns in JSON format. " +
+        "Write descriptions in British spelling (labour, colour, metre). " +
+        "Use realistic UK market rates in GBP (£): skilled labour should be £40-£65/hr or £220-£350/day. " +
         "Materials at realistic trade supplier prices. " +
         "Recommend a deposit % between 10 and 30 (default 20). " +
         "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes.";
@@ -261,7 +262,7 @@ export async function POST(request: NextRequest) {
       aiPowered: false,
       estimateOnly: true,
       notice:
-        "Rough estimate only. Change every price before you send it. Signed-in AI pricing runs only when an AI key is set up.",
+        "Rough estimate. Change every price before you send it.",
     });
   } catch (error) {
     console.error("Error generating quote:", error);

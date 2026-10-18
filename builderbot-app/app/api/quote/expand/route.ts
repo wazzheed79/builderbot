@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       title: initialTitle || "Trade works",
       scopeOfWork: notes,
       aiPowered: false,
-      notice: "These are your own notes, not an AI rewrite. Sign in to expand them when AI is switched on.",
+      notice: "Kept your own words. Edit them before you send the quote.",
     });
   } catch (error) {
     console.error("Error expanding scope:", error);

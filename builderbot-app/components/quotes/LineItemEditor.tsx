@@ -55,8 +55,7 @@ export default function LineItemEditor({
             <span>
               {estimateOnly ? (
                 <>
-                  <strong>Rough estimate.</strong> These prices are a starting point, not an AI look
-                  at the job. Change every figure before you send it.
+                  <strong>Rough estimate.</strong> Change every price before you send it.
                 </>
               ) : (
                 <>
@@ -79,7 +78,7 @@ export default function LineItemEditor({
       {items.length === 0 ? (
         <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
           <p className="text-sm font-medium text-slate-500">
-            No line items yet. Add materials or labor above, select a template, or click &ldquo;Load Example Data&rdquo;.
+            No lines yet. Add materials or labour, pick a template, or load an example.
           </p>
         </div>
       ) : (
@@ -98,7 +97,7 @@ export default function LineItemEditor({
                     : "bg-emerald-100 text-emerald-800"
                 }`}
               >
-                {item.type}
+                {item.type === "labor" ? "Labour" : item.type === "material" ? "Material" : "Service"}
               </span>
 
               <input

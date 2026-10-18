@@ -47,7 +47,7 @@ test("estimateTradeJob: generates realistic breakdowns across all major UK trade
 
   // 9. Generic / General Works
   const general = estimateTradeJob("Various handyman repair jobs in back shed");
-  assert.equal(general.title, "Specified Trade Works & Labor");
+  assert.equal(general.title, "Specified Trade Works & Labour");
   assert.ok(general.items.length >= 3);
 });
 

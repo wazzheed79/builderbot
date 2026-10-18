@@ -215,7 +215,7 @@ export default function QuotesClient() {
   // Toggle Voice Recording
   const handleToggleVoice = () => {
     if (!recognitionRef.current) {
-      triggerToast("Voice dictation is only supported in browsers with microphone access (Chrome, Edge, Safari).");
+      triggerToast("This phone can't use the microphone here. Type the job instead.");
       return;
     }
 
@@ -260,13 +260,13 @@ export default function QuotesClient() {
         triggerToast(
           data.aiPowered
             ? "AI expanded your notes. Read them before you send the quote."
-            : data.notice || "Kept your own notes. Sign in for an AI rewrite when it is switched on."
+            : data.notice || "Kept your own words. Edit them before you send the quote."
         );
       } else {
         triggerToast(data.error || "Could not expand scope. Please try again.");
       }
     } catch {
-      triggerToast("Network error contacting AI server.");
+      triggerToast("Could not reach the quote helper. Try again.");
     } finally {
       setIsExpanding(false);
     }
@@ -294,7 +294,7 @@ export default function QuotesClient() {
   const handleApplyMarginFromCalc = (newItems: LineItem[]) => {
     setItems(newItems);
     setActiveTab("items");
-    triggerToast("Calculated labor, materials & markup applied to quote!");
+    triggerToast("Labour, materials and markup are on the quote.");
   };
 
   // Real Server-Side AI Quote Generator
@@ -348,15 +348,15 @@ export default function QuotesClient() {
 
         triggerToast(
           data.aiPowered
-            ? "AI suggested prices. Change anything that does not look right before you send it."
+            ? "Suggested prices are in. Change anything that does not look right before you send it."
             : data.notice ||
-                "Rough estimate only. Edit every price. Sign in with an AI key for a fuller suggestion."
+                "Rough estimate. Change every price before you send it."
         );
       } else {
         triggerToast(data.error || "Could not generate quote items.");
       }
     } catch {
-      triggerToast("Network error contacting AI server.");
+      triggerToast("Could not reach the quote helper. Try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -564,17 +564,9 @@ export default function QuotesClient() {
                 )}
               </button>
             </div>
-            <p className="mb-3 text-xs leading-relaxed text-stone-600">
-              Talking works in Chrome, Safari, and Edge. Typing works on any phone. If you are not
-              signed in, or an AI key is not set, Build the quote still gives a rough estimate and
-              says so. Photos are not read in that case.
-            </p>
-
             {fromHome && (
               <p className="mb-3 rounded-xl border border-clay-200 bg-white px-3 py-2 text-sm text-ink">
-                Notes from the homepage are in the box. Tap Build the quote. If you are not signed
-                in, or an AI key is not set, you get a rough estimate and a clear label. You can
-                still edit every line.
+                Your notes are in the box. Tap Build the quote.
               </p>
             )}
 
@@ -582,7 +574,7 @@ export default function QuotesClient() {
               rows={4}
               value={notesInput}
               onChange={(e) => setNotesInput(e.target.value)}
-              placeholder="Speak or type job notes: 'Build brick garden wall 10 meters long, 2 days labor for two men...'"
+              placeholder="Speak or type the job: brick garden wall, 10 metres, two days for two of us..."
               className="w-full min-w-0 p-3.5 text-base font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-clay-600 focus:border-transparent shadow-2xs text-slate-900"
             />
 
@@ -653,8 +645,7 @@ export default function QuotesClient() {
           {/* Job Site & Inspection Photos Uploader */}
           <SitePhotosUploader photos={photos} onChange={setPhotos} />
           <p className="text-xs text-stone-600">
-            Photos stay on this phone. They are sent to AI only if you are signed in and an AI key
-            is set. Otherwise the quote is a rough estimate and the photos are not read.
+            Photos stay on this phone until you sign in.
             {photos.length > 0 ? ` ${photos.length} photo${photos.length > 1 ? "s" : ""} saved here.` : ""}
           </p>
 
@@ -670,7 +661,7 @@ export default function QuotesClient() {
               }`}
             >
               <Wrench className="w-4 h-4" />
-              <span>Itemized Breakdown ({items.length})</span>
+              <span>Itemised breakdown ({items.length})</span>
             </button>
 
             <button
@@ -687,7 +678,7 @@ export default function QuotesClient() {
             </button>
           </div>
 
-          {/* TAB 1: Itemized Breakdown */}
+          {/* TAB 1: Itemised breakdown */}
           {activeTab === "items" ? (
             <div className="space-y-6">
               {/* Client & Project Details */}
@@ -819,7 +810,7 @@ export default function QuotesClient() {
               <div className="flex items-baseline justify-between pt-1">
                 <div>
                   <span className="text-xs uppercase font-extrabold text-slate-400">Total Price</span>
-                  <p className="text-xs text-slate-500">Includes materials & labor</p>
+                  <p className="text-xs text-slate-500">Includes materials and labour</p>
                 </div>
                 <div className="text-right">
                   <span className="text-3xl font-black text-slate-900">£{total.toFixed(2)}</span>

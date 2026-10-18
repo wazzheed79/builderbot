@@ -9,9 +9,6 @@ export default function FoundingOffer({ compact = false }: { compact?: boolean }
       <p className={`mt-1 font-semibold text-ink ${compact ? "text-sm" : "text-sm sm:text-base"}`}>
         {brand.foundingDetail}
       </p>
-      <p className="mt-1 text-xs text-stone-600">
-        No card needed. The free period is 12 months from sign-up. There is no live counter on this page.
-      </p>
     </div>
   );
 }

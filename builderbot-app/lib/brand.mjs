@@ -14,9 +14,9 @@ export const brand = {
   tagline: "Quotes in under 2 minutes",
   description:
     "Create and send a professional quote in under two minutes. Free while in testing.",
-  foundingTitle: "Founding member",
+  foundingTitle: "Founding member offer",
   foundingDetail:
-    "The first 100 tradespeople who sign up get it free for 12 months.",
+    "The first 100 tradespeople to sign up get Chuffed Quotes free for 12 months. No card needed.",
 };
 
 /**

@@ -37,7 +37,7 @@ export default function Home() {
       total: "£165.00",
     },
     {
-      description: "Certified Plumbing Labor & System Power Flush",
+      description: "Certified Plumbing Labour & System Power Flush",
       qty: "8 hrs",
       rate: "£55.00",
       total: "£440.00",
@@ -48,22 +48,22 @@ export default function Home() {
     {
       icon: Mic,
       title: "Talk in the van",
-      desc: "About 30 seconds of plain English is enough. If the microphone is unavailable, type the same notes. You still get a quote to edit.",
+      desc: "About 30 seconds is enough. Say the job out loud, or type it if you prefer.",
     },
     {
       icon: Sparkles,
       title: "Prices you can check",
-      desc: "Signed-in AI pricing runs only when an AI key is set. Otherwise you get a rough estimate, clearly labelled, and you change every figure.",
+      desc: "You get a price list. Change anything before the customer sees it.",
     },
     {
       icon: Smartphone,
-      title: "Mobile-First for the Van",
-      desc: "No fiddly small spreadsheets. Built specifically with large tap targets and fast inputs for phones and tablets on job sites.",
+      title: "Made for the van",
+      desc: "Big buttons and a simple page, so you can quote from the driver's seat.",
     },
     {
       icon: ShieldCheck,
-      title: "Look Professional & Win Jobs",
-      desc: "Deliver sleek, branded PDF quotes with your business logo, payment terms, and direct one-click acceptance links.",
+      title: "A quote that looks the part",
+      desc: "Your name on the quote, and a link the customer can open and sign.",
     },
   ];
 
@@ -94,7 +94,7 @@ export default function Home() {
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Free while in testing
               </span>
               <Link href="/dashboard" className="font-semibold text-clay-800 underline">
-                See an empty dashboard
+                Your jobs start blank
               </Link>
             </div>
 
@@ -219,7 +219,7 @@ export default function Home() {
               Why trades choose {brand.name}
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Compare the old quoting routine with the {brand.shortName} workflow.
+              Compare the old way of quoting with {brand.shortName}.
             </p>
           </div>
 
@@ -283,7 +283,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                  <span><strong>Digital customer hub:</strong> All client notes, site addresses, and quote history in one place.</span>
+                  <span><strong>Customers in one place:</strong> Names, addresses, and past quotes stay together.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-emerald-600 font-bold shrink-0">✓</span>
@@ -311,7 +311,7 @@ export default function Home() {
               Built around how trades actually work.
             </h2>
             <p className="mt-4 text-base text-slate-600">
-              No complicated enterprise menus or useless settings. Just fast, accurate quoting that wins jobs and gets you paid.
+              No fiddly menus. Quote from the van, check the prices, and send a link.
             </p>
           </div>
 
@@ -384,7 +384,7 @@ export default function Home() {
               href="/quotes"
               className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-600 text-white font-bold px-7 py-3.5 rounded-xl shadow-lg transition"
             >
-              <span>Try Generating a Quote Now</span>
+              <span>Try a quote now</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

@@ -609,7 +609,7 @@ export default function CustomerQuoteClient({
             {/* Line Items Table */}
             <div>
               <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-3">
-                Itemized Cost Breakdown
+                Itemised cost breakdown
               </h2>
               <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
                 {loadedQuote.items.map((item, idx) => (
@@ -617,7 +617,7 @@ export default function CustomerQuoteClient({
                     <div className="min-w-0">
                       <p className="font-medium text-stone-900">{item.description}</p>
                       <p className="text-[11px] uppercase tracking-wider text-stone-500 mt-1">
-                        {item.type} · {item.quantity} {item.unit} × £{item.rate.toFixed(2)}
+                        {item.type === "labor" ? "Labour" : item.type === "material" ? "Material" : "Service"} · {item.quantity} {item.unit} × £{item.rate.toFixed(2)}
                       </p>
                     </div>
                     <p className="font-semibold tabular-nums text-stone-900 sm:text-right">
@@ -664,7 +664,7 @@ export default function CustomerQuoteClient({
                   Verified Digital Quotation
                 </span>
                 <p className="text-xs text-slate-600 max-w-md">
-                  Scan this QR code with any smartphone camera to review the itemized scope or sign and legally approve this quotation online.
+                  Scan this code with a phone camera to read the quote and sign it.
                 </p>
                 <p className="text-[11px] font-mono text-slate-400">
                   Ref: {loadedQuote.id} • Valid until {expiry.expiryFormatted}
