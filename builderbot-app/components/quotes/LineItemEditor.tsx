@@ -9,6 +9,7 @@ interface LineItemEditorProps {
   onUpdateItem: (id: string, field: keyof LineItem, value: string | number) => void;
   onDeleteItem: (id: string) => void;
   isAiDraft: boolean;
+  estimateOnly?: boolean;
   onAcknowledgeAiDraft: () => void;
 }
 
@@ -18,6 +19,7 @@ export default function LineItemEditor({
   onUpdateItem,
   onDeleteItem,
   isAiDraft,
+  estimateOnly = false,
   onAcknowledgeAiDraft,
 }: LineItemEditorProps) {
   return (
@@ -51,7 +53,16 @@ export default function LineItemEditor({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
-              <strong>AI Estimate Draft:</strong> Please verify trade quantities, materials, and day rates for site accuracy before issuing.
+              {estimateOnly ? (
+                <>
+                  <strong>Rough estimate.</strong> Change every price before you send it.
+                </>
+              ) : (
+                <>
+                  <strong>AI suggestion.</strong> Check the quantities, materials, and rates before
+                  you send this quote.
+                </>
+              )}
             </span>
           </div>
           <button
@@ -67,7 +78,7 @@ export default function LineItemEditor({
       {items.length === 0 ? (
         <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
           <p className="text-sm font-medium text-slate-500">
-            No line items yet. Add materials or labor above, select a template, or click &ldquo;Load Example Data&rdquo;.
+            No lines yet. Add materials or labour, pick a template, or load an example.
           </p>
         </div>
       ) : (
@@ -86,7 +97,7 @@ export default function LineItemEditor({
                     : "bg-emerald-100 text-emerald-800"
                 }`}
               >
-                {item.type}
+                {item.type === "labor" ? "Labour" : item.type === "material" ? "Material" : "Service"}
               </span>
 
               <input

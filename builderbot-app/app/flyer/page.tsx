@@ -47,7 +47,7 @@ export default function TradeFlyerPage() {
 
       {/* Printing Tips Callout (Hidden on print) */}
       <div className="w-full max-w-xl mb-4 bg-amber-50 border border-amber-200 p-3 rounded-xl text-[11px] text-amber-900 flex items-center justify-between print:hidden">
-        <span>💡 <strong>Tip for Printing:</strong> In your browser print dialog, select <strong>A5</strong> (or A4 with &quot;Fit to page&quot;) and check <strong>&quot;Background graphics&quot;</strong>.</span>
+        <span>💡 <strong>Tip for Printing:</strong> In your browser print window, select <strong>A5</strong> (or A4 with &quot;Fit to page&quot;) and check <strong>&quot;Background graphics&quot;</strong>.</span>
       </div>
 
       {/* The Printable A5 Flyer (148mm x 210mm proportional container) */}

@@ -74,6 +74,63 @@ select {
   font-family: Georgia, "Palatino Linotype", serif;
 }
 
+/* Homepage demo: rough notes cover the quote, then fade so the quote shows. */
+.demo-notes {
+  animation: demo-notes-fade 12s ease-in-out infinite;
+}
+
+.demo-line {
+  animation: demo-line-fade 12s ease-in-out infinite;
+}
+
+.demo-line:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.demo-line:nth-child(3) {
+  animation-delay: 0.8s;
+}
+
+@keyframes demo-notes-fade {
+  0%,
+  36% {
+    opacity: 1;
+  }
+  48%,
+  88% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes demo-line-fade {
+  0%,
+  6% {
+    opacity: 0;
+  }
+  14%,
+  36% {
+    opacity: 1;
+  }
+  48%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-notes {
+    display: none;
+  }
+
+  .demo-line {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 @media print {
   @page {
     size: A4;

@@ -44,7 +44,7 @@ export function formatWhatsAppQuoteMessage(params, siteOrigin) {
     `*Total Price:* £${params.total.toFixed(2)}` +
     `${depositText}\n` +
     `*Quotation Ref:* ${params.quoteId}\n\n` +
-    `You can review the full itemized scope, terms, and sign off digitally from your phone. Let us know if you have any questions!\n\n` +
+    `You can read the full itemised quote and sign it on your phone. Let us know if you have any questions.\n\n` +
     `Kind regards,\n${sender}`
   );
 }

@@ -353,7 +353,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
       }
     );
   } else {
-    title = "Specified Trade Works & Labor";
+    title = "Specified Trade Works & Labour";
     suggestedDepositPercent = 0;
     items.push(
       {
@@ -394,11 +394,11 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   }
 
   const photoNote = Array.isArray(photos) && photos.length > 0
-    ? ` Specification cross-referenced with ${photos.length} site inspection photo(s).`
+    ? ` ${photos.length} site inspection photo(s) saved with this quote. Please check them.`
     : "";
   const tradeNote = String(trade || "").trim() ? ` Trade: ${String(trade).trim()}.` : "";
   const roughPrefix =
-    title === "Specified Trade Works & Labor" || title === "Plumbing Call-Out & Repair"
+    title === "Specified Trade Works & Labour" || title === "Plumbing Call-Out & Repair"
       ? "ROUGH ESTIMATE — edit every price before sending. "
       : "";
 

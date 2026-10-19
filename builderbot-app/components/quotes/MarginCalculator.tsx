@@ -35,7 +35,7 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
       {
         id: "calc-lab",
         type: "labor",
-        description: `Skilled labor (${days} days x ${tradespeople} operative${
+        description: `Skilled labour (${days} days x ${tradespeople} operative${
           tradespeople > 1 ? "s" : ""
         } @ £${dayRate}/day)`,
         quantity: days * tradespeople,
