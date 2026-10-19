@@ -189,6 +189,11 @@ async function runTestSuite() {
         customerEmail: "homeowner.test@example.com",
       }),
     });
+    if (res.status === 403) {
+      const data = await res.json();
+      if (!data.error) throw new Error("Expected 403 error payload for free beta");
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!data.url && !data.demo) {
