@@ -63,14 +63,27 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
 
-    if (apiKey && userId) {
-      const userLimit = checkRateLimit(`ai-expand:user:${userId}`, 20, 60 * 60 * 1000);
-      if (!userLimit.allowed) {
-        return NextResponse.json(
-          { error: "AI limit reached for this hour. You can keep your own notes." },
-          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
-        );
+    if (apiKey) {
+      if (userId) {
+        const userLimit = checkRateLimit(`ai-expand:user:${userId}`, 30, 60 * 60 * 1000);
+        if (!userLimit.allowed) {
+          return NextResponse.json(
+            { error: "AI limit reached for this hour. You can keep your own notes." },
+            { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+          );
+        }
+      } else {
+        const guestLimit = checkRateLimit(`ai-expand:guest:${clientIp}`, 15, 60 * 60 * 1000);
+        if (!guestLimit.allowed) {
+          return NextResponse.json({
+            title: initialTitle || "Trade Works Specification",
+            scopeOfWork: notes,
+            aiPowered: false,
+            notice: "Guest preview limit reached. Sign in for full AI scope expansion.",
+          });
+        }
       }
+
       const ai = new GoogleGenAI({ apiKey });
 
       // Pass user notes securely as content parts, not prompt interpolation

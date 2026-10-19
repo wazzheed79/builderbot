@@ -243,9 +243,8 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
       }
     );
   } else if (
-    lower.includes("door") ||
+    /\bdoors?\b/.test(lower) ||
     lower.includes("skirting") ||
-    lower.includes("decking") ||
     lower.includes("carpenter") ||
     lower.includes("joinery")
   ) {
@@ -352,30 +351,375 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
         rate: 15.0,
       }
     );
-  } else {
-    title = "Specified Trade Works & Labour";
-    suggestedDepositPercent = 0;
+  } else if (
+    lower.includes("brick") ||
+    lower.includes("blockwork") ||
+    lower.includes("brickwork") ||
+    lower.includes("repoint") ||
+    lower.includes("masonry") ||
+    lower.includes("mortar") ||
+    lower.includes("coping")
+  ) {
+    title = "Brickwork, Masonry & Wall Construction";
+    suggestedDepositPercent = 20;
     items.push(
       {
         type: "material",
-        description: "Small materials allowance — replace with the real list before sending",
+        description: "Facing Bricks / Concrete Blocks, Building Sand & Mortar Plasticiser",
         quantity: 1,
-        unit: "allowance",
-        rate: 25.0,
+        unit: "lot",
+        rate: 340.0,
+      },
+      {
+        type: "material",
+        description: "Damp Proof Course (DPC) & Stainless Steel Wall Ties",
+        quantity: 1,
+        unit: "pack",
+        rate: 42.0,
       },
       {
         type: "labor",
-        description: "Starter labour allowance — change the hours and rate",
+        description: "Setting out, mortar mixing, precision brick/block laying, and joint tooling",
+        quantity: 16,
+        unit: "hrs",
+        rate: 48.0,
+      },
+      {
+        type: "service",
+        description: "Muck-away and site cleanup",
+        quantity: 1,
+        unit: "service",
+        rate: 65.0,
+      }
+    );
+  } else if (
+    lower.includes("kitchen") ||
+    lower.includes("worktop") ||
+    lower.includes("cabinet") ||
+    lower.includes("cupboard") ||
+    lower.includes("sink unit") ||
+    lower.includes("cooker")
+  ) {
+    title = "Kitchen Fitting & Worktop Installation";
+    suggestedDepositPercent = 25;
+    items.push(
+      {
+        type: "material",
+        description: "Laminate / Solid Wood Worktops, Colorfill & Heavy Duty Jointing Bolts",
         quantity: 2,
+        unit: "lengths",
+        rate: 135.0,
+      },
+      {
+        type: "material",
+        description: "Cabinet Hanging Brackets, Plinth Clips, Screws & Silicone Sealants",
+        quantity: 1,
+        unit: "lot",
+        rate: 65.0,
+      },
+      {
+        type: "labor",
+        description: "Cabinet assembly, level scribing, worktop router mitering, and appliance cutouts",
+        quantity: 24,
+        unit: "hrs",
+        rate: 48.0,
+      },
+      {
+        type: "service",
+        description: "Kitchen packaging disposal and safe offcuts clearance",
+        quantity: 1,
+        unit: "service",
+        rate: 80.0,
+      }
+    );
+  } else if (
+    lower.includes("patio") ||
+    lower.includes("paving") ||
+    lower.includes("slab") ||
+    lower.includes("sandstone") ||
+    lower.includes("driveway") ||
+    lower.includes("block paving")
+  ) {
+    title = "Patio, Paving & Groundworks";
+    suggestedDepositPercent = 20;
+    items.push(
+      {
+        type: "material",
+        description: "Calibrated Indian Sandstone / Porcelain Outdoor Paving Slabs",
+        quantity: 25,
+        unit: "m²",
+        rate: 32.0,
+      },
+      {
+        type: "material",
+        description: "MOT Type 1 Sub-Base Aggregate & Sharp Sand / Cement Mortar Bed",
+        quantity: 3,
+        unit: "bulk bags",
+        rate: 68.0,
+      },
+      {
+        type: "labor",
+        description: "Excavation, sub-base compaction, full mortar bed laying, and brush-in resin pointing",
+        quantity: 20,
         unit: "hrs",
         rate: 45.0,
       },
       {
         type: "service",
-        description: "Travel and tidy-up allowance",
+        description: "Excavated spoil clearance and final patio wash down",
         quantity: 1,
         unit: "service",
-        rate: 15.0,
+        rate: 140.0,
+      }
+    );
+  } else if (
+    lower.includes("decking") ||
+    lower.includes("composite deck") ||
+    lower.includes("balustrade")
+  ) {
+    title = "Decking & Timber Structures";
+    suggestedDepositPercent = 20;
+    items.push(
+      {
+        type: "material",
+        description: "Heavy Duty Pressure-Treated C16/C24 Subframe Joists & Weed Membrane",
+        quantity: 1,
+        unit: "lot",
+        rate: 220.0,
+      },
+      {
+        type: "material",
+        description: "Non-Slip Composite / Grooved Timber Decking Boards & Hidden Fasteners",
+        quantity: 20,
+        unit: "m²",
+        rate: 36.0,
+      },
+      {
+        type: "labor",
+        description: "Ground preparation, level post setting, structural framing, and board installation",
+        quantity: 16,
+        unit: "hrs",
+        rate: 46.0,
+      },
+      {
+        type: "service",
+        description: "Timber offcuts disposal and site clearance",
+        quantity: 1,
+        unit: "service",
+        rate: 55.0,
+      }
+    );
+  } else if (
+    lower.includes("floor") ||
+    lower.includes("flooring") ||
+    lower.includes("laminate") ||
+    lower.includes("lvt") ||
+    lower.includes("vinyl")
+  ) {
+    title = "Flooring Installation & Subfloor Preparation";
+    suggestedDepositPercent = 15;
+    items.push(
+      {
+        type: "material",
+        description: "High-Durability AC4/AC5 Laminate / LVT Flooring Packs",
+        quantity: 30,
+        unit: "m²",
+        rate: 24.5,
+      },
+      {
+        type: "material",
+        description: "Acoustic Gold Underlay with Built-in DPM & Color-Matched Scotia Beading",
+        quantity: 1,
+        unit: "lot",
+        rate: 75.0,
+      },
+      {
+        type: "labor",
+        description: "Subfloor check, doorframe undercutting, floor installation, and perimeter beading",
+        quantity: 12,
+        unit: "hrs",
+        rate: 42.0,
+      },
+      {
+        type: "service",
+        description: "Offcuts disposal and vacuum clean down",
+        quantity: 1,
+        unit: "service",
+        rate: 40.0,
+      }
+    );
+  } else if (
+    lower.includes("turf") ||
+    lower.includes("lawn") ||
+    lower.includes("grass") ||
+    lower.includes("rotovate") ||
+    lower.includes("hedge")
+  ) {
+    title = "Landscaping & Lawn Installation";
+    suggestedDepositPercent = 20;
+    items.push(
+      {
+        type: "material",
+        description: "Premium Cultivated Weed-Free Lawn Turf Rolls",
+        quantity: 50,
+        unit: "m²",
+        rate: 6.5,
+      },
+      {
+        type: "material",
+        description: "Screened Topsoil & Pre-Turf Root Fertilizer",
+        quantity: 2,
+        unit: "bulk bags",
+        rate: 72.0,
+      },
+      {
+        type: "labor",
+        description: "Rotovating, stone removal, rake leveling, consolidation, and turf rolling",
+        quantity: 14,
+        unit: "hrs",
+        rate: 42.0,
+      },
+      {
+        type: "service",
+        description: "Green waste removal and initial deep watering",
+        quantity: 1,
+        unit: "service",
+        rate: 60.0,
+      }
+    );
+  } else if (
+    lower.includes("gutter") ||
+    lower.includes("downpipe") ||
+    lower.includes("fascia") ||
+    lower.includes("soffit")
+  ) {
+    title = "Guttering, Roofline & Drainage Works";
+    suggestedDepositPercent = 15;
+    items.push(
+      {
+        type: "material",
+        description: "Heavy Duty Half-Round uPVC Guttering, Fascia Brackets & Downpipe Connectors",
+        quantity: 1,
+        unit: "lot",
+        rate: 110.0,
+      },
+      {
+        type: "labor",
+        description: "Removal of defective sections, correct fall alignment, and secure bracket fitting",
+        quantity: 6,
+        unit: "hrs",
+        rate: 48.0,
+      },
+      {
+        type: "service",
+        description: "Flow test, debris removal, and old plastic recycling",
+        quantity: 1,
+        unit: "service",
+        rate: 35.0,
+      }
+    );
+  } else if (
+    lower.includes("window") ||
+    lower.includes("glazing") ||
+    lower.includes("upvc") ||
+    lower.includes("double glazed")
+  ) {
+    title = "Window & Door Glazing Installation";
+    suggestedDepositPercent = 25;
+    items.push(
+      {
+        type: "material",
+        description: "A-Rated Energy Efficient Double Glazed uPVC Windows / Sills",
+        quantity: 2,
+        unit: "units",
+        rate: 380.0,
+      },
+      {
+        type: "material",
+        description: "Fixing Straps, Low-Expansion Foam, Packers & Low-Modulus Neutral Silicone",
+        quantity: 1,
+        unit: "pack",
+        rate: 45.0,
+      },
+      {
+        type: "labor",
+        description: "Careful removal of existing frames, new window squaring, fixing, and silicone sealing",
+        quantity: 8,
+        unit: "hrs",
+        rate: 52.0,
+      },
+      {
+        type: "service",
+        description: "Old window frame and glass recycling disposal",
+        quantity: 1,
+        unit: "service",
+        rate: 60.0,
+      }
+    );
+  } else if (
+    lower.includes("demolish") ||
+    lower.includes("knock down") ||
+    lower.includes("strip out") ||
+    lower.includes("clearance") ||
+    lower.includes("waste")
+  ) {
+    title = "Demolition, Strip-Out & Site Clearance";
+    suggestedDepositPercent = 15;
+    items.push(
+      {
+        type: "service",
+        description: "8-Yard Builders Skip Hire & Council Highway Road Permit",
+        quantity: 1,
+        unit: "skip",
+        rate: 320.0,
+      },
+      {
+        type: "material",
+        description: "Heavy Duty Rubble Sacks, Dust Proof Sheeting & Temporary Floor Protection",
+        quantity: 1,
+        unit: "pack",
+        rate: 45.0,
+      },
+      {
+        type: "labor",
+        description: "Controlled strip out, non-structural takedown, rubble bagging, and skip loading",
+        quantity: 12,
+        unit: "hrs",
+        rate: 44.0,
+      },
+      {
+        type: "service",
+        description: "Dust extraction, magnetic nail sweep, and site clearance",
+        quantity: 1,
+        unit: "service",
+        rate: 50.0,
+      }
+    );
+  } else {
+    title = "Specified Trade Works & Labour";
+    suggestedDepositPercent = 20;
+    const promptSnippet = notes.trim().slice(0, 48);
+    items.push(
+      {
+        type: "material",
+        description: `Trade materials, fixings & sundries for: ${promptSnippet}${notes.trim().length > 48 ? "..." : ""}`,
+        quantity: 1,
+        unit: "lot",
+        rate: 185.0,
+      },
+      {
+        type: "labor",
+        description: "Skilled trade execution, surface preparation, installation, and inspection",
+        quantity: 8,
+        unit: "hrs",
+        rate: 45.0,
+      },
+      {
+        type: "service",
+        description: "Site protection, safety cleanup, and licensed trade waste disposal",
+        quantity: 1,
+        unit: "service",
+        rate: 45.0,
       }
     );
   }

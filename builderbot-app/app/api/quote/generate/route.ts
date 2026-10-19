@@ -78,14 +78,31 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
 
-    if (apiKey && userId) {
-      const userLimit = checkRateLimit(`ai-generate:user:${userId}`, 20, 60 * 60 * 1000);
-      if (!userLimit.allowed) {
-        return NextResponse.json(
-          { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
-          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
-        );
+    if (apiKey) {
+      if (userId) {
+        const userLimit = checkRateLimit(`ai-generate:user:${userId}`, 30, 60 * 60 * 1000);
+        if (!userLimit.allowed) {
+          return NextResponse.json(
+            { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
+            { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+          );
+        }
+      } else {
+        const guestLimit = checkRateLimit(`ai-generate:guest:${clientIp}`, 15, 60 * 60 * 1000);
+        if (!guestLimit.allowed) {
+          // Graceful fallback to heuristic engine if guest limit reached
+          const estimate = estimateTradeJob(notes, trade, pricingMemory as any, photos);
+          return NextResponse.json({
+            title: estimate.title,
+            scopeOfWork: estimate.scopeOfWork,
+            suggestedDepositPercent: estimate.suggestedDepositPercent,
+            items: estimate.items,
+            aiPowered: false,
+            notice: "Guest preview limit reached. Sign in for full AI quoting, or edit prices below.",
+          });
+        }
       }
+
       const ai = new GoogleGenAI({ apiKey });
 
       let systemInstruction =
