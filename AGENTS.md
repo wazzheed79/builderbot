@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Customer sign box**: Accept and decline errors show inside the box. A quote with Standard, Better, and Premium can be chosen there, and the signed confirmation appears after the quote is saved.
 - [x] **Phone test fixes**: A real customer link opens again. The public lookup uses `get_public_quote`, which the anon key may call, because row security hides the quotes table from that key. Save and WhatsApp send the lines on the screen, and Good/Better/Best are built from those lines. The quote editor fits a 360px-wide phone. Sign-in leads with the email link.
 - [x] **Quote link preview picture**: A customer’s WhatsApp card uses that quote’s own picture, not the general site card. A link that is not a real quote returns a not-found page.
 - [x] **Quote cards, views, prices, and options**: Each customer link can show its own WhatsApp preview. Opening the quote is counted in Supabase, with a reminder on WhatsApp after three days. Edited prices are remembered for the next similar line. A quote can offer Standard, Better, and Premium, and the customer picks one.
