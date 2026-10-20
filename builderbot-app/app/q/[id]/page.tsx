@@ -10,7 +10,7 @@ import { fetchPublicQuoteCard, isMissingPublicQuote } from "@/lib/supabase-serve
 export const instant = false;
 
 function quoteCardImageUrl(id: string) {
-  const site = configuredSiteUrl() || "https://www.tradematequotes.co.uk";
+  const site = configuredSiteUrl() || "https://www.chuffedquotes.co.uk";
   return new URL(quoteCardImagePath(id), site).href;
 }
 
