@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         const guestLimit = checkRateLimit(`ai-generate:guest:${clientIp}`, 15, 60 * 60 * 1000);
         if (!guestLimit.allowed) {
           // Graceful fallback to heuristic engine if guest limit reached
-          const estimate = estimateTradeJob(notes, trade, pricingMemory as any, photos);
+          const estimate = estimateTradeJob(notes, trade, pricingMemory, photos);
           return NextResponse.json({
             title: estimate.title,
             scopeOfWork: estimate.scopeOfWork,
