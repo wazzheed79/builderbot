@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import CustomerQuoteClient from "./CustomerQuoteClient";
 import { brand, configuredSiteUrl } from "@/lib/brand.mjs";
 import { quoteCardImagePath } from "@/lib/public-quote.mjs";
-import { fetchPublicQuoteCard, isMissingPublicQuote } from "@/lib/supabase";
+import { fetchPublicQuoteCard, isMissingPublicQuote } from "@/lib/supabase-server";
 
 // The status has to be known before the page is sent, so an unknown link can be a real 404.
 export const instant = false;

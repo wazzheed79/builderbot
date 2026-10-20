@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { isMissingPublicQuote } from "@/lib/supabase";
+import { isMissingPublicQuote } from "@/lib/supabase-server";
 
 export async function proxy(request: NextRequest) {
   const match = request.nextUrl.pathname.match(/^\/q\/([^/]+)$/);

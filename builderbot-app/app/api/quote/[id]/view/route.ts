@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSignedInUserId } from "@/lib/ai-access";
-import { quoteOwnerId, recordCustomerQuoteView } from "@/lib/supabase";
+import { quoteOwnerId, recordCustomerQuoteView } from "@/lib/supabase-server";
 
 export async function POST(
   request: NextRequest,

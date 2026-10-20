@@ -200,6 +200,10 @@ DECLARE
   v_profile RECORD;
   v_validity_days INT := 30;
 BEGIN
+  IF lookup_token IS NULL OR lookup_token !~ '^q_[A-Za-z0-9]{14,}$' THEN
+    RETURN NULL;
+  END IF;
+
   -- Lookup by unguessable token only (never by guessable sequential ID)
   SELECT * INTO v_quote FROM public.quotes WHERE token = lookup_token;
   IF NOT FOUND THEN
@@ -225,9 +229,12 @@ BEGIN
       'clientName', v_quote.client_name,
       'clientCompany', v_quote.client_company,
       'clientAddress', v_quote.client_address,
+      'clientPhone', v_quote.client_phone,
+      'clientEmail', v_quote.client_email,
       'title', v_quote.title,
       'notes', v_quote.notes,
       'items', v_quote.items,
+      'photos', COALESCE(v_quote.photos, '[]'::jsonb),
       'subtotal', v_quote.subtotal,
       'vatEnabled', v_quote.vat_enabled,
       'vat', v_quote.vat,
@@ -262,7 +269,8 @@ BEGIN
       'bankName', CASE WHEN v_quote.status = 'Accepted' THEN v_profile.bank_name ELSE NULL END,
       'bankSortCode', CASE WHEN v_quote.status = 'Accepted' THEN v_profile.bank_sort_code ELSE NULL END,
       'bankAccountNumber', CASE WHEN v_quote.status = 'Accepted' THEN v_profile.bank_account_number ELSE NULL END
-    )
+    ),
+    'isExpired', v_quote.status = 'Expired'
   );
 END;
 $$;
@@ -274,7 +282,8 @@ CREATE OR REPLACE FUNCTION public.submit_public_quote_decision(
   new_decision TEXT,
   p_signature_name TEXT DEFAULT NULL,
   p_decline_reason TEXT DEFAULT NULL,
-  p_client_ip TEXT DEFAULT NULL
+  p_client_ip TEXT DEFAULT NULL,
+  p_selected_option TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -284,8 +293,13 @@ AS $$
 DECLARE
   v_quote RECORD;
   v_profile RECORD;
+  v_option JSONB;
   v_validity_days INT := 30;
 BEGIN
+  IF lookup_token IS NULL OR lookup_token !~ '^q_[A-Za-z0-9]{14,}$' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Quote not found.');
+  END IF;
+
   -- Validate decision
   IF new_decision NOT IN ('Accepted', 'Rejected') THEN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid decision. Only Accepted or Rejected is allowed.');
@@ -322,11 +336,30 @@ BEGIN
       RETURN jsonb_build_object('success', false, 'error', 'Signature name is required to accept.');
     END IF;
 
+    IF jsonb_typeof(v_quote.options) = 'array' AND jsonb_array_length(v_quote.options) > 1 THEN
+      IF p_selected_option IS NULL OR length(trim(p_selected_option)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Choose Standard, Better, or Premium before you accept.');
+      END IF;
+      SELECT elem INTO v_option
+      FROM jsonb_array_elements(v_quote.options) elem
+      WHERE elem->>'id' = p_selected_option
+      LIMIT 1;
+      IF v_option IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Choose Standard, Better, or Premium before you accept.');
+      END IF;
+    END IF;
+
     UPDATE public.quotes
     SET status = 'Accepted',
         accepted_signature_name = substr(trim(p_signature_name), 1, 100),
         accepted_at = now(),
         accepted_ip = p_client_ip,
+        items = CASE WHEN v_option IS NULL THEN items ELSE v_option->'items' END,
+        subtotal = CASE WHEN v_option IS NULL THEN subtotal ELSE (v_option->>'subtotal')::numeric END,
+        vat = CASE WHEN v_option IS NULL THEN vat ELSE (v_option->>'vat')::numeric END,
+        total = CASE WHEN v_option IS NULL THEN total ELSE (v_option->>'total')::numeric END,
+        deposit = CASE WHEN v_option IS NULL THEN deposit ELSE (v_option->>'deposit')::numeric END,
+        selected_option_id = CASE WHEN v_option IS NULL THEN selected_option_id ELSE p_selected_option END,
         updated_at = now()
     WHERE token = lookup_token;
 
@@ -358,16 +391,13 @@ CREATE TABLE IF NOT EXISTS public.feedback (
 
 ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 
--- Public quote functions are for the server service role only.
+-- Customer phones open quote links with the anon key. These functions accept
+-- one unguessable token and do not list anyone else's quotes.
 REVOKE ALL ON FUNCTION public.get_public_quote(TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_public_quote(TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.get_public_quote(TEXT) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.get_public_quote(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_public_quote(TEXT) TO anon, authenticated, service_role;
 
-REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 
 -- Signed-in AI quota. No policies: only the service role can call the function.
 CREATE TABLE IF NOT EXISTS public.ai_usage (
@@ -471,6 +501,10 @@ AS $$
 DECLARE
   v_count INTEGER;
 BEGIN
+  IF lookup_token IS NULL OR lookup_token !~ '^q_[A-Za-z0-9]{14,}$' THEN
+    RETURN jsonb_build_object('counted', false, 'view_count', 0);
+  END IF;
+
   UPDATE public.quotes
   SET view_count = COALESCE(view_count, 0) + 1,
       first_viewed_at = COALESCE(first_viewed_at, now()),
@@ -490,6 +524,4 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.record_public_quote_view(TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.record_public_quote_view(TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.record_public_quote_view(TEXT) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.record_public_quote_view(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_public_quote_view(TEXT) TO anon, authenticated, service_role;

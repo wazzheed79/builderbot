@@ -1,4 +1,4 @@
-import { getServerSupabase } from "@/lib/supabase";
+import { getServerSupabase } from "@/lib/supabase-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const AI_LIMIT = 30;

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { getServerSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { getServerSupabase } from "@/lib/supabase-server";
 import { brand } from "@/lib/brand.mjs";
 
 const FeedbackSchema = z.object({
