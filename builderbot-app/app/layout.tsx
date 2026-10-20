@@ -24,7 +24,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const siteUrl = configuredSiteUrl() || "https://www.tradematequotes.co.uk";
+const siteUrl = configuredSiteUrl() || "https://www.chuffedquotes.co.uk";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

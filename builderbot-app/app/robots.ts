@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { configuredSiteUrl } from "@/lib/brand.mjs";
 
 function siteUrl() {
-  return configuredSiteUrl() || "https://www.tradematequotes.co.uk";
+  return configuredSiteUrl() || "https://www.chuffedquotes.co.uk";
 }
 
 export default function robots(): MetadataRoute.Robots {
