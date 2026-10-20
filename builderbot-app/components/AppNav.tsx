@@ -137,8 +137,8 @@ export default function AppNav() {
       <DemoBanner />
 
       {/* Mobile Bottom Navigation Bar (High-Contrast, 48px+ touch targets for van/site work) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1.5 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto items-center">
+      <nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 w-full max-w-[100vw] overflow-x-clip bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
+        <div className="grid w-full min-w-0 grid-cols-5 gap-0.5 items-center">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -146,7 +146,7 @@ export default function AppNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center justify-center min-h-[52px] min-w-[48px] py-1 px-1 rounded-xl text-[11px] transition-all duration-75 active:scale-90 select-none relative ${
+                className={`flex min-w-0 w-full flex-col items-center justify-center min-h-[52px] py-1 px-0.5 rounded-xl text-[11px] transition-all duration-75 active:scale-90 select-none relative ${
                   isActive
                     ? "bg-clay-50 text-clay-800 font-bold shadow-xs"
                     : "text-slate-500 hover:text-slate-900 active:bg-slate-100 font-medium"
@@ -156,7 +156,7 @@ export default function AppNav() {
                   <span className="absolute top-1 w-5 h-1 bg-clay-700 rounded-full" />
                 )}
                 <Icon className={`w-6 h-6 mt-1 transition-transform ${isActive ? "text-clay-700 scale-105" : "text-slate-500"}`} />
-                <span className="truncate mt-0.5 tracking-tight text-[10.5px]">{item.name}</span>
+                <span className="mt-0.5 w-full truncate text-center text-[10px] tracking-tight">{item.name}</span>
               </Link>
             );
           })}

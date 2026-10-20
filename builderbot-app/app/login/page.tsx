@@ -237,7 +237,8 @@ export default function LoginPage() {
               <div className="text-center">
                 <h3 className="text-lg font-bold text-slate-900 mb-1">Check your inbox</h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  We sent a sign-in link to <strong className="text-slate-900">{email}</strong>. Tap the link and it opens your dashboard.
+                  Tap the link in the email we sent to <strong className="text-slate-900">{email}</strong>.
+                  That link signs you in on this phone. The email does not include a code.
                 </p>
               </div>
               {showCode ? (
@@ -271,9 +272,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowCode(true)}
-                  className="w-full min-h-11 py-3 px-4 rounded-xl text-sm font-semibold text-clay-800 bg-stone-100 hover:bg-stone-200"
+                  className="mx-auto block min-h-11 px-2 text-sm font-semibold text-clay-800 underline"
                 >
-                  Got a code instead? Enter it here
+                  Got a 6-digit code instead?
                 </button>
               )}
               <button

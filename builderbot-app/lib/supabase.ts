@@ -5,20 +5,17 @@ import {
   recalculateQuoteTotals,
   validateStatusTransition,
 } from "./quote-rules.mjs";
-import { isPublicQuoteToken } from "./public-quote.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith("http"));
 };
 
 let clientInstance: SupabaseClient | null = null;
-let serverInstance: SupabaseClient | null = null;
 
 // Browser / Authenticated Client
 export function getSupabase(): SupabaseClient | null {
@@ -45,18 +42,6 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = data.session?.access_token;
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
-}
-
-// Server-Side Client (Uses service role if available for secure token-based lookups)
-export function getServerSupabase(): SupabaseClient | null {
-  if (!isSupabaseConfigured()) return null;
-  const key = supabaseServiceRoleKey || supabaseAnonKey;
-  if (!serverInstance && supabaseUrl && key) {
-    serverInstance = createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-  }
-  return serverInstance;
 }
 
 // Convert Supabase DB row to Quote object
@@ -176,177 +161,6 @@ export function mapRowToInvoice(row: Record<string, unknown>): Invoice {
   };
 }
 
-// SECURE Token-Only Public Quote Fetcher
-export async function fetchPublicQuoteByToken(token: string): Promise<{
-  quote: Quote;
-  contractor: Partial<BusinessProfile>;
-  isExpired: boolean;
-} | null> {
-  const sb = getServerSupabase();
-  if (!sb) return null;
-
-  try {
-    // 1. Strict query by unguessable token only (never guessable sequential ID)
-    const { data: quoteRow, error: quoteErr } = await sb
-      .from("quotes")
-      .select("*")
-      .eq("token", token)
-      .maybeSingle();
-
-    if (quoteErr || !quoteRow) return null;
-
-    const quote = mapRowToQuote(quoteRow);
-
-    // 2. Fetch contractor profile
-    let contractor: Partial<BusinessProfile> = {};
-    let validityDays = 30;
-
-    if (quoteRow.owner_id) {
-      const { data: profRow } = await sb
-        .from("profiles")
-        .select("*")
-        .eq("owner_id", quoteRow.owner_id)
-        .maybeSingle();
-
-      if (profRow) {
-        validityDays = profRow.quote_validity_days || 30;
-        contractor = {
-          companyName: profRow.company_name,
-          tradingName: profRow.trading_name,
-          ownerName: profRow.owner_name,
-          trade: profRow.trade,
-          phone: profRow.phone,
-          email: profRow.email,
-          address: profRow.address,
-          accreditations: profRow.accreditations || [],
-          termsAndConditions: profRow.terms_and_conditions,
-          vatRegistered: profRow.vat_registered,
-          vatNumber: profRow.vat_number,
-          // BANK DETAILS: Only revealed if quote is accepted!
-          bankName: quote.status === "Accepted" ? profRow.bank_name : undefined,
-          bankSortCode: quote.status === "Accepted" ? profRow.bank_sort_code : undefined,
-          bankAccountNumber: quote.status === "Accepted" ? profRow.bank_account_number : undefined,
-        };
-      }
-    }
-
-    // 3. Server-side Expiry Check & Viewed Tracking
-    const createdAtMs = new Date(quoteRow.created_at).getTime();
-    const expiryMs = createdAtMs + validityDays * 24 * 60 * 60 * 1000;
-    const isExpired = Date.now() > expiryMs;
-
-    if (isExpired && (quote.status === "Sent" || quote.status === "Viewed")) {
-      quote.status = "Expired";
-      await sb.from("quotes").update({ status: "Expired", updated_at: new Date().toISOString() }).eq("token", token);
-    }
-
-    return { quote, contractor, isExpired };
-  } catch (err) {
-    console.error("Error in fetchPublicQuoteByToken:", err);
-    return null;
-  }
-}
-
-// SECURE Public Decision Submitter (Accept / Reject)
-export async function submitPublicDecision(
-  token: string,
-  decision: "Accepted" | "Rejected",
-  metadata: { signatureName?: string; reason?: string; clientIp?: string; selectedOptionId?: string }
-): Promise<{ success: boolean; error?: string }> {
-  const sb = getServerSupabase();
-  if (!sb) {
-    return { success: false, error: "Database service unavailable." };
-  }
-
-  try {
-    // 1. Fetch current quote by token
-    const { data: currentQuote, error: fetchErr } = await sb
-      .from("quotes")
-      .select("id, status, created_at, owner_id, options")
-      .eq("token", token)
-      .maybeSingle();
-
-    if (fetchErr || !currentQuote) {
-      return { success: false, error: "Quote not found." };
-    }
-
-    // 2. Expiry Check
-    let validityDays = 30;
-    if (currentQuote.owner_id) {
-      const { data: prof } = await sb
-        .from("profiles")
-        .select("quote_validity_days")
-        .eq("owner_id", currentQuote.owner_id)
-        .maybeSingle();
-      if (prof?.quote_validity_days) validityDays = prof.quote_validity_days;
-    }
-
-    const expiryMs = new Date(currentQuote.created_at).getTime() + validityDays * 24 * 60 * 60 * 1000;
-    const isExpired = Date.now() > expiryMs;
-
-    // 3. Strict State Transition Rule validation
-    const transition = validateStatusTransition(currentQuote.status, decision, isExpired);
-    if (!transition.allowed) {
-      if (isExpired) {
-        await sb.from("quotes").update({ status: "Expired" }).eq("token", token);
-      }
-      return { success: false, error: transition.error || "Quotation cannot be modified." };
-    }
-
-    // 4. Apply status with audit log (timestamp + IP)
-    const now = new Date().toISOString();
-    const updatePayload: Record<string, unknown> = {
-      status: decision,
-      updated_at: now,
-    };
-
-    if (decision === "Accepted") {
-      const options = Array.isArray(currentQuote.options) ? currentQuote.options : [];
-      if (options.length > 1) {
-        const chosen = options.find(
-          (option: { id?: string }) => option?.id === metadata.selectedOptionId
-        ) as { id: string; items?: unknown; subtotal?: number; vat?: number; total?: number; deposit?: number } | undefined;
-        if (!chosen) {
-          return { success: false, error: "Choose Standard, Better, or Premium before you accept." };
-        }
-        updatePayload.items = chosen.items;
-        updatePayload.subtotal = chosen.subtotal;
-        updatePayload.vat = chosen.vat;
-        updatePayload.total = chosen.total;
-        updatePayload.deposit = chosen.deposit;
-        updatePayload.selected_option_id = chosen.id;
-      }
-    }
-
-    if (decision === "Accepted") {
-      const cleanSig = (metadata.signatureName || "").trim();
-      if (!cleanSig) {
-        return { success: false, error: "A legal signature name is required to accept this quote." };
-      }
-      updatePayload.accepted_signature_name = cleanSig.slice(0, 100);
-      updatePayload.accepted_at = now;
-      if (metadata.clientIp) updatePayload.accepted_ip = metadata.clientIp;
-    } else {
-      updatePayload.rejected_reason = (metadata.reason || "").trim().slice(0, 1000);
-      updatePayload.rejected_at = now;
-      if (metadata.clientIp) updatePayload.rejected_ip = metadata.clientIp;
-    }
-
-    const { error: updateErr } = await sb
-      .from("quotes")
-      .update(updatePayload)
-      .eq("token", token);
-
-    if (updateErr) {
-      return { success: false, error: updateErr.message };
-    }
-
-    return { success: true };
-  } catch (err) {
-    console.error("Error in submitPublicDecision:", err);
-    return { success: false, error: "Failed to record decision." };
-  }
-}
 
 export type CloudSaveResult = { ok: true } | { ok: false; error: string };
 
@@ -364,8 +178,13 @@ function plainCloudError(message: string): string {
   return "The quote did not save online. Check your connection and try again.";
 }
 
+// A slower save must not overwrite a newer one. The tradesperson can edit
+// and send again while the first request is still in flight.
+let quoteCloudSerial = 0;
+
 // Background sync helpers (authenticated)
 export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
+  const serial = ++quoteCloudSerial;
   const sb = getSupabase();
   if (!sb) {
     return { ok: false, error: "Online save is not set up on this site yet." };
@@ -373,6 +192,7 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
 
   try {
     const { data: userData } = await sb.auth.getSession();
+    if (serial !== quoteCloudSerial) return { ok: true };
     const ownerId = userData.session?.user?.id;
     if (!ownerId) {
       return {
@@ -450,7 +270,9 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
       photos,
     };
 
+    if (serial !== quoteCloudSerial) return { ok: true };
     const first = await sb.from("quotes").upsert(row);
+    if (serial !== quoteCloudSerial) return { ok: true };
     if (first.error && /photo|option|sent_at|reminder/i.test(first.error.message || "")) {
       const withoutPhotos = Object.fromEntries(
         Object.entries(row).filter(([key]) => !["photos", "options", "selected_option_id", "sent_at", "reminder_after_days"].includes(key))
@@ -466,88 +288,6 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
   }
 }
 
-/** True when this address is not a real customer quote. A database outage does not count. */
-export async function isMissingPublicQuote(token: string): Promise<boolean> {
-  if (!isPublicQuoteToken(token)) return true;
-  const sb = getServerSupabase();
-  if (!sb) return false;
-  const { data, error } = await sb.from("quotes").select("id").eq("token", token).maybeSingle();
-  if (error) return false;
-  return !data;
-}
-
-export async function fetchPublicQuoteCard(token: string): Promise<{
-  company: string;
-  jobTitle: string;
-  total: number;
-  heading: string;
-} | null> {
-  const sb = getServerSupabase();
-  if (!sb || !token.startsWith("q_")) return null;
-  try {
-    const { data: quoteRow } = await sb
-      .from("quotes")
-      .select("owner_id, title, total")
-      .eq("token", token)
-      .maybeSingle();
-    if (!quoteRow) return null;
-    let company = "";
-    if (quoteRow.owner_id) {
-      const { data: profile } = await sb
-        .from("profiles")
-        .select("company_name, trading_name")
-        .eq("owner_id", quoteRow.owner_id)
-        .maybeSingle();
-      company = String(profile?.trading_name || profile?.company_name || "").trim();
-    }
-    const jobTitle = String(quoteRow.title || "Trade quote").trim();
-    const heading = company ? `Quote from ${company}` : jobTitle ? `Quote: ${jobTitle}` : "Your quote";
-    return { company, jobTitle, total: Number(quoteRow.total) || 0, heading };
-  } catch {
-    return null;
-  }
-}
-
-export async function quoteOwnerId(token: string): Promise<string | null> {
-  const sb = getServerSupabase();
-  if (!sb || !token.startsWith("q_")) return null;
-  const { data } = await sb.from("quotes").select("owner_id").eq("token", token).maybeSingle();
-  return data?.owner_id ? String(data.owner_id) : null;
-}
-
-export async function recordCustomerQuoteView(token: string): Promise<{ viewCount: number } | null> {
-  const sb = getServerSupabase();
-  if (!sb || !token.startsWith("q_")) return null;
-  const { data, error } = await sb.rpc("record_public_quote_view", { lookup_token: token });
-  if (error || !data || typeof data !== "object") return null;
-  const row = data as { counted?: boolean; view_count?: number };
-  if (!row.counted) return null;
-  return { viewCount: Number(row.view_count) || 0 };
-}
-
-export async function fetchPublicQuoteHeading(token: string): Promise<string | null> {
-  const sb = getServerSupabase();
-  if (!sb || !token.startsWith("q_")) return null;
-  try {
-    const { data: quoteRow } = await sb
-      .from("quotes")
-      .select("owner_id, title")
-      .eq("token", token)
-      .maybeSingle();
-    if (!quoteRow?.owner_id) return null;
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("company_name, trading_name")
-      .eq("owner_id", quoteRow.owner_id)
-      .maybeSingle();
-    const company = String(profile?.trading_name || profile?.company_name || "").trim();
-    if (company) return `Quote from ${company}`;
-    const title = String(quoteRow.title || "").trim();
-    return title ? `Quote: ${title}` : "Your quote";
-  } catch {
-    return null;
-  }
-}
 
 export async function syncCustomerToCloud(customer: Customer): Promise<boolean> {
   const sb = getSupabase();

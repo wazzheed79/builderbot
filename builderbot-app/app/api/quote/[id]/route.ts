@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { fetchPublicQuoteByToken, submitPublicDecision } from "@/lib/supabase";
+import { fetchPublicQuoteByToken, submitPublicDecision } from "@/lib/supabase-server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Validation schema for digital acceptance/decline

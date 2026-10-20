@@ -50,6 +50,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Quote } from "@/lib/storage";
 import { loadRememberedPrices, rememberLinePrice } from "@/lib/price-memory";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
+import { quoteDraftForSave } from "@/lib/quote-draft.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 
 interface SpeechRecognitionResultItem {
@@ -133,6 +134,31 @@ export default function QuotesClient() {
   const [appliedQuoteParam, setAppliedQuoteParam] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [ratesReadyFor, setRatesReadyFor] = useState("");
+  // Bumped when the tradesperson changes the lines, so a late AI reply cannot replace them.
+  const editVersion = useRef(0);
+  const requestSerial = useRef(0);
+  const lineSerial = useRef(0);
+  const draftRef = useRef({
+    items,
+    choiceOptions,
+    choiceIndex,
+    vatEnabled,
+    depositPercent,
+    clientName,
+    clientCompany,
+    clientAddress,
+    clientPhone,
+    clientEmail,
+    quoteTitle,
+    notesInput,
+    photos,
+    selectedCustomerId,
+    activeQuoteId,
+    activeToken,
+  });
+  const markDraftEdited = () => {
+    editVersion.current += 1;
+  };
 
   if (
     customerIdParam &&
@@ -164,6 +190,44 @@ export default function QuotesClient() {
     if (!homeNotesApplied) return;
     sessionStorage.removeItem(HOME_NOTES_KEY);
   }, [homeNotesApplied]);
+
+  useEffect(() => {
+    draftRef.current = {
+      items,
+      choiceOptions,
+      choiceIndex,
+      vatEnabled,
+      depositPercent,
+      clientName,
+      clientCompany,
+      clientAddress,
+      clientPhone,
+      clientEmail,
+      quoteTitle,
+      notesInput,
+      photos,
+      selectedCustomerId,
+      activeQuoteId,
+      activeToken,
+    };
+  }, [
+    items,
+    choiceOptions,
+    choiceIndex,
+    vatEnabled,
+    depositPercent,
+    clientName,
+    clientCompany,
+    clientAddress,
+    clientPhone,
+    clientEmail,
+    quoteTitle,
+    notesInput,
+    photos,
+    selectedCustomerId,
+    activeQuoteId,
+    activeToken,
+  ]);
 
   const quoteParam = searchParams.get("quote");
   if (ready && quoteParam && appliedQuoteParam !== quoteParam) {
@@ -318,9 +382,12 @@ export default function QuotesClient() {
 
   // Apply Template
   const handleSelectTemplate = (template: QuoteTemplate) => {
+    markDraftEdited();
     setQuoteTitle(template.title);
     setNotesInput(template.notes);
-    setItems(template.items);
+    setItems(template.items.map((item) => ({ ...item })));
+    setChoiceOptions(null);
+    setChoiceIndex(0);
     triggerToast(`Loaded "${template.name}" template!`);
   };
 
@@ -336,7 +403,10 @@ export default function QuotesClient() {
 
   // Apply Margin Calculator Values
   const handleApplyMarginFromCalc = (newItems: LineItem[]) => {
+    markDraftEdited();
     setItems(newItems);
+    setChoiceOptions(null);
+    setChoiceIndex(0);
     setActiveTab("items");
     triggerToast("Labour, materials and markup are on the quote.");
   };
@@ -347,6 +417,8 @@ export default function QuotesClient() {
       triggerToast("Please enter or dictate job notes first.");
       return;
     }
+    const requestId = ++requestSerial.current;
+    const startedEdit = editVersion.current;
     setIsGenerating(true);
 
     try {
@@ -362,6 +434,10 @@ export default function QuotesClient() {
       });
 
       const data = await res.json();
+      if (requestId !== requestSerial.current || startedEdit !== editVersion.current) {
+        triggerToast("Kept the lines on screen. That suggestion was for an earlier version.");
+        return;
+      }
       if (res.ok && Array.isArray(data.items)) {
         const mappedItems: LineItem[] = data.items.map(
           (
@@ -385,6 +461,8 @@ export default function QuotesClient() {
         );
 
         setItems(mappedItems);
+        setChoiceOptions(null);
+        setChoiceIndex(0);
         setIsAiDraft(true);
         setEstimateOnly(!data.aiPowered);
         if (data.title && !quoteTitle) setQuoteTitle(data.title);
@@ -403,26 +481,28 @@ export default function QuotesClient() {
     } catch {
       triggerToast("Could not reach the quote helper. Try again.");
     } finally {
-      setIsGenerating(false);
+      if (requestId === requestSerial.current) setIsGenerating(false);
     }
   };
 
   const handleAddItem = (type: "labor" | "material") => {
+    markDraftEdited();
     const memory = getPricingMemory();
     const newItem: LineItem = {
-      id: Date.now().toString(),
+      id: `line-${++lineSerial.current}`,
       type,
       description: type === "labor" ? "Labour hours" : "Materials / Fixtures",
       quantity: 1,
       unit: type === "labor" ? "hrs" : "unit",
       rate: type === "labor" ? memory.laborHourlyRate || 50 : 25,
     };
-    setItems([...items, newItem]);
+    setItems((current) => [...current, newItem]);
   };
 
   const handleUpdateItem = (id: string, field: keyof LineItem, value: string | number) => {
-    setItems(
-      items.map((item) => {
+    markDraftEdited();
+    setItems((current) =>
+      current.map((item) => {
         if (item.id !== id) return item;
         const next = { ...item, [field]: value, usualPrice: field === "rate" ? false : item.usualPrice };
         if (field === "rate" && user) rememberLinePrice(next);
@@ -432,7 +512,8 @@ export default function QuotesClient() {
   };
 
   const handleDeleteItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
+    markDraftEdited();
+    setItems((current) => current.filter((item) => item.id !== id));
   };
 
   const openQuote = activeQuoteId ? savedQuotes.find((quote) => quote.id === activeQuoteId) : undefined;
@@ -452,46 +533,17 @@ export default function QuotesClient() {
     setChoiceIndex(index);
   };
 
-  const suggestChoices = async () => {
-    let next = items.length > 0 ? buildChoiceOptions(items, vatEnabled, depositPercent) : [];
-    if (notesInput.trim()) {
-      try {
-        const res = await fetch("/api/quote/generate", {
-          method: "POST",
-          headers: await getAuthHeaders(),
-          body: JSON.stringify({
-            notes: notesInput.trim(),
-            trade: profile.trade,
-            tiers: true,
-            pricingMemory: { ...getPricingMemory(), remembered: await loadRememberedPrices() },
-          }),
-        });
-        const data = await res.json().catch(() => null);
-        if (res.ok && Array.isArray(data?.options) && data.options.length > 1) {
-          next = data.options.map((option: QuoteOption, index: number) => ({
-            ...option,
-            id: option.id || `opt-${index}`,
-            items: (option.items || []).map((item, line) => ({
-              id: item.id || `opt-${index}-${line}`,
-              type: item.type || "material",
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit,
-              rate: item.rate,
-            })),
-          }));
-        }
-      } catch {
-        // The local three prices are enough if the request fails.
-      }
-    }
+  const suggestChoices = () => {
+    const source = draftRef.current.items;
+    const next = source.length > 0
+      ? buildChoiceOptions(source, draftRef.current.vatEnabled, draftRef.current.depositPercent)
+      : [];
     if (next.length < 2) {
       triggerToast("Add a price or some job notes first.");
       return;
     }
     setChoiceOptions(next as QuoteOption[]);
     setChoiceIndex(0);
-    setItems(next[0].items as LineItem[]);
     triggerToast("Three options are ready. Check each price before you send it.");
   };
 
@@ -502,47 +554,39 @@ export default function QuotesClient() {
   const deposit = roundMoney((total * depositPercent) / 100);
 
   const publishQuote = async (status: "Draft" | "Sent" = "Sent"): Promise<Quote | null> => {
-    if (!clientName.trim() && items.length === 0) {
+    const draft = draftRef.current;
+    const priced = quoteDraftForSave(draft);
+    if (!draft.clientName.trim() && priced.items.length === 0) {
       setShareNotice("Add a customer name or some prices before you save.");
       return null;
     }
 
-    const existing = activeQuoteId ? getQuoteById(activeQuoteId) : undefined;
-    const pricedChoices = choiceOptions
-      ? choiceOptions.map((option, index) => {
-          const optionItems = index === choiceIndex ? items : option.items;
-          return {
-            ...option,
-            items: optionItems,
-            ...recalculateQuoteTotals(optionItems, vatEnabled, depositPercent),
-          };
-        })
-      : undefined;
+    const existing = draft.activeQuoteId ? getQuoteById(draft.activeQuoteId) : undefined;
     const saved = saveQuote({
-      ...(activeQuoteId ? { id: activeQuoteId, token: activeToken ?? undefined } : {}),
+      ...(draft.activeQuoteId ? { id: draft.activeQuoteId, token: draft.activeToken ?? undefined } : {}),
       sentAt: existing?.sentAt || (status === "Sent" ? new Date().toISOString() : undefined),
       viewCount: existing?.viewCount,
       firstViewedAt: existing?.firstViewedAt,
       lastViewedAt: existing?.lastViewedAt,
       reminderAfterDays: existing?.reminderAfterDays ?? 3,
-      options: pricedChoices && pricedChoices.length > 1 ? pricedChoices : undefined,
+      options: priced.options,
       selectedOptionId: existing?.selectedOptionId,
-      customerId: selectedCustomerId || undefined,
-      clientName: clientName.trim() || "Private Client",
-      clientCompany: clientCompany.trim() || undefined,
-      clientAddress: clientAddress.trim() || "Address to be confirmed",
-      clientPhone: clientPhone.trim() || undefined,
-      clientEmail: clientEmail.trim() || undefined,
-      title: quoteTitle.trim() || "Trade Works Specification",
-      notes: notesInput.trim(),
-      photos,
-      items,
-      subtotal,
-      vatEnabled,
-      vat,
-      total,
-      depositPercent,
-      deposit,
+      customerId: draft.selectedCustomerId || undefined,
+      clientName: draft.clientName.trim() || "Private Client",
+      clientCompany: draft.clientCompany.trim() || undefined,
+      clientAddress: draft.clientAddress.trim() || "Address to be confirmed",
+      clientPhone: draft.clientPhone.trim() || undefined,
+      clientEmail: draft.clientEmail.trim() || undefined,
+      title: draft.quoteTitle.trim() || "Trade Works Specification",
+      notes: draft.notesInput.trim(),
+      photos: draft.photos,
+      items: priced.items as LineItem[],
+      subtotal: priced.subtotal,
+      vatEnabled: draft.vatEnabled,
+      vat: priced.vat,
+      total: priced.total,
+      depositPercent: draft.depositPercent,
+      deposit: priced.deposit,
       status,
     });
 
@@ -580,14 +624,14 @@ export default function QuotesClient() {
       const params = {
         quoteId: saved.id,
         token: saved.token,
-        clientName: clientName || "there",
-        clientPhone: clientPhone,
-        quoteTitle: quoteTitle,
+        clientName: saved.clientName || "there",
+        clientPhone: saved.clientPhone,
+        quoteTitle: saved.title,
         companyName: profile.companyName,
         contractorName: profile.ownerName,
-        total,
-        deposit,
-        depositPercent,
+        total: saved.total,
+        deposit: saved.deposit,
+        depositPercent: saved.depositPercent,
       };
       const waUrl = getWhatsAppShareUrl(params, siteOrigin);
       const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
@@ -621,14 +665,14 @@ export default function QuotesClient() {
       const params = {
         quoteId: saved.id,
         token: saved.token,
-        clientName: clientName || "there",
-        clientPhone: clientPhone,
-        quoteTitle: quoteTitle,
+        clientName: saved.clientName || "there",
+        clientPhone: saved.clientPhone,
+        quoteTitle: saved.title,
         companyName: profile.companyName,
         contractorName: profile.ownerName,
-        total,
-        deposit,
-        depositPercent,
+        total: saved.total,
+        deposit: saved.deposit,
+        depositPercent: saved.depositPercent,
       };
       const waFollowUpUrl = getWhatsAppFollowUpUrl(params, siteOrigin);
       const followUpText = formatWhatsAppFollowUpMessage(params, siteOrigin);
@@ -653,7 +697,7 @@ export default function QuotesClient() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-36 lg:pb-12">
+    <div className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-36 lg:pb-12">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-20 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-semibold border border-slate-700 animate-in slide-in-from-top-2">
@@ -707,9 +751,9 @@ export default function QuotesClient() {
       {/* 1. Quick Quote Templates Selector Bar */}
       <QuoteTemplatesBar onSelectTemplate={handleSelectTemplate} />
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start min-w-0">
         {/* Left Column: Input, Voice & Editor (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-6 min-w-0">
           {/* Real Customer Selector Bar */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
@@ -998,7 +1042,7 @@ export default function QuotesClient() {
         </div>
 
         {/* Right Column: Live Quote Card & Persistence Actions (5 cols) */}
-        <div className="lg:col-span-5 sticky top-20 space-y-6">
+        <div className="lg:col-span-5 sticky top-20 space-y-6 min-w-0">
           <div className="bg-white rounded-2xl border-2 border-slate-800 shadow-xl overflow-hidden">
             {/* Header */}
             <div className="bg-slate-900 text-white p-5 sm:p-6">
@@ -1150,13 +1194,13 @@ export default function QuotesClient() {
       )}
 
       {/* Mobile Sticky Summary & Fast Action Bar (lg:hidden) */}
-      <div className="lg:hidden fixed bottom-[64px] left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t-2 border-slate-800 text-white px-4 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between gap-3">
-        <div className="flex flex-col">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total</span>
-            <span className="text-lg font-black text-white">£{total.toFixed(2)}</span>
+      <div className="lg:hidden fixed inset-x-0 bottom-[64px] z-40 w-full max-w-[100vw] overflow-hidden bg-slate-950/95 backdrop-blur-md border-t-2 border-slate-800 text-white px-3 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col">
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">Total</span>
+            <span className="text-lg font-black text-white truncate">£{total.toFixed(2)}</span>
           </div>
-          <span className="text-[11px] font-bold text-amber-400">
+          <span className="text-[11px] font-bold text-amber-400 truncate">
             Deposit: £{deposit.toFixed(2)} ({depositPercent}%)
           </span>
         </div>

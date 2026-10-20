@@ -1,5 +1,4 @@
 import {
-  syncQuoteToCloud,
   syncCustomerToCloud,
   syncProfileToCloud,
   updateCloudQuoteStatus,
@@ -671,9 +670,6 @@ export function saveQuote(
     learnPricingFromQuote(saved.items);
   } catch {}
 
-  void syncQuoteToCloud(saved).then((result) => {
-    if (!result.ok) console.warn("Quote was kept on this phone:", result.error);
-  });
   return saved;
 }
 

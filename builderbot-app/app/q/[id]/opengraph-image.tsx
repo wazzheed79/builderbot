@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { fetchPublicQuoteCard } from "@/lib/supabase";
+import { fetchPublicQuoteCard } from "@/lib/supabase-server";
 
 export const alt = "Your quote";
 export const size = { width: 1200, height: 630 };
