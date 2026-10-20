@@ -137,8 +137,11 @@ export default function LineItemEditor({
                   />
                 </div>
 
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 w-20 text-right">
+                <span className="min-w-20 text-right text-xs font-extrabold text-slate-900 sm:text-sm">
                   £{roundMoney(item.quantity * item.rate).toFixed(2)}
+                  {item.usualPrice ? (
+                    <span className="mt-1 block text-[11px] font-semibold text-clay-800">Using your usual price</span>
+                  ) : null}
                 </span>
 
                 <button

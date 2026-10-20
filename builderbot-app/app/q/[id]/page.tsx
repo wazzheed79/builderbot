@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import CustomerQuoteClient from "./CustomerQuoteClient";
 import { brand } from "@/lib/brand.mjs";
-import { fetchPublicQuoteHeading } from "@/lib/supabase";
+import { fetchPublicQuoteCard } from "@/lib/supabase";
 
 export async function generateMetadata({
   params,
@@ -10,8 +10,11 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const heading = (await fetchPublicQuoteHeading(id)) || "Your quote";
-  const description = "Read this quote and accept it on your phone.";
+  const card = await fetchPublicQuoteCard(id);
+  const heading = card?.heading || "Your quote";
+  const description = card
+    ? `${card.jobTitle}. ${card.total.toLocaleString("en-GB", { style: "currency", currency: "GBP" })}. Tap to view and accept.`
+    : "Read this quote and accept it on your phone.";
   const socialTitle = `${heading} · ${brand.name}`;
   return {
     title: heading,

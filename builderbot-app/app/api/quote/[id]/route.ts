@@ -13,6 +13,7 @@ const DecisionPayloadSchema = z.object({
     .trim()
     .max(100, "Signature name cannot exceed 100 characters.")
     .optional(),
+  selectedOptionId: z.string().trim().max(80).optional(),
   reason: z
     .string()
     .trim()
@@ -90,7 +91,7 @@ export async function POST(
       );
     }
 
-    const { status, signatureName, reason } = parseResult.data;
+    const { status, signatureName, reason, selectedOptionId } = parseResult.data;
 
     // Enforce signature name for acceptance
     if (status === "Accepted" && (!signatureName || signatureName.length === 0)) {
@@ -104,6 +105,7 @@ export async function POST(
       signatureName,
       reason,
       clientIp,
+      selectedOptionId,
     });
 
     if (!decisionResult.success) {

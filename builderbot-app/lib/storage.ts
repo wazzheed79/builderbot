@@ -29,6 +29,17 @@ export interface LineItem {
   quantity: number;
   unit: string;
   rate: number;
+  usualPrice?: boolean;
+}
+
+export interface QuoteOption {
+  id: string;
+  label: string;
+  items: LineItem[];
+  subtotal: number;
+  vat: number;
+  total: number;
+  deposit: number;
 }
 
 export interface Quote {
@@ -52,6 +63,13 @@ export interface Quote {
   deposit: number;
   status: "Draft" | "Sent" | "Viewed" | "Accepted" | "Rejected" | "Expired";
   viewedAt?: string;
+  viewCount?: number;
+  firstViewedAt?: string;
+  lastViewedAt?: string;
+  sentAt?: string;
+  reminderAfterDays?: number;
+  options?: QuoteOption[];
+  selectedOptionId?: string;
   acceptedSignatureName?: string;
   acceptedAt?: string;
   rejectedReason?: string;

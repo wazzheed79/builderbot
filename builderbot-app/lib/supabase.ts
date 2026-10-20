@@ -80,6 +80,13 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
     deposit: Number(row.deposit ?? 0),
     status: (row.status as Quote["status"]) || "Draft",
     viewedAt: row.viewed_at ? String(row.viewed_at) : undefined,
+    viewCount: Number(row.view_count) || 0,
+    firstViewedAt: row.first_viewed_at ? String(row.first_viewed_at) : undefined,
+    lastViewedAt: row.last_viewed_at ? String(row.last_viewed_at) : undefined,
+    sentAt: row.sent_at ? String(row.sent_at) : undefined,
+    reminderAfterDays: Number(row.reminder_after_days) || 3,
+    options: Array.isArray(row.options) ? (row.options as Quote["options"]) : undefined,
+    selectedOptionId: row.selected_option_id ? String(row.selected_option_id) : undefined,
     acceptedSignatureName: row.accepted_signature_name ? String(row.accepted_signature_name) : undefined,
     acceptedAt: row.accepted_at ? String(row.accepted_at) : undefined,
     rejectedReason: row.rejected_reason ? String(row.rejected_reason) : undefined,
@@ -230,15 +237,6 @@ export async function fetchPublicQuoteByToken(token: string): Promise<{
     if (isExpired && (quote.status === "Sent" || quote.status === "Viewed")) {
       quote.status = "Expired";
       await sb.from("quotes").update({ status: "Expired", updated_at: new Date().toISOString() }).eq("token", token);
-    } else if (!isExpired && quote.status === "Sent") {
-      // First time client opens the quote! Transition to "Viewed" and timestamp it.
-      const now = new Date().toISOString();
-      quote.status = "Viewed";
-      quote.viewedAt = now;
-      await sb
-        .from("quotes")
-        .update({ status: "Viewed", viewed_at: now, updated_at: now })
-        .eq("token", token);
     }
 
     return { quote, contractor, isExpired };
@@ -252,7 +250,7 @@ export async function fetchPublicQuoteByToken(token: string): Promise<{
 export async function submitPublicDecision(
   token: string,
   decision: "Accepted" | "Rejected",
-  metadata: { signatureName?: string; reason?: string; clientIp?: string }
+  metadata: { signatureName?: string; reason?: string; clientIp?: string; selectedOptionId?: string }
 ): Promise<{ success: boolean; error?: string }> {
   const sb = getServerSupabase();
   if (!sb) {
@@ -263,7 +261,7 @@ export async function submitPublicDecision(
     // 1. Fetch current quote by token
     const { data: currentQuote, error: fetchErr } = await sb
       .from("quotes")
-      .select("id, status, created_at, owner_id")
+      .select("id, status, created_at, owner_id, options")
       .eq("token", token)
       .maybeSingle();
 
@@ -300,6 +298,24 @@ export async function submitPublicDecision(
       status: decision,
       updated_at: now,
     };
+
+    if (decision === "Accepted") {
+      const options = Array.isArray(currentQuote.options) ? currentQuote.options : [];
+      if (options.length > 1) {
+        const chosen = options.find(
+          (option: { id?: string }) => option?.id === metadata.selectedOptionId
+        ) as { id: string; items?: unknown; subtotal?: number; vat?: number; total?: number; deposit?: number } | undefined;
+        if (!chosen) {
+          return { success: false, error: "Choose Standard, Better, or Premium before you accept." };
+        }
+        updatePayload.items = chosen.items;
+        updatePayload.subtotal = chosen.subtotal;
+        updatePayload.vat = chosen.vat;
+        updatePayload.total = chosen.total;
+        updatePayload.deposit = chosen.deposit;
+        updatePayload.selected_option_id = chosen.id;
+      }
+    }
 
     if (decision === "Accepted") {
       const cleanSig = (metadata.signatureName || "").trim();
@@ -407,7 +423,18 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
       client_email: quote.clientEmail || null,
       title,
       notes: quote.notes,
-      items: quote.items,
+      items: quote.items.map((item) => ({
+        id: item.id,
+        type: item.type,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        rate: item.rate,
+      })),
+      options: quote.options && quote.options.length > 1 ? quote.options : null,
+      selected_option_id: quote.selectedOptionId || null,
+      sent_at: quote.sentAt || null,
+      reminder_after_days: quote.reminderAfterDays || 3,
       subtotal: recalculated.subtotal,
       vat_enabled: quote.vatEnabled,
       vat: recalculated.vat,
@@ -423,9 +450,9 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
     };
 
     const first = await sb.from("quotes").upsert(row);
-    if (first.error && /photo/i.test(first.error.message || "")) {
+    if (first.error && /photo|option|sent_at|reminder/i.test(first.error.message || "")) {
       const withoutPhotos = Object.fromEntries(
-        Object.entries(row).filter(([key]) => key !== "photos")
+        Object.entries(row).filter(([key]) => !["photos", "options", "selected_option_id", "sent_at", "reminder_after_days"].includes(key))
       );
       const retry = await sb.from("quotes").upsert(withoutPhotos);
       if (retry.error) return { ok: false, error: plainCloudError(retry.error.message || "") };
@@ -436,6 +463,55 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
   } catch {
     return { ok: false, error: "The quote did not save online. Check your connection and try again." };
   }
+}
+
+export async function fetchPublicQuoteCard(token: string): Promise<{
+  company: string;
+  jobTitle: string;
+  total: number;
+  heading: string;
+} | null> {
+  const sb = getServerSupabase();
+  if (!sb || !token.startsWith("q_")) return null;
+  try {
+    const { data: quoteRow } = await sb
+      .from("quotes")
+      .select("owner_id, title, total")
+      .eq("token", token)
+      .maybeSingle();
+    if (!quoteRow) return null;
+    let company = "";
+    if (quoteRow.owner_id) {
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("company_name, trading_name")
+        .eq("owner_id", quoteRow.owner_id)
+        .maybeSingle();
+      company = String(profile?.trading_name || profile?.company_name || "").trim();
+    }
+    const jobTitle = String(quoteRow.title || "Trade quote").trim();
+    const heading = company ? `Quote from ${company}` : jobTitle ? `Quote: ${jobTitle}` : "Your quote";
+    return { company, jobTitle, total: Number(quoteRow.total) || 0, heading };
+  } catch {
+    return null;
+  }
+}
+
+export async function quoteOwnerId(token: string): Promise<string | null> {
+  const sb = getServerSupabase();
+  if (!sb || !token.startsWith("q_")) return null;
+  const { data } = await sb.from("quotes").select("owner_id").eq("token", token).maybeSingle();
+  return data?.owner_id ? String(data.owner_id) : null;
+}
+
+export async function recordCustomerQuoteView(token: string): Promise<{ viewCount: number } | null> {
+  const sb = getServerSupabase();
+  if (!sb || !token.startsWith("q_")) return null;
+  const { data, error } = await sb.rpc("record_public_quote_view", { lookup_token: token });
+  if (error || !data || typeof data !== "object") return null;
+  const row = data as { counted?: boolean; view_count?: number };
+  if (!row.counted) return null;
+  return { viewCount: Number(row.view_count) || 0 };
 }
 
 export async function fetchPublicQuoteHeading(token: string): Promise<string | null> {

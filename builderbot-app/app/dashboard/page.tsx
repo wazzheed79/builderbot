@@ -7,6 +7,7 @@ import {
   useDashboardMetrics,
   useInvoiceList,
   useJobList,
+  useBusinessProfile,
 } from "@/lib/live-store";
 import Link from "next/link";
 import {
@@ -27,9 +28,11 @@ import {
 } from "lucide-react";
 import { loadDemoSampleData } from "@/lib/storage";
 import { brand } from "@/lib/brand.mjs";
+import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 
 export default function DashboardPage() {
   const ready = useClientReady();
+  const profile = useBusinessProfile();
   const metrics = useDashboardMetrics();
   const customerCount = useCustomerList().length;
   const activeJobsCount = useJobList().filter(
@@ -196,12 +199,20 @@ export default function DashboardPage() {
                     <p className="font-semibold text-slate-900 truncate">{q.clientName}</p>
                     <p className="text-sm text-slate-600 break-words">{q.title}</p>
                     <p className="text-xs text-slate-400">{q.createdAt}</p>
+                    <QuoteFollowUp quote={q} companyName={profile.companyName} />
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                     <p className="font-bold tabular-nums">£{q.total.toFixed(2)}</p>
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700">
                       {q.status}
                     </span>
+                    <Link
+                      href={`/quotes?quote=${q.id}`}
+                      className="text-xs font-semibold text-clay-800 inline-flex items-center gap-1"
+                    >
+                      Open
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Link>
                     <Link
                       href={`/q/${q.token || q.id}`}
                       className="text-xs font-semibold text-clay-800 inline-flex items-center gap-1"

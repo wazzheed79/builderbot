@@ -23,7 +23,6 @@ import {
 import {
   getQuoteById,
   updateQuoteStatus,
-  markQuoteViewed,
   Quote,
   Invoice,
   convertQuoteToInvoice,
@@ -32,6 +31,7 @@ import {
 } from "@/lib/storage";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 import { getWhatsAppShareUrl } from "@/lib/share";
+import { getAuthHeaders } from "@/lib/supabase";
 import { brand } from "@/lib/brand.mjs";
 import {
   useBusinessProfile,
@@ -79,8 +79,19 @@ export default function CustomerQuoteClient({
   const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
   const [invoiceOverride, setInvoiceOverride] = useState<Invoice | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [pickedOptionId, setPickedOptionId] = useState<string | null>(null);
 
   const loadedQuote = quoteOverride ?? cloudQuote ?? storedQuote;
+  const choiceOptions = (loadedQuote?.options || []).slice(0, 3);
+  const offeringChoice = choiceOptions.length > 1;
+  const chosenOption = offeringChoice
+    ? choiceOptions.find((option) => option.id === (pickedOptionId || loadedQuote?.selectedOptionId))
+    : undefined;
+  const shownItems = chosenOption?.items || loadedQuote?.items || [];
+  const shownSubtotal = chosenOption?.subtotal ?? loadedQuote?.subtotal ?? 0;
+  const shownVat = chosenOption?.vat ?? loadedQuote?.vat ?? 0;
+  const shownTotal = chosenOption?.total ?? loadedQuote?.total ?? 0;
+  const shownDeposit = chosenOption?.deposit ?? loadedQuote?.deposit ?? 0;
   const status = viewStatus(loadedQuote, remoteExpired);
   const createdInvoice =
     invoiceOverride ??
@@ -120,12 +131,16 @@ export default function CustomerQuoteClient({
     };
   }, [ready, storedQuote, quoteOverride, quoteId]);
 
-  // Mark quote as Viewed when customer opens the link
   useEffect(() => {
-    if (loadedQuote && loadedQuote.status === "Sent") {
-      markQuoteViewed(loadedQuote.id);
-    }
-  }, [loadedQuote]);
+    if (!loadedQuote || storedQuote) return;
+    if (loadedQuote.status !== "Sent" && loadedQuote.status !== "Viewed") return;
+    const key = `chuffed-view:${loadedQuote.token}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    void getAuthHeaders().then((headers) => {
+      void fetch(`/api/quote/${loadedQuote.token}/view`, { method: "POST", headers });
+    });
+  }, [loadedQuote, storedQuote]);
 
   if (!ready || (!loadedQuote && !cloudSettled)) {
     return (
@@ -179,6 +194,10 @@ export default function CustomerQuoteClient({
 
   const handleConfirmAccept = async () => {
     if (!loadedQuote || !signatureName.trim() || !agreedToTerms) return;
+    if (offeringChoice && !chosenOption) {
+      setDecisionError("Choose Standard, Better, or Premium before you accept.");
+      return;
+    }
 
     const trimmedName = signatureName.trim();
     const localQuote = getQuoteById(quoteId);
@@ -197,7 +216,11 @@ export default function CustomerQuoteClient({
       fetch(`/api/quote/${quoteId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Accepted", signatureName: trimmedName }),
+        body: JSON.stringify({
+          status: "Accepted",
+          signatureName: trimmedName,
+          selectedOptionId: chosenOption?.id,
+        }),
       }).catch(() => {});
       return;
     }
@@ -206,7 +229,11 @@ export default function CustomerQuoteClient({
       const res = await fetch(`/api/quote/${quoteId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Accepted", signatureName: trimmedName }),
+        body: JSON.stringify({
+          status: "Accepted",
+          signatureName: trimmedName,
+          selectedOptionId: chosenOption?.id,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -606,13 +633,39 @@ export default function CustomerQuoteClient({
               </div>
             )}
 
+            {offeringChoice && (
+              <div>
+                <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+                  Choose one
+                </h2>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {choiceOptions.map((option) => {
+                    const selected = (pickedOptionId || loadedQuote.selectedOptionId) === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPickedOptionId(option.id)}
+                        className={`min-h-11 rounded-xl border px-3 py-3 text-left ${
+                          selected ? "border-clay-700 bg-clay-50" : "border-stone-200 bg-white"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold text-ink">{option.label}</span>
+                        <span className="block text-lg font-black text-clay-700">£{option.total.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Line Items Table */}
             <div>
               <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-3">
                 Itemised cost breakdown
               </h2>
               <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
-                {loadedQuote.items.map((item, idx) => (
+                {shownItems.map((item, idx) => (
                   <div key={idx} className="p-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                     <div className="min-w-0">
                       <p className="font-medium text-stone-900">{item.description}</p>
@@ -632,26 +685,26 @@ export default function CustomerQuoteClient({
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
               <div className="text-xs text-slate-500 space-y-1">
                 <p className="font-semibold text-slate-700">Payment & Deposit Terms:</p>
-                <p>• {loadedQuote.depositPercent ?? 20}% deposit (£{loadedQuote.deposit.toFixed(2)}) required upon quote acceptance.</p>
+                <p>• {loadedQuote.depositPercent ?? 20}% deposit (£{shownDeposit.toFixed(2)}) required upon quote acceptance.</p>
                 <p>• Remaining balance due upon completion of works.</p>
               </div>
 
               <div className="w-full sm:w-64 space-y-2 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal:</span>
-                  <span className="font-medium text-slate-900">£{loadedQuote.subtotal.toFixed(2)}</span>
+                  <span className="font-medium text-slate-900">£{shownSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>{loadedQuote.vatEnabled ? "VAT (20%):" : "VAT:"}</span>
-                  <span className="font-medium text-slate-900">£{loadedQuote.vat.toFixed(2)}</span>
+                  <span className="font-medium text-slate-900">£{shownVat.toFixed(2)}</span>
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline font-black">
                   <span className="text-base text-slate-900">Total Price:</span>
-                  <span className="text-2xl text-clay-700">£{loadedQuote.total.toFixed(2)}</span>
+                  <span className="text-2xl text-clay-700">£{shownTotal.toFixed(2)}</span>
                 </div>
                 <div className="pt-1 flex justify-between text-xs text-emerald-700 font-bold">
                   <span>Deposit Required:</span>
-                  <span>£{loadedQuote.deposit.toFixed(2)}</span>
+                  <span>£{shownDeposit.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -851,7 +904,7 @@ export default function CustomerQuoteClient({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              By typing your legal name below, you confirm acceptance of quotation <strong>{loadedQuote.id}</strong> (£{loadedQuote.total.toFixed(2)}) and agree to the required deposit of <strong>£{loadedQuote.deposit.toFixed(2)}</strong>.
+              By typing your legal name below, you confirm acceptance of quotation <strong>{loadedQuote.id}</strong> (£{shownTotal.toFixed(2)}) and agree to the required deposit of <strong>£{shownDeposit.toFixed(2)}</strong>.
             </p>
 
             <div className="space-y-3">
