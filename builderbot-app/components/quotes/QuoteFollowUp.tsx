@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { viewLabel, reminderDue } from "@/lib/quote-follow.mjs";
+import { hasBusinessName } from "@/lib/business-name.mjs";
 import { getWhatsAppFollowUpUrl } from "@/lib/share";
-import { useSiteOrigin } from "@/lib/live-store";
+import { useClientReady, useSiteOrigin } from "@/lib/live-store";
 import type { Quote } from "@/lib/storage";
 
 export function QuoteFollowUp({
@@ -14,6 +16,7 @@ export function QuoteFollowUp({
   companyName?: string;
 }) {
   const origin = useSiteOrigin();
+  const ready = useClientReady();
   const label = viewLabel(quote);
   const due = reminderDue(quote) && Boolean(origin);
   const href = due
@@ -36,7 +39,12 @@ export function QuoteFollowUp({
   return (
     <div className="mt-1 flex flex-wrap items-center gap-2">
       <span className="text-xs font-semibold text-stone-600">{label}</span>
-      {due && (
+      {ready && due && !hasBusinessName(companyName) && (
+        <Link href="/settings" className="inline-flex min-h-11 items-center text-xs font-bold text-clay-800 underline">
+          Add your business name in Settings before sending your first quote
+        </Link>
+      )}
+      {ready && due && hasBusinessName(companyName) && (
         <a
           href={href}
           target="_blank"

@@ -14,6 +14,7 @@ export default function TermsPage() {
         Back to {brand.name}
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Terms of use</h1>
+      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 20 October 2026</p>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
         Plain-language terms for the free beta. Not legal advice.
       </p>
@@ -22,10 +23,10 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-ink">The beta is free</h2>
           <p className="mt-2">
-            {brand.name}, run by <strong>{brand.ownerName}</strong>, {brand.ownerRole}, is free while
-            it is in testing.
-            Paid plans and card payments are not available. You will not be charged by this app
-            during the beta. That can change later, and you would be told before any charge.
+            {brand.name}, run by <strong>{brand.ownerName}</strong>, {brand.ownerRole}.{" "}
+            {brand.foundingDetail} Paid plans and card payments are not available yet. You will
+            not be charged during the beta. The price may change later, and you would be told
+            before any charge.
           </p>
         </section>
         <section>
@@ -39,16 +40,16 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-ink">Accounts and data</h2>
           <p className="mt-2">
-            Browser-only quotes can disappear if the browser is cleared. Sign in if you need the
-            same quotes on more than one device. You must have permission to store your
-            customers&apos; contact details.
+            Quotes kept only in this browser can disappear if the browser is cleared. Sign in if
+            you need the same quotes on more than one device. You must have permission to store
+            your customers&apos; contact details.
           </p>
         </section>
         <section>
           <h2 className="text-lg font-bold text-ink">The service can change or stop</h2>
           <p className="mt-2">
-            This is a test version. Features can break, and the free database can pause if it
-            is not used. Contact{" "}
+            This is a test version. Features can change, and the free service can be paused.
+            Contact{" "}
             <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
               {brand.ownerEmail}
             </a>{" "}

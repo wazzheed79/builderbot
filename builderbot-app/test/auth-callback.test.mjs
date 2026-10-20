@@ -4,8 +4,11 @@ import assert from "node:assert/strict";
 import {
   OTP_LINK_TYPES,
   authCallbackTarget,
+  friendlyLinkError,
   plainAuthError,
   readAuthCallback,
+  readConfirmRequest,
+  safeNextPath,
 } from "../lib/auth-callback.mjs";
 
 test("Auth callback: PKCE code in the query is kept for exchange", () => {
@@ -45,6 +48,23 @@ test("Auth callback: a code wins over a hash, and a bare page is none", () => {
   assert.equal(readAuthCallback("?token_hash=h&type=nope", "").kind, "error");
 });
 
+test("Confirm page reads the link but does not treat it as used", () => {
+  assert.deepEqual(readConfirmRequest("?token_hash=hash-1&type=email&next=/quotes"), {
+    ok: true,
+    tokenHash: "hash-1",
+    type: "email",
+    next: "/quotes",
+  });
+  assert.equal(readConfirmRequest("?token_hash=h&type=magiclink").ok, true);
+  assert.equal(readConfirmRequest("?token_hash=h&type=signup").ok, true);
+  assert.equal(readConfirmRequest("?token_hash=h").ok, false);
+  assert.equal(safeNextPath("https://evil.example/phish"), "/dashboard");
+  assert.equal(safeNextPath("//evil.example"), "/dashboard");
+  assert.equal(safeNextPath("/dashboard?tab=quotes"), "/dashboard?tab=quotes");
+  assert.equal(friendlyLinkError("Email link is invalid or has expired"), "This sign-in link has expired.");
+  assert.equal(friendlyLinkError("Token has already been used"), "This sign-in link has already been used.");
+});
+
 test("Auth callback: Supabase error text is readable", () => {
   const parsed = readAuthCallback("?error=access_denied&error_description=Email+link+is+invalid", "");
   assert.equal(parsed.kind, "error");
@@ -62,6 +82,10 @@ test("Auth callback: home and other pages forward the link, the callback page do
     "/auth/callback#access_token=a&refresh_token=b"
   );
   assert.equal(authCallbackTarget("/auth/callback", "?code=abc", ""), null);
+  assert.equal(
+    authCallbackTarget("/auth/confirm", "?token_hash=h&type=email", ""),
+    null
+  );
   assert.equal(authCallbackTarget("/", "?error=unrelated", ""), null);
   assert.equal(
     authCallbackTarget("/", "?error_code=otp_expired&error_description=expired", ""),

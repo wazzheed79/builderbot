@@ -133,7 +133,7 @@ export default function TradeFlyerPage() {
             <div className="space-y-1.5 flex-1">
               <div className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-amber-400">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Free while in testing</span>
+                <span>Free during the beta</span>
               </div>
               <h4 className="text-lg font-black text-white leading-tight">
                 Scan with Phone Camera to Try Free:
@@ -175,7 +175,7 @@ export default function TradeFlyerPage() {
           </div>
           <div className="border-r border-slate-300 pr-1">
             <span className="font-bold block text-clay-800">{brand.tagline}</span>
-            <span className="text-[9px] text-slate-500 truncate block">Free while testing</span>
+            <span className="text-[9px] text-slate-500 truncate block">Free during the beta</span>
           </div>
           <div className="border-r border-slate-300 pr-1">
             <span className="font-bold block text-clay-800">{brand.shortName}</span>

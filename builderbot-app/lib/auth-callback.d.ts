@@ -16,3 +16,13 @@ export function authCallbackTarget(
   search?: string,
   hash?: string
 ): string | null;
+
+export function safeNextPath(value?: string | null): string;
+
+export function friendlyLinkError(message?: string, code?: string): string;
+
+export type ConfirmRequest =
+  | { ok: true; tokenHash: string; type: string; next: string }
+  | { ok: false; next: string; message: string };
+
+export function readConfirmRequest(search?: string): ConfirmRequest;

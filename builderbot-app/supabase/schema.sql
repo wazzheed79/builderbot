@@ -254,7 +254,11 @@ BEGIN
       'validityDays', v_validity_days
     ),
     'contractor', jsonb_build_object(
-      'companyName', COALESCE(v_profile.company_name, 'Trade Contractor Services'),
+      'companyName', CASE
+        WHEN v_profile.company_name IS NULL THEN NULL
+        WHEN lower(btrim(v_profile.company_name)) IN ('', 'trade contractor services') THEN NULL
+        ELSE btrim(v_profile.company_name)
+      END,
       'tradingName', v_profile.trading_name,
       'ownerName', v_profile.owner_name,
       'trade', v_profile.trade,

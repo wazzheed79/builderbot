@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Business name, privacy, sample quote, and tap-to-sign-in**: Quotes are not sent until a real business name is saved. Privacy and terms describe the live beta. The homepage example matches the en-suite quote, and the free-beta offer matches the terms. Email links open /auth/confirm and are only used when the person taps.
 - [x] **Customer sign box**: Accept and decline errors show inside the box. A quote with Standard, Better, and Premium can be chosen there, and the signed confirmation appears after the quote is saved.
 - [x] **Phone test fixes**: A real customer link opens again. The public lookup uses `get_public_quote`, which the anon key may call, because row security hides the quotes table from that key. Save and WhatsApp send the lines on the screen, and Good/Better/Best are built from those lines. The quote editor fits a 360px-wide phone. Sign-in leads with the email link.
 - [x] **Quote link preview picture**: A customer’s WhatsApp card uses that quote’s own picture, not the general site card. A link that is not a real quote returns a not-found page.

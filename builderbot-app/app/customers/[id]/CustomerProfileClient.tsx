@@ -31,6 +31,8 @@ import {
   convertQuoteToInvoice,
 } from "@/lib/storage";
 import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl } from "@/lib/share";
+import { hasBusinessName } from "@/lib/business-name.mjs";
+import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import {
   useClientReady,
@@ -53,6 +55,7 @@ export default function CustomerProfileClient({
   const siteOrigin = useSiteOrigin();
   const customer = useCustomerList().find((item) => item.id === customerId);
   const businessProfile = useBusinessProfile();
+  const canShareQuotes = hasBusinessName(businessProfile.companyName);
   const allQuotes = useQuoteList();
   const allJobs = useJobList();
   const allInvoices = useInvoiceList();
@@ -473,6 +476,12 @@ export default function CustomerProfileClient({
                 </Link>
               </div>
 
+              {ready && !canShareQuotes && metrics && metrics.quotes.length > 0 && (
+                <div className="px-5 pt-4 sm:px-6">
+                  <BusinessNamePrompt />
+                </div>
+              )}
+
               {metrics && metrics.quotes.length === 0 ? (
                 <div className="p-12 text-center space-y-3">
                   <FileText className="w-10 h-10 text-slate-300 mx-auto" />
@@ -552,29 +561,31 @@ export default function CustomerProfileClient({
                               </button>
                             )}
 
-                            <a
-                              href={getWhatsAppShareUrl(
-                                {
-                                  quoteId: q.id,
-                                  token: q.token,
-                                  clientName: customer.name,
-                                  clientPhone: customer.phone,
-                                  quoteTitle: q.title,
-                                  companyName: businessProfile.companyName,
-                                  contractorName: businessProfile.ownerName,
-                                  total: q.total,
-                                  deposit: q.deposit,
-                                  depositPercent: q.depositPercent,
-                                },
-                                siteOrigin
-                              )}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Send or follow up quote via WhatsApp"
-                              className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg inline-flex items-center transition"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </a>
+                            {canShareQuotes ? (
+                              <a
+                                href={getWhatsAppShareUrl(
+                                  {
+                                    quoteId: q.id,
+                                    token: q.token,
+                                    clientName: customer.name,
+                                    clientPhone: customer.phone,
+                                    quoteTitle: q.title,
+                                    companyName: businessProfile.companyName,
+                                    contractorName: businessProfile.ownerName,
+                                    total: q.total,
+                                    deposit: q.deposit,
+                                    depositPercent: q.depositPercent,
+                                  },
+                                  siteOrigin
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Send or follow up quote via WhatsApp"
+                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg inline-flex min-h-11 min-w-11 items-center justify-center transition"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                              </a>
+                            ) : null}
                             <Link
                               href={`/q/${q.token || q.id}`}
                               className="text-xs font-semibold text-clay-700 hover:underline inline-flex items-center gap-1"

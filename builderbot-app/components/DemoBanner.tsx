@@ -48,7 +48,7 @@ export default function DemoBanner() {
           </span>
           <p className="text-stone-700 min-w-0">
             <span className="font-semibold text-ink">Quotes are not backed up until you sign in.</span>{" "}
-            Clearing this browser deletes them. {brand.name} is free while in testing.
+            Clearing this browser deletes them. {brand.name} is free during the beta.
           </p>
         </div>
 

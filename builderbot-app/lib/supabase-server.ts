@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { BusinessProfile, Quote } from "./storage";
 import { isPublicQuoteToken } from "./public-quote.mjs";
+import { displayBusinessName, hasBusinessName } from "./business-name.mjs";
 import { isSupabaseConfigured, mapRowToQuote } from "./supabase";
 
 let serverInstance: SupabaseClient | null = null;
@@ -66,8 +67,9 @@ function quoteFromPublicPayload(payload: PublicPayload): {
     created_at: raw.createdAt,
   });
   const contractorRaw = payload.contractor || {};
+  const rawCompany = contractorRaw.companyName ? String(contractorRaw.companyName) : "";
   const contractor: Partial<BusinessProfile> = {
-    companyName: contractorRaw.companyName ? String(contractorRaw.companyName) : undefined,
+    companyName: hasBusinessName(rawCompany) ? rawCompany.trim() : undefined,
     tradingName: contractorRaw.tradingName ? String(contractorRaw.tradingName) : undefined,
     ownerName: contractorRaw.ownerName ? String(contractorRaw.ownerName) : undefined,
     trade: contractorRaw.trade ? String(contractorRaw.trade) : undefined,
@@ -123,9 +125,18 @@ export async function fetchPublicQuoteCard(token: string): Promise<{
   try {
     const payload = await readPublicQuote(token);
     if (!payload?.quote) return null;
-    const company = String(payload.contractor?.tradingName || payload.contractor?.companyName || "").trim();
+    const companyName = String(payload.contractor?.companyName || "");
+    const ownerName = String(payload.contractor?.ownerName || "").trim();
+    const business = hasBusinessName(companyName) ? companyName.trim() : "";
+    const company = business || displayBusinessName("", ownerName);
     const jobTitle = String(payload.quote.title || "Trade quote").trim();
-    const heading = company ? `Quote from ${company}` : jobTitle ? `Quote: ${jobTitle}` : "Your quote";
+    const heading = business
+      ? `Quote from ${business}`
+      : ownerName
+        ? `Quote from ${ownerName}`
+        : jobTitle
+          ? `Quote: ${jobTitle}`
+          : "Your quote";
     return { company, jobTitle, total: Number(payload.quote.total) || 0, heading };
   } catch {
     return null;

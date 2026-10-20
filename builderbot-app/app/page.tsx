@@ -91,7 +91,7 @@ export default function Home() {
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" /> No card needed
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Free while in testing
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Free during the beta
               </span>
               <Link href="/dashboard" className="font-semibold text-clay-800 underline">
                 Your jobs start blank
@@ -127,8 +127,9 @@ export default function Home() {
                     <Wrench className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-clay-800">Example</p>
                     <h3 className="truncate text-sm font-bold text-ink">Premier Trade Services</h3>
-                    <p className="text-xs text-stone-500">Quote #BB-1042</p>
+                    <p className="text-xs text-stone-500">Sample quote #BB-1042, not a real business</p>
                   </div>
                 </div>
                 <span className="rounded-full border border-clay-200 bg-white px-2.5 py-1 text-xs font-semibold text-clay-800">
@@ -139,9 +140,9 @@ export default function Home() {
               <div className="relative space-y-6 p-4 sm:p-8">
                 <div className="demo-notes pointer-events-none absolute inset-0 z-10 flex flex-col justify-center gap-3 bg-[#fffdf8] p-5 sm:p-8">
                   <p className="text-xs font-bold uppercase tracking-wider text-clay-800">Spoken in the van</p>
-                  <p className="demo-line text-base font-medium text-ink">Kitchen tap is dripping.</p>
-                  <p className="demo-line text-base font-medium text-ink">Swap the tap and check the pipe.</p>
-                  <p className="demo-line text-base font-medium text-ink">About an hour on site.</p>
+                  <p className="demo-line text-base font-medium text-ink">En-suite shower needs replacing.</p>
+                  <p className="demo-line text-base font-medium text-ink">New thermostatic bar shower and a heated towel rail.</p>
+                  <p className="demo-line text-base font-medium text-ink">About a day on site.</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 border-b border-slate-100 text-sm">
                   <div>
@@ -441,7 +442,7 @@ export default function Home() {
               Terms
             </Link>
           </div>
-          <p>© 2026 {brand.name}. Free while in testing.</p>
+          <p>© 2026 {brand.name}. Free during the beta.</p>
         </div>
       </footer>
     </div>

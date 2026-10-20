@@ -34,6 +34,7 @@ import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 import { getWhatsAppShareUrl } from "@/lib/share";
 import { getAuthHeaders } from "@/lib/supabase";
 import { brand } from "@/lib/brand.mjs";
+import { displayBusinessName } from "@/lib/business-name.mjs";
 import {
   useBusinessProfile,
   useClientReady,
@@ -207,9 +208,9 @@ export default function CustomerQuoteClient({
   const activeProfile: BusinessProfile = serverContractor
     ? ({ ...profile, ...serverContractor } as BusinessProfile)
     : profile;
-  const contractorName = activeProfile.companyName || "Trade Contractor Services";
-  const contactPhone = activeProfile.phone || "+44 7000 000000";
-  const contactEmail = activeProfile.email || "quotes@contractor.co.uk";
+  const contractorName = displayBusinessName(activeProfile.companyName, activeProfile.ownerName);
+  const contactPhone = activeProfile.phone || "";
+  const contactEmail = activeProfile.email || "";
 
   const expiry = calculateQuoteExpiry(
     loadedQuote.createdAt,
@@ -371,7 +372,7 @@ export default function CustomerQuoteClient({
     );
     if (cleanPhone) {
       window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
-    } else {
+    } else if (contactEmail) {
       window.location.href = `mailto:${contactEmail}?subject=${encodeURIComponent(`Question regarding Quote #${loadedQuote.id}`)}&body=${message}`;
     }
   };
@@ -562,13 +563,13 @@ export default function CustomerQuoteClient({
                 <div>
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-clay-50 text-clay-800 text-xs font-bold border border-clay-200 mb-2">
                     <Wrench className="w-3.5 h-3.5" />
-                    <span>{profile.trade || "Licensed Trade Contractor"}</span>
+                    <span>{activeProfile.trade || "Trade quote"}</span>
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-black text-ink">
                     {contractorName}
                   </h1>
-                {profile.tradingName && (
-                  <p className="text-xs text-clay-800 font-medium">{profile.tradingName}</p>
+                {activeProfile.tradingName && (
+                  <p className="text-xs text-clay-800 font-medium">{activeProfile.tradingName}</p>
                 )}
                 <p className="text-xs sm:text-sm text-stone-500 mt-1">
                   Quotation Ref: {loadedQuote.id}
@@ -634,18 +635,22 @@ export default function CustomerQuoteClient({
                     </span>
                   )}
                 </div>
-                <p className="pt-2 flex items-center sm:justify-end gap-1.5 text-stone-700">
-                  <Phone className="w-3.5 h-3.5 text-clay-700" />
-                  <span>{contactPhone}</span>
-                </p>
-                <p className="flex items-center sm:justify-end gap-1.5 text-stone-700">
-                  <Mail className="w-3.5 h-3.5 text-clay-700" />
-                  <span>{contactEmail}</span>
-                </p>
-                {profile.address && (
+                {contactPhone && (
+                  <p className="pt-2 flex items-center sm:justify-end gap-1.5 text-stone-700">
+                    <Phone className="w-3.5 h-3.5 text-clay-700" />
+                    <span>{contactPhone}</span>
+                  </p>
+                )}
+                {contactEmail && (
+                  <p className="flex items-center sm:justify-end gap-1.5 text-stone-700">
+                    <Mail className="w-3.5 h-3.5 text-clay-700" />
+                    <span>{contactEmail}</span>
+                  </p>
+                )}
+                {activeProfile.address && (
                   <p className="flex items-center sm:justify-end gap-1.5 text-stone-500 text-[11px]">
                     <MapPin className="w-3 h-3 text-stone-400" />
-                    <span>{profile.address}</span>
+                    <span>{activeProfile.address}</span>
                   </p>
                 )}
               </div>
@@ -679,8 +684,8 @@ export default function CustomerQuoteClient({
                 <span className="text-stone-500 uppercase font-bold tracking-wider">Project Specification</span>
                 <p className="text-sm font-bold text-ink mt-0.5">{loadedQuote.title}</p>
                 <p className="text-stone-600 mt-0.5">Date Issued: {loadedQuote.createdAt}</p>
-                {profile.ownerName && (
-                  <p className="text-stone-600 mt-0.5 text-[11px]">Estimator: {profile.ownerName}</p>
+                {activeProfile.ownerName && (
+                  <p className="text-stone-600 mt-0.5 text-[11px]">Estimator: {activeProfile.ownerName}</p>
                 )}
               </div>
             </div>
@@ -854,6 +859,7 @@ export default function CustomerQuoteClient({
                     <span>Accept & Sign Quote</span>
                   </button>
 
+                  {(contactPhone || contactEmail) && (
                   <button
                     type="button"
                     onClick={handleRequestChanges}
@@ -863,6 +869,7 @@ export default function CustomerQuoteClient({
                     <MessageSquare className="w-4 h-4 text-clay-700" />
                     <span>Ask Question / Request Changes</span>
                   </button>
+                  )}
 
                   <button
                     type="button"
