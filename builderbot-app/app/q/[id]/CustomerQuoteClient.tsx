@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   getQuoteById,
+  saveQuote,
   updateQuoteStatus,
   Quote,
   Invoice,
@@ -47,6 +48,29 @@ function viewStatus(quote: Quote | undefined, remoteExpired: boolean) {
   if (quote.status === "Rejected") return "rejected" as const;
   if (quote.status === "Expired" || remoteExpired) return "expired" as const;
   return "pending" as const;
+}
+
+function withChosenOption(quote: Quote, optionId?: string): Quote {
+  if (!optionId) return quote;
+  const option = (quote.options || []).find((item) => item.id === optionId);
+  if (!option) return quote;
+  return {
+    ...quote,
+    items: option.items,
+    subtotal: option.subtotal,
+    vat: option.vat,
+    total: option.total,
+    deposit: option.deposit,
+    selectedOptionId: option.id,
+  };
+}
+
+function quoteMissingOnline(statusCode: number, message: string) {
+  return (
+    statusCode === 404 ||
+    message === "Quote not found." ||
+    message === "Quotation not found or expired."
+  );
 }
 
 export default function CustomerQuoteClient({
@@ -79,6 +103,7 @@ export default function CustomerQuoteClient({
   const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
   const [invoiceOverride, setInvoiceOverride] = useState<Invoice | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decisionPending, setDecisionPending] = useState(false);
   const [pickedOptionId, setPickedOptionId] = useState<string | null>(null);
 
   const loadedQuote = quoteOverride ?? cloudQuote ?? storedQuote;
@@ -192,38 +217,46 @@ export default function CustomerQuoteClient({
   );
   const quoteLiveUrl = `${siteOrigin}/q/${loadedQuote.token || loadedQuote.id}`;
 
+  const rememberLocalDecision = (signed: Quote): boolean => {
+    const localQuote = getQuoteById(quoteId);
+    if (!localQuote) return false;
+    const updated = updateQuoteStatus(quoteId, signed.status, {
+      signatureName: signed.acceptedSignatureName,
+      reason: signed.rejectedReason,
+    });
+    if (!updated) return false;
+    if (signed.selectedOptionId) {
+      saveQuote({
+        ...updated,
+        items: signed.items,
+        subtotal: signed.subtotal,
+        vat: signed.vat,
+        total: signed.total,
+        deposit: signed.deposit,
+        selectedOptionId: signed.selectedOptionId,
+      });
+    }
+    return true;
+  };
+
   const handleConfirmAccept = async () => {
-    if (!loadedQuote || !signatureName.trim() || !agreedToTerms) return;
+    if (!loadedQuote || decisionPending) return;
+    if (!signatureName.trim()) {
+      setDecisionError("Type your name to sign.");
+      return;
+    }
+    if (!agreedToTerms) {
+      setDecisionError("Tick the box to agree to the terms.");
+      return;
+    }
     if (offeringChoice && !chosenOption) {
       setDecisionError("Choose Standard, Better, or Premium before you accept.");
       return;
     }
 
     const trimmedName = signatureName.trim();
-    const localQuote = getQuoteById(quoteId);
     setDecisionError(null);
-
-    if (localQuote) {
-      const updated = updateQuoteStatus(quoteId, "Accepted", {
-        signatureName: trimmedName,
-      });
-      if (!updated) {
-        setDecisionError("This quote cannot be accepted. Drafts and expired quotes stay unsigned.");
-        return;
-      }
-      setQuoteOverride(updated);
-      setShowSignModal(false);
-      fetch(`/api/quote/${quoteId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "Accepted",
-          signatureName: trimmedName,
-          selectedOptionId: chosenOption?.id,
-        }),
-      }).catch(() => {});
-      return;
-    }
+    setDecisionPending(true);
 
     try {
       const res = await fetch(`/api/quote/${quoteId}`, {
@@ -237,42 +270,55 @@ export default function CustomerQuoteClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setDecisionError(data.error || "This quote cannot be accepted.");
+        const message = data.error || "This quote cannot be accepted.";
+        const localQuote = getQuoteById(quoteId);
+        if (quoteMissingOnline(res.status, message) && localQuote) {
+          const signed = withChosenOption(
+            {
+              ...localQuote,
+              status: "Accepted",
+              acceptedSignatureName: trimmedName,
+              acceptedAt: new Date().toISOString(),
+            },
+            chosenOption?.id
+          );
+          if (!rememberLocalDecision(signed)) {
+            setDecisionError("This quote cannot be accepted. Drafts and expired quotes stay unsigned.");
+            return;
+          }
+          setQuoteOverride(signed);
+          setShowSignModal(false);
+          return;
+        }
+        setDecisionError(message);
         return;
       }
-      setQuoteOverride({
-        ...loadedQuote,
-        status: "Accepted",
-        acceptedSignatureName: trimmedName,
-        acceptedAt: new Date().toISOString(),
-      });
+
+      const signed = withChosenOption(
+        {
+          ...loadedQuote,
+          status: "Accepted",
+          acceptedSignatureName: trimmedName,
+          acceptedAt: new Date().toISOString(),
+        },
+        chosenOption?.id
+      );
+      rememberLocalDecision(signed);
+      setQuoteOverride(signed);
+      setDecisionError(null);
       setShowSignModal(false);
     } catch {
       setDecisionError("Could not reach the quote. Nothing was signed.");
+    } finally {
+      setDecisionPending(false);
     }
   };
 
   const handleConfirmDecline = async () => {
-    if (!loadedQuote) return;
+    if (!loadedQuote || decisionPending) return;
     const trimmedReason = declineReason.trim();
-    const localQuote = getQuoteById(quoteId);
     setDecisionError(null);
-
-    if (localQuote) {
-      const updated = updateQuoteStatus(quoteId, "Rejected", { reason: trimmedReason });
-      if (!updated) {
-        setDecisionError("This quote cannot be declined from its current status.");
-        return;
-      }
-      setQuoteOverride(updated);
-      setShowDeclineModal(false);
-      fetch(`/api/quote/${quoteId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Rejected", reason: trimmedReason }),
-      }).catch(() => {});
-      return;
-    }
+    setDecisionPending(true);
 
     try {
       const res = await fetch(`/api/quote/${quoteId}`, {
@@ -282,18 +328,38 @@ export default function CustomerQuoteClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setDecisionError(data.error || "This quote cannot be declined.");
+        const message = data.error || "This quote cannot be declined.";
+        if (quoteMissingOnline(res.status, message) && getQuoteById(quoteId)) {
+          const updated = updateQuoteStatus(quoteId, "Rejected", { reason: trimmedReason });
+          if (!updated) {
+            setDecisionError("This quote cannot be declined from its current status.");
+            return;
+          }
+          setQuoteOverride(updated);
+          setShowDeclineModal(false);
+          return;
+        }
+        setDecisionError(message);
         return;
       }
+
       setQuoteOverride({
         ...loadedQuote,
         status: "Rejected",
         rejectedReason: trimmedReason,
         rejectedAt: new Date().toISOString(),
       });
+      rememberLocalDecision({
+        ...loadedQuote,
+        status: "Rejected",
+        rejectedReason: trimmedReason,
+      });
+      setDecisionError(null);
       setShowDeclineModal(false);
     } catch {
       setDecisionError("Could not reach the quote. Nothing was changed.");
+    } finally {
+      setDecisionPending(false);
     }
   };
 
@@ -645,7 +711,10 @@ export default function CustomerQuoteClient({
                       <button
                         key={option.id}
                         type="button"
-                        onClick={() => setPickedOptionId(option.id)}
+                        onClick={() => {
+                          setPickedOptionId(option.id);
+                          setDecisionError(null);
+                        }}
                         className={`min-h-11 rounded-xl border px-3 py-3 text-left ${
                           selected ? "border-clay-700 bg-clay-50" : "border-stone-200 bg-white"
                         }`}
@@ -769,19 +838,16 @@ export default function CustomerQuoteClient({
               </div>
             )}
 
-            {decisionError && (
-              <p className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3 no-print">
-                {decisionError}
-              </p>
-            )}
-
             {/* Action Bar for Customer */}
             <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3 no-print">
               {status === "pending" ? (
                 <>
                   <button
                     type="button"
-                    onClick={() => setShowSignModal(true)}
+                    onClick={() => {
+                      setDecisionError(null);
+                      setShowSignModal(true);
+                    }}
                     className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-600/20 transition active:scale-[0.98]"
                   >
                     <CheckCircle2 className="w-5 h-5" />
@@ -800,7 +866,10 @@ export default function CustomerQuoteClient({
 
                   <button
                     type="button"
-                    onClick={() => setShowDeclineModal(true)}
+                    onClick={() => {
+                      setDecisionError(null);
+                      setShowDeclineModal(true);
+                    }}
                     className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-5 rounded-xl border border-slate-300 transition"
                   >
                     <XCircle className="w-4 h-4 text-slate-400" />
@@ -887,8 +956,8 @@ export default function CustomerQuoteClient({
 
       {/* Accept & Sign Modal */}
       {showSignModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs overflow-y-auto p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-auto my-4 p-6 shadow-2xl border border-slate-200 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -897,7 +966,9 @@ export default function CustomerQuoteClient({
               <button
                 type="button"
                 onClick={() => setShowSignModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                disabled={decisionPending}
+                aria-label="Close"
+                className="text-slate-400 hover:text-slate-600 font-bold min-h-11 min-w-11"
               >
                 ✕
               </button>
@@ -907,17 +978,48 @@ export default function CustomerQuoteClient({
               By typing your legal name below, you confirm acceptance of quotation <strong>{loadedQuote.id}</strong> (£{shownTotal.toFixed(2)}) and agree to the required deposit of <strong>£{shownDeposit.toFixed(2)}</strong>.
             </p>
 
+            {offeringChoice && (
+              <div>
+                <p className="text-xs font-bold text-slate-700 mb-2">Choose a price</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {choiceOptions.map((option) => {
+                    const selected = (pickedOptionId || loadedQuote.selectedOptionId) === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setPickedOptionId(option.id);
+                          setDecisionError(null);
+                        }}
+                        className={`min-h-11 rounded-xl border px-3 py-3 text-left ${
+                          selected ? "border-emerald-700 bg-emerald-50" : "border-stone-200 bg-white"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold text-ink">{option.label}</span>
+                        <span className="block text-lg font-black text-clay-700">£{option.total.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1" htmlFor="signature-name">
                   Full Legal Name
                 </label>
                 <input
+                  id="signature-name"
                   type="text"
                   value={signatureName}
-                  onChange={(e) => setSignatureName(e.target.value)}
+                  onChange={(e) => {
+                    setSignatureName(e.target.value);
+                    setDecisionError(null);
+                  }}
                   placeholder="e.g. Sarah Jenkins"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 font-semibold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base focus:outline-none focus:ring-2 focus:ring-emerald-600 font-semibold"
                 />
               </div>
 
@@ -925,7 +1027,10 @@ export default function CustomerQuoteClient({
                 <input
                   type="checkbox"
                   checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  onChange={(e) => {
+                    setAgreedToTerms(e.target.checked);
+                    setDecisionError(null);
+                  }}
                   className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 mt-0.5"
                 />
                 <span>
@@ -934,21 +1039,28 @@ export default function CustomerQuoteClient({
               </label>
             </div>
 
+            {decisionError && (
+              <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                {decisionError}
+              </p>
+            )}
+
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowSignModal(false)}
-                className="flex-1 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl"
+                disabled={decisionPending}
+                className="flex-1 min-h-11 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmAccept}
-                disabled={!signatureName.trim() || !agreedToTerms}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-md transition"
+                disabled={decisionPending}
+                className="flex-1 min-h-11 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-md transition"
               >
-                Confirm & Sign
+                {decisionPending ? "Signing…" : "Confirm & Sign"}
               </button>
             </div>
           </div>
@@ -957,8 +1069,8 @@ export default function CustomerQuoteClient({
 
       {/* Decline Modal */}
       {showDeclineModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs overflow-y-auto p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-auto my-4 p-6 shadow-2xl border border-slate-200 space-y-4">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <XCircle className="w-5 h-5 text-rose-500" />
               <span>Decline Quote</span>
@@ -971,25 +1083,36 @@ export default function CustomerQuoteClient({
             <textarea
               rows={3}
               value={declineReason}
-              onChange={(e) => setDeclineReason(e.target.value)}
+              onChange={(e) => {
+                setDeclineReason(e.target.value);
+                setDecisionError(null);
+              }}
               placeholder="e.g. Budget too high, postponing project, found another contractor..."
-              className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-slate-800"
+              className="w-full p-3 rounded-xl border border-slate-300 text-base focus:outline-none focus:ring-2 focus:ring-slate-800"
             />
+
+            {decisionError && (
+              <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                {decisionError}
+              </p>
+            )}
 
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowDeclineModal(false)}
-                className="flex-1 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl"
+                disabled={decisionPending}
+                className="flex-1 min-h-11 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDecline}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition"
+                disabled={decisionPending}
+                className="flex-1 min-h-11 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-xl transition"
               >
-                Decline Quote
+                {decisionPending ? "Declining…" : "Decline Quote"}
               </button>
             </div>
           </div>
