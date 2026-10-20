@@ -54,10 +54,10 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
-    if (confirm("Reset profile details back to default template?")) {
+    if (confirm("Clear your business name and contact details?")) {
       setProfile(DEFAULT_BUSINESS_PROFILE);
       saveBusinessProfile(DEFAULT_BUSINESS_PROFILE);
-      triggerToast("Reset to default profile.");
+      triggerToast("Business details cleared. Add your business name before you send a quote.");
     }
   };
 
@@ -165,7 +165,7 @@ export default function SettingsPage() {
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={profile.logoUrl}
-                  alt={profile.companyName}
+                  alt={profile.companyName || "Your logo"}
                   className="w-full h-full object-contain p-1"
                 />
               ) : (
@@ -662,7 +662,7 @@ export default function SettingsPage() {
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-3">
           <h2 className="font-bold text-lg text-ink">Free beta</h2>
           <p className="text-sm text-stone-600">
-            Card payments and paid plans are switched off. You will not be charged. Site photos stay on this phone until the database photo step in the setup notes has been run.
+            Card payments and paid plans are switched off. You will not be charged. Photos you add to a quote are stored with that quote once you are signed in.
           </p>
           <Link href="/pricing" className="inline-flex text-sm font-semibold text-clay-800 underline">
             What is included

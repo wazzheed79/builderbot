@@ -23,9 +23,9 @@ export function getSupabase(): SupabaseClient | null {
   if (!clientInstance && supabaseUrl && supabaseAnonKey) {
     clientInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        // The default Magic Link email only has a link. Implicit flow brings
-        // that link back as a hash the callback page can turn into a session.
-        // PKCE would need a template edit, which the free plan does not allow.
+        // Old Magic Link emails still return as a hash the callback page can
+        // turn into a session. New emails should open /auth/confirm, which
+        // waits for a tap before the link is used.
         flowType: "implicit",
         detectSessionInUrl: false,
       },

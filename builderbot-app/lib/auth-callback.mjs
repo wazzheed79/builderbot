@@ -75,6 +75,67 @@ export function readAuthCallback(search = "", hash = "") {
 }
 
 /**
+ * A same-site path from an email link. Anything else opens the dashboard.
+ * @param {string | null | undefined} value
+ */
+export function safeNextPath(value) {
+  const raw = String(value || "").trim();
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  if (/[\u0000-\u001f\u007f\\]/.test(raw) || raw.includes("://")) return "/dashboard";
+  let url;
+  try {
+    url = new URL(raw, "https://chuffed.local");
+  } catch {
+    return "/dashboard";
+  }
+  if (url.origin !== "https://chuffed.local") return "/dashboard";
+  if (!url.pathname.startsWith("/") || url.pathname.startsWith("//")) return "/dashboard";
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/**
+ * A short message for an expired, used, or broken email link.
+ * @param {string} [message]
+ * @param {string} [code]
+ */
+export function friendlyLinkError(message, code) {
+  const text = `${code || ""} ${message || ""}`.toLowerCase();
+  if (text.includes("already") || (text.includes("used") && !text.includes("expired"))) {
+    return "This sign-in link has already been used.";
+  }
+  if (text.includes("expired") || text.includes("otp_expired")) {
+    return "This sign-in link has expired.";
+  }
+  if (text.includes("missing")) {
+    return "This sign-in link is missing its details.";
+  }
+  return "This sign-in link has expired or has already been used.";
+}
+
+/**
+ * Read the email-link details for the tap-to-sign-in page. Does not use the link.
+ * @param {string} [search]
+ */
+export function readConfirmRequest(search = "") {
+  const query = readParams(search);
+  const next = safeNextPath(query.get("next"));
+  const errorText = query.get("error_description") || query.get("error_code") || query.get("error");
+  if (errorText) {
+    return {
+      ok: false,
+      next,
+      message: friendlyLinkError(plainAuthError(errorText), query.get("error_code") || ""),
+    };
+  }
+  const tokenHash = (query.get("token_hash") || "").trim();
+  const type = (query.get("type") || "").trim().toLowerCase();
+  if (!tokenHash || !OTP_LINK_TYPES.includes(type)) {
+    return { ok: false, next, message: "This sign-in link is missing its details." };
+  }
+  return { ok: true, tokenHash, type, next };
+}
+
+/**
  * Where to send the browser when an email link lands on the wrong page.
  * Returns null when this page should finish the sign-in itself.
  * @param {string} pathname
@@ -82,7 +143,9 @@ export function readAuthCallback(search = "", hash = "") {
  * @param {string} [hash]
  */
 export function authCallbackTarget(pathname, search = "", hash = "") {
-  if (pathname === "/auth/callback") return null;
+  // /auth/confirm must not bounce to the callback. The callback uses the link
+  // as soon as the page opens, which is what email scanners do.
+  if (pathname === "/auth/callback" || pathname === "/auth/confirm") return null;
   const parsed = readAuthCallback(search, hash);
   if (parsed.kind === "none") return null;
   if (parsed.kind === "error") {

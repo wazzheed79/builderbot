@@ -132,7 +132,8 @@ export interface BusinessProfile {
   logoUrl?: string;
 }
 
-export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
+/** Example company used only when someone asks to see a sample. Not a real account. */
+export const SAMPLE_BUSINESS_PROFILE: BusinessProfile = {
   companyName: "Premier Trade Services",
   tradingName: "",
   ownerName: "Alex Morgan",
@@ -152,6 +153,24 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   quoteValidityDays: 30,
   termsAndConditions:
     "1. All materials remain property of the contractor until paid in full.\n2. Workmanship guaranteed for 12 months from completion date.\n3. Deposit required before procurement of materials.",
+  logoUrl: "",
+};
+
+/** Blank start. A new tradesperson has no made-up company name until they set one. */
+export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
+  ...SAMPLE_BUSINESS_PROFILE,
+  companyName: "",
+  tradingName: "",
+  ownerName: "",
+  phone: "",
+  email: "",
+  website: "",
+  address: "",
+  vatNumber: "",
+  bankName: "",
+  bankSortCode: "",
+  bankAccountNumber: "",
+  accreditations: [],
   logoUrl: "",
 };
 
@@ -978,7 +997,7 @@ export function loadDemoSampleData(): void {
   localStorage.setItem(QUOTES_KEY, JSON.stringify(DEFAULT_QUOTES));
   localStorage.setItem(JOBS_KEY, JSON.stringify(DEFAULT_JOBS));
   localStorage.setItem(INVOICES_KEY, JSON.stringify(DEFAULT_INVOICES));
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(DEFAULT_BUSINESS_PROFILE));
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(SAMPLE_BUSINESS_PROFILE));
   localStorage.setItem("builderbot_data_source", "demo");
   window.dispatchEvent(new Event("builderbot_storage_updated"));
 }

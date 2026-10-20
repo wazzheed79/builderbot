@@ -4,7 +4,7 @@ import { brand } from "@/lib/brand.mjs";
 
 export const metadata: Metadata = {
   title: "Privacy notice",
-  description: `How ${brand.name} handles quotes, sign-in, and AI.`,
+  description: `How ${brand.name} stores quotes, sign-in, and customer replies.`,
 };
 
 export default function PrivacyPage() {
@@ -14,67 +14,69 @@ export default function PrivacyPage() {
         Back to {brand.name}
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Privacy notice</h1>
+      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 20 October 2026</p>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
-        This is a plain-language notice for the free beta. It is not legal advice.
+        A plain-language notice for the free beta. It is not legal advice.
       </p>
 
       <div className="mt-8 space-y-6 text-sm text-stone-700 leading-relaxed">
         <section>
           <h2 className="text-lg font-bold text-ink">Who this is from</h2>
           <p className="mt-2">
-            {brand.name} is run by <strong>{brand.ownerName}</strong>, {brand.ownerRole}. Contact:{" "}
+            {brand.name} is run by <strong>{brand.ownerName}</strong>, {brand.ownerRole}. Email{" "}
             <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
               {brand.ownerEmail}
-            </a>. Last updated: October 2026.
+            </a>
+            .
           </p>
         </section>
         <section>
-          <h2 className="text-lg font-bold text-ink">What a tradesperson stores</h2>
+          <h2 className="text-lg font-bold text-ink">What is stored</h2>
           <p className="mt-2">
-            Until you create an account and sign in, customers, quotes, and site photos stay in
-            this browser only. Clearing the browser, or using a different phone, can delete that
-            work. There is no automatic backup of browser-only data.
-          </p>
-          <p className="mt-2">
-            If you sign in, the app copies customers, quotes, jobs, invoices, and your business
-            profile to a Supabase database so you can open them on another device. Site photos
-            sync only after the database photo column has been added. Until then they stay on
-            the phone that took them.
+            You can save customers, quotes, prices, site photos, and your business details. Until
+            you sign in, that stays in this browser. After you sign in, it is stored in Supabase,
+            in the EU (London) region, so you can open it on another phone. The website is hosted
+            on Vercel.
           </p>
         </section>
         <section>
-          <h2 className="text-lg font-bold text-ink">Who else sees data</h2>
-          <ul className="mt-2 list-disc pl-5 space-y-1">
-            <li>The hosting company (Vercel) serves the website.</li>
-            <li>Supabase stores accounts and synced records when sign-in is switched on.</li>
-            <li>
-              Google&apos;s Gemini service receives job notes, and photos if you attach them, only
-              when you are signed in and an AI key has been added. Do not put customer secrets
-              in notes if you are unsure how that provider uses them.
-            </li>
-            <li>Card payments are switched off during this free beta. No card numbers are taken.</li>
-            <li>Feedback you send is stored in the database when that is set up, or written to the host logs.</li>
-          </ul>
+          <h2 className="text-lg font-bold text-ink">Sign-in emails</h2>
+          <p className="mt-2">
+            Sign-in emails are sent by Resend from {brand.ownerEmail}. They contain a link and a
+            6-digit code. We do not take card numbers. Card payments are switched off.
+          </p>
         </section>
         <section>
-          <h2 className="text-lg font-bold text-ink">Customers named on a quote</h2>
+          <h2 className="text-lg font-bold text-ink">AI quote drafts</h2>
           <p className="mt-2">
-            The tradesperson who types a customer&apos;s name, address, phone, or email decides
-            why that information is there. {brand.name} provides the tool. A customer who wants
-            a quote deleted should ask the tradesperson. The tradesperson can delete the record
-            in the app, or email{" "}
+            If you ask for an AI draft, the notes you typed or spoke, and any photos you attach
+            for that draft, are sent to Google Gemini. You check the prices before a customer
+            sees them.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-lg font-bold text-ink">When a customer opens a quote</h2>
+          <p className="mt-2">
+            We record that they viewed the quote, and whether they accepted or declined. If they
+            type their name to accept, that name is saved with the quote.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-lg font-bold text-ink">Cookies</h2>
+          <p className="mt-2">
+            There is no advertising tracker. Sign-in keeps a session so you stay signed in on
+            that phone.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-lg font-bold text-ink">Asking for a copy or deletion</h2>
+          <p className="mt-2">
+            A customer named on a quote should ask the tradesperson who wrote it. You can delete
+            a customer or a quote in the app, or email{" "}
             <a className="font-semibold text-clay-800 underline" href={`mailto:${brand.ownerEmail}`}>
               {brand.ownerEmail}
             </a>{" "}
-            for help with a synced account.
-          </p>
-        </section>
-        <section>
-          <h2 className="text-lg font-bold text-ink">Cookies and analytics</h2>
-          <p className="mt-2">
-            This beta does not add an advertising tracker or a cookie banner script. Sign-in, if
-            you use it, uses the account provider&apos;s session storage. Error notes sent by the
-            app contain the page path and a short error message, not a customer list.
+            and we will help.
           </p>
         </section>
       </div>

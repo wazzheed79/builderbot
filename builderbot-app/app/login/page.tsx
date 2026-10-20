@@ -426,7 +426,7 @@ export default function LoginPage() {
 
         {/* Security Assurance Footer */}
         <p className="mt-6 text-center text-xs text-stone-500">
-          {brand.name} is free while in testing.{" "}
+          {brand.name} is free during the beta.{" "}
           <Link href="/privacy" className="underline">
             Privacy
           </Link>

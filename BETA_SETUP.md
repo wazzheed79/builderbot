@@ -29,7 +29,7 @@ In the Vercel project, open **Settings → Environment Variables** and add:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key. This must stay secret. |
 | `NEXT_PUBLIC_APP_URL` | Your public address, no slash at the end. Optional. |
-| `NEXT_PUBLIC_FEEDBACK_EMAIL` | Optional. Leave blank to use wazzheed+chuffed@gmail.com. |
+| `NEXT_PUBLIC_FEEDBACK_EMAIL` | Optional. Leave blank to use hello@chuffedquotes.co.uk. |
 | `GEMINI_API_KEY` | Only if you want AI prices. Optional. |
 | `GEMINI_MODEL` | Optional. Leave blank, or set `gemini-3.5-flash`. New keys cannot use `gemini-2.5-flash`. |
 
@@ -47,7 +47,7 @@ Press **Redeploy** after saving the variables.
 
 ## 5. Owner details
 
-Privacy and terms already name Michael Boylen, a sole trader in the United Kingdom, and the contact email wazzheed+chuffed@gmail.com. The pages are still plain language, not legal advice. If you store customer data for a business, check whether you need to register with the ICO.
+Privacy and terms already name Michael Boylen, a sole trader in the United Kingdom, and the contact email hello@chuffedquotes.co.uk. The pages are still plain language, not legal advice. If you store customer data for a business, check whether you need to register with the ICO.
 
 ## 6. What stays manual if you rename again
 

@@ -1,7 +1,7 @@
 /**
  * Trade message templates shared by the app and the Node tests.
  */
-import { brand } from "./brand.mjs";
+import { displayBusinessName } from "./business-name.mjs";
 
 /**
  * Normalizes phone numbers to international format without spaces or symbols.
@@ -29,7 +29,7 @@ export function normalizePhoneNumber(phone) {
  */
 export function formatWhatsAppQuoteMessage(params, siteOrigin) {
   const quoteUrl = `${siteOrigin}/q/${params.token || params.quoteId}`;
-  const company = params.companyName || params.contractorName || "us";
+  const company = displayBusinessName(params.companyName, params.contractorName);
   const firstName = (params.clientName || "").trim().split(" ")[0] || "there";
   const job = params.quoteTitle || "the job";
 
@@ -54,7 +54,7 @@ export function getWhatsAppShareUrl(params, siteOrigin) {
  * Formats a clear, professional WhatsApp invoice / payment request.
  */
 export function formatWhatsAppInvoiceMessage(params) {
-  const sender = params.companyName || params.contractorName || "our trade team";
+  const sender = displayBusinessName(params.companyName, params.contractorName);
   const firstName = (params.clientName || "").trim().split(" ")[0] || "there";
 
   let bankDetails = "";
@@ -98,7 +98,7 @@ export function getWhatsAppInvoiceShareUrl(params) {
  */
 export function getEmailShareUrl(params, clientEmail, siteOrigin) {
   const subject = encodeURIComponent(
-    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${params.companyName || brand.name})`
+    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${displayBusinessName(params.companyName, params.contractorName)})`
   );
   const body = encodeURIComponent(formatWhatsAppQuoteMessage(params, siteOrigin));
   return `mailto:${clientEmail}?subject=${subject}&body=${body}`;
@@ -109,7 +109,7 @@ export function getEmailShareUrl(params, clientEmail, siteOrigin) {
  */
 export function formatWhatsAppFollowUpMessage(params, siteOrigin) {
   const quoteUrl = `${siteOrigin}/q/${params.token || params.quoteId}`;
-  const sender = params.companyName || params.contractorName || "our trade team";
+  const sender = displayBusinessName(params.companyName, params.contractorName);
   const firstName = (params.clientName || "").trim().split(" ")[0] || "there";
 
   return (

@@ -51,7 +51,9 @@ import type { Quote } from "@/lib/storage";
 import { loadRememberedPrices, rememberLinePrice } from "@/lib/price-memory";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { quoteDraftForSave } from "@/lib/quote-draft.mjs";
+import { BUSINESS_NAME_PROMPT, hasBusinessName } from "@/lib/business-name.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
+import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -554,6 +556,11 @@ export default function QuotesClient() {
   const deposit = roundMoney((total * depositPercent) / 100);
 
   const publishQuote = async (status: "Draft" | "Sent" = "Sent"): Promise<Quote | null> => {
+    if (!hasBusinessName(profile.companyName)) {
+      setShareNotice(BUSINESS_NAME_PROMPT);
+      return null;
+    }
+
     const draft = draftRef.current;
     const priced = quoteDraftForSave(draft);
     if (!draft.clientName.trim() && priced.items.length === 0) {
@@ -1115,6 +1122,7 @@ export default function QuotesClient() {
 
               {/* Delivery & Persistence Actions */}
               <div id="quote-share" className="pt-4 space-y-2.5">
+                {ready && !hasBusinessName(profile.companyName) && <BusinessNamePrompt />}
                 <button
                   type="button"
                   onClick={saveAndIssue}
@@ -1158,7 +1166,7 @@ export default function QuotesClient() {
                   </button>
                 </div>
 
-                {shareNotice && (
+                {shareNotice && shareNotice !== BUSINESS_NAME_PROMPT && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
                     <p>{shareNotice}</p>
                     {!user && /sign in/i.test(shareNotice) && (
@@ -1184,8 +1192,12 @@ export default function QuotesClient() {
 
       {shareNotice && (
         <div className="lg:hidden fixed bottom-[132px] left-3 right-3 z-40 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 shadow-lg">
-          <p>{shareNotice}</p>
-          {!user && /sign in/i.test(shareNotice) && (
+          {shareNotice === BUSINESS_NAME_PROMPT ? (
+            <BusinessNamePrompt className="border-0 bg-transparent p-0" />
+          ) : (
+            <p>{shareNotice}</p>
+          )}
+          {shareNotice !== BUSINESS_NAME_PROMPT && !user && /sign in/i.test(shareNotice) && (
             <Link href="/login" className="mt-2 inline-flex min-h-11 items-center font-bold text-clay-800 underline">
               Sign in
             </Link>

@@ -178,3 +178,38 @@ test("WhatsApp Follow-Up URL: Generates valid wa.me link with phone", () => {
   assert.match(url, /^https:\/\/wa\.me\/447820445566\?text=/);
 });
 
+test("Share messages never use a made-up company name", () => {
+  const fromOwner = formatWhatsAppQuoteMessage(
+    {
+      quoteId: "BB-1042",
+      token: "q_token_123",
+      clientName: "Sarah Jenkins",
+      quoteTitle: "En-suite shower",
+      companyName: "Trade Contractor Services",
+      contractorName: "Sam Rivers",
+      total: 100,
+      deposit: 20,
+      depositPercent: 20,
+    },
+    "https://www.chuffedquotes.co.uk"
+  );
+  assert.match(fromOwner, /Sam Rivers/);
+  assert.doesNotMatch(fromOwner, /Trade Contractor Services/);
+
+  const generic = formatWhatsAppQuoteMessage(
+    {
+      quoteId: "BB-1042",
+      token: "q_token_123",
+      clientName: "Sarah Jenkins",
+      quoteTitle: "En-suite shower",
+      companyName: "  ",
+      contractorName: "",
+      total: 100,
+      deposit: 20,
+      depositPercent: 20,
+    },
+    "https://www.chuffedquotes.co.uk"
+  );
+  assert.match(generic, /Your tradesperson/);
+});
+
