@@ -3,6 +3,8 @@ import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { roundMoney } from "@/lib/storage";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
+import { applyRememberedPrices } from "@/lib/price-memory.mjs";
+import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
 import { takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
@@ -25,8 +27,21 @@ const GenerateRequestSchema = z.object({
       laborHourlyRate: z.number().positive().optional(),
       laborDayRate: z.number().positive().optional(),
       preferredMarkupPercent: z.number().min(0).max(100).optional(),
+      remembered: z
+        .array(
+          z.object({
+            key: z.string().max(160),
+            description: z.string().max(200).optional(),
+            unit: z.string().max(30),
+            rate: z.number().min(0).max(50000),
+            itemType: z.enum(["labor", "material", "service"]).optional(),
+          })
+        )
+        .max(80)
+        .optional(),
     })
     .optional(),
+  tiers: z.boolean().optional(),
 });
 
 interface LineItemResponse {
@@ -35,6 +50,7 @@ interface LineItemResponse {
   quantity: number;
   unit: string;
   rate: number;
+  usualPrice?: boolean;
 }
 
 interface GenerateResponse {
@@ -44,6 +60,8 @@ interface GenerateResponse {
   items: LineItemResponse[];
   aiPowered: boolean;
   notice?: string;
+  usualPrice?: boolean;
+  options?: ReturnType<typeof buildChoiceOptions>;
 }
 
 export async function POST(request: NextRequest) {
@@ -75,7 +93,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes, trade, photos, pricingMemory } = parseResult.data;
+    const { notes, trade, photos, pricingMemory, tiers } = parseResult.data;
+    const remembered = pricingMemory?.remembered || [];
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
 
@@ -104,6 +123,14 @@ export async function POST(request: NextRequest) {
           ? `£${pricingMemory.laborDayRate}/day`
           : "standard UK rates";
         systemInstruction += ` CONTRACTOR PRICING DNA: The contractor typically charges ${customLabor} for labour and expects approximately ${pricingMemory.preferredMarkupPercent || 20}% material markup. Calibrate your line item rates to this contractor's personal pricing profile.`;
+      }
+
+      if (remembered.length > 0) {
+        const samples = remembered
+          .slice(0, 12)
+          .map((row) => `${row.description || row.key} £${row.rate} per ${row.unit}`)
+          .join("; ");
+        systemInstruction += ` USE THESE REMEMBERED PRICES when the line is the same sort of work: ${samples}.`;
       }
 
       // Extract up to 3 site photos for multimodal AI visual assessment
@@ -235,6 +262,7 @@ export async function POST(request: NextRequest) {
               rate: clampedRate,
             };
           });
+        const rememberedItems = applyRememberedPrices(cleanedItems, remembered) as LineItemResponse[];
 
         const depositPercent = Math.max(
           0,
@@ -245,8 +273,9 @@ export async function POST(request: NextRequest) {
           title: String(parsed.title || "Trade Works Specification").trim().slice(0, 150),
           scopeOfWork: String(parsed.scopeOfWork || notes).trim().slice(0, 2500),
           suggestedDepositPercent: depositPercent,
-          items: cleanedItems,
+          items: rememberedItems,
           aiPowered: true,
+          ...(tiers ? { options: buildChoiceOptions(rememberedItems, true, depositPercent) } : {}),
         };
 
         return NextResponse.json(result);
@@ -258,12 +287,16 @@ export async function POST(request: NextRequest) {
 
     // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
     const estimate = estimateTradeJob(notes, trade || "", pricingMemory, photos);
+    const rememberedItems = applyRememberedPrices(estimate.items, remembered);
 
     return NextResponse.json({
       title: estimate.title,
       scopeOfWork: estimate.scopeOfWork,
       suggestedDepositPercent: estimate.suggestedDepositPercent,
-      items: estimate.items,
+      items: rememberedItems,
+      ...(tiers
+        ? { options: buildChoiceOptions(rememberedItems, true, estimate.suggestedDepositPercent) }
+        : {}),
       aiPowered: false,
       estimateOnly: true,
       notice:

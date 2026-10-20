@@ -31,6 +31,7 @@ import {
   convertQuoteToInvoice,
 } from "@/lib/storage";
 import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl } from "@/lib/share";
+import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import {
   useClientReady,
   useCustomerList,
@@ -535,6 +536,7 @@ export default function CustomerProfileClient({
                                 Signed: {q.acceptedSignatureName}
                               </span>
                             )}
+                            <QuoteFollowUp quote={q} companyName={businessProfile.companyName} />
                           </td>
                           <td className="py-4 px-6 text-right whitespace-nowrap space-x-2">
                             {/* Convert to Invoice Button when Accepted */}

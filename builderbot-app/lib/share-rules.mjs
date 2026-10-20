@@ -29,24 +29,11 @@ export function normalizePhoneNumber(phone) {
  */
 export function formatWhatsAppQuoteMessage(params, siteOrigin) {
   const quoteUrl = `${siteOrigin}/q/${params.token || params.quoteId}`;
-  const sender = params.companyName || params.contractorName || "our trade team";
+  const company = params.companyName || params.contractorName || "us";
   const firstName = (params.clientName || "").trim().split(" ")[0] || "there";
+  const job = params.quoteTitle || "the job";
 
-  const depositText =
-    params.deposit > 0
-      ? `\n*Deposit Required:* £${params.deposit.toFixed(2)} (${params.depositPercent}%)`
-      : "";
-
-  return (
-    `Hi ${firstName},\n\n` +
-    `Here is your official quotation for *"${params.quoteTitle || "the planned works"}"* from *${sender}*:\n\n` +
-    `👉 *Review & Approve Online:* ${quoteUrl}\n\n` +
-    `*Total Price:* £${params.total.toFixed(2)}` +
-    `${depositText}\n` +
-    `*Quotation Ref:* ${params.quoteId}\n\n` +
-    `You can read the full itemised quote and sign it on your phone. Let us know if you have any questions.\n\n` +
-    `Kind regards,\n${sender}`
-  );
+  return `Hi ${firstName}, here's your quote from ${company} for ${job}: ${quoteUrl}`;
 }
 
 /**

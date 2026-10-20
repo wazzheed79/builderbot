@@ -25,9 +25,12 @@ import {
   saveQuote,
   roundMoney,
   getPricingMemory,
+  getQuoteById,
+  recalculateQuoteTotals,
   DEFAULT_BUSINESS_PROFILE,
+  type QuoteOption,
 } from "@/lib/storage";
-import { useBusinessProfile, useClientReady, useCustomerList } from "@/lib/live-store";
+import { useBusinessProfile, useClientReady, useCustomerList, useQuoteList } from "@/lib/live-store";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
 import QuoteTemplatesBar, {
   QuoteTemplate,
@@ -45,6 +48,9 @@ import {
 import { getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import type { Quote } from "@/lib/storage";
+import { loadRememberedPrices, rememberLinePrice } from "@/lib/price-memory";
+import { buildChoiceOptions } from "@/lib/quote-options.mjs";
+import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -80,6 +86,7 @@ export default function QuotesClient() {
 
   const { user, isConfigured } = useAuth();
   const customers = useCustomerList();
+  const savedQuotes = useQuoteList();
   const profile = useBusinessProfile();
   const ready = useClientReady();
 
@@ -121,6 +128,9 @@ export default function QuotesClient() {
 
   // Line items
   const [items, setItems] = useState<LineItem[]>([]);
+  const [choiceOptions, setChoiceOptions] = useState<QuoteOption[] | null>(null);
+  const [choiceIndex, setChoiceIndex] = useState(0);
+  const [appliedQuoteParam, setAppliedQuoteParam] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [ratesReadyFor, setRatesReadyFor] = useState("");
 
@@ -154,6 +164,35 @@ export default function QuotesClient() {
     if (!homeNotesApplied) return;
     sessionStorage.removeItem(HOME_NOTES_KEY);
   }, [homeNotesApplied]);
+
+  const quoteParam = searchParams.get("quote");
+  if (ready && quoteParam && appliedQuoteParam !== quoteParam) {
+    const quote = getQuoteById(quoteParam);
+    if (quote) {
+      setAppliedQuoteParam(quoteParam);
+      setActiveQuoteId(quote.id);
+      setActiveToken(quote.token);
+      setSelectedCustomerId(quote.customerId || "");
+      setClientName(quote.clientName);
+      setClientCompany(quote.clientCompany || "");
+      setClientAddress(quote.clientAddress);
+      setClientPhone(quote.clientPhone || "");
+      setClientEmail(quote.clientEmail || "");
+      setQuoteTitle(quote.title);
+      setNotesInput(quote.notes || "");
+      setVatEnabled(quote.vatEnabled);
+      setDepositPercent(quote.depositPercent);
+      setPhotos(quote.photos || []);
+      if (quote.options && quote.options.length > 1) {
+        setChoiceOptions(quote.options);
+        setChoiceIndex(0);
+        setItems(quote.options[0].items);
+      } else {
+        setChoiceOptions(null);
+        setItems(quote.items);
+      }
+    }
+  }
 
   const rateStamp = `${profile.vatRegistered}:${profile.defaultDepositPercent}`;
   if (ratesReadyFor !== rateStamp) {
@@ -318,7 +357,7 @@ export default function QuotesClient() {
           notes: notesInput.trim(),
           trade: profile.trade,
           photos: photos && photos.length > 0 ? photos : undefined,
-          pricingMemory: getPricingMemory(),
+          pricingMemory: { ...getPricingMemory(), remembered: await loadRememberedPrices() },
         }),
       });
 
@@ -341,6 +380,7 @@ export default function QuotesClient() {
             quantity: it.quantity,
             unit: it.unit,
             rate: it.rate,
+            usualPrice: Boolean((it as { usualPrice?: boolean }).usualPrice),
           })
         );
 
@@ -381,11 +421,78 @@ export default function QuotesClient() {
   };
 
   const handleUpdateItem = (id: string, field: keyof LineItem, value: string | number) => {
-    setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+    setItems(
+      items.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, [field]: value, usualPrice: field === "rate" ? false : item.usualPrice };
+        if (field === "rate" && user) rememberLinePrice(next);
+        return next;
+      })
+    );
   };
 
   const handleDeleteItem = (id: string) => {
     setItems(items.filter((item) => item.id !== id));
+  };
+
+  const openQuote = activeQuoteId ? savedQuotes.find((quote) => quote.id === activeQuoteId) : undefined;
+
+  const showChoice = (index: number) => {
+    setChoiceOptions((current) => {
+      if (!current) return current;
+      const next = current.slice();
+      next[choiceIndex] = {
+        ...next[choiceIndex],
+        items,
+        ...recalculateQuoteTotals(items, vatEnabled, depositPercent),
+      };
+      setItems(next[index]?.items || items);
+      return next;
+    });
+    setChoiceIndex(index);
+  };
+
+  const suggestChoices = async () => {
+    let next = items.length > 0 ? buildChoiceOptions(items, vatEnabled, depositPercent) : [];
+    if (notesInput.trim()) {
+      try {
+        const res = await fetch("/api/quote/generate", {
+          method: "POST",
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            notes: notesInput.trim(),
+            trade: profile.trade,
+            tiers: true,
+            pricingMemory: { ...getPricingMemory(), remembered: await loadRememberedPrices() },
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && Array.isArray(data?.options) && data.options.length > 1) {
+          next = data.options.map((option: QuoteOption, index: number) => ({
+            ...option,
+            id: option.id || `opt-${index}`,
+            items: (option.items || []).map((item, line) => ({
+              id: item.id || `opt-${index}-${line}`,
+              type: item.type || "material",
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              rate: item.rate,
+            })),
+          }));
+        }
+      } catch {
+        // The local three prices are enough if the request fails.
+      }
+    }
+    if (next.length < 2) {
+      triggerToast("Add a price or some job notes first.");
+      return;
+    }
+    setChoiceOptions(next as QuoteOption[]);
+    setChoiceIndex(0);
+    setItems(next[0].items as LineItem[]);
+    triggerToast("Three options are ready. Check each price before you send it.");
   };
 
   // Currency Calculations (rounded to pence)
@@ -400,8 +507,26 @@ export default function QuotesClient() {
       return null;
     }
 
+    const existing = activeQuoteId ? getQuoteById(activeQuoteId) : undefined;
+    const pricedChoices = choiceOptions
+      ? choiceOptions.map((option, index) => {
+          const optionItems = index === choiceIndex ? items : option.items;
+          return {
+            ...option,
+            items: optionItems,
+            ...recalculateQuoteTotals(optionItems, vatEnabled, depositPercent),
+          };
+        })
+      : undefined;
     const saved = saveQuote({
       ...(activeQuoteId ? { id: activeQuoteId, token: activeToken ?? undefined } : {}),
+      sentAt: existing?.sentAt || (status === "Sent" ? new Date().toISOString() : undefined),
+      viewCount: existing?.viewCount,
+      firstViewedAt: existing?.firstViewedAt,
+      lastViewedAt: existing?.lastViewedAt,
+      reminderAfterDays: existing?.reminderAfterDays ?? 3,
+      options: pricedChoices && pricedChoices.length > 1 ? pricedChoices : undefined,
+      selectedOptionId: existing?.selectedOptionId,
       customerId: selectedCustomerId || undefined,
       clientName: clientName.trim() || "Private Client",
       clientCompany: clientCompany.trim() || undefined,
@@ -575,6 +700,7 @@ export default function QuotesClient() {
               #{activeQuoteId}
             </span>
           )}
+          {openQuote && <QuoteFollowUp quote={openQuote} companyName={profile.companyName} />}
         </div>
       </div>
 
@@ -808,6 +934,50 @@ export default function QuotesClient() {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-stone-200 bg-white p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChoiceOptions(null);
+                    }}
+                    className={`min-h-11 rounded-xl px-3 py-2 text-sm font-bold ${
+                      choiceOptions ? "bg-stone-100 text-stone-700" : "bg-clay-700 text-white"
+                    }`}
+                  >
+                    One price
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void suggestChoices()}
+                    className={`min-h-11 rounded-xl px-3 py-2 text-sm font-bold ${
+                      choiceOptions ? "bg-clay-700 text-white" : "bg-stone-100 text-stone-800"
+                    }`}
+                  >
+                    Good, Better, Best
+                  </button>
+                </div>
+                {choiceOptions && (
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {choiceOptions.map((option, index) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => showChoice(index)}
+                        className={`min-h-11 rounded-xl border px-3 py-2 text-left ${
+                          index === choiceIndex ? "border-clay-700 bg-clay-50" : "border-stone-200"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold">{option.label}</span>
+                        <span className="text-xs text-stone-600">
+                          £{recalculateQuoteTotals(index === choiceIndex ? items : option.items, vatEnabled, depositPercent).total.toFixed(2)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Modular Line Item Editor */}

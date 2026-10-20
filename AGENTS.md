@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Quote cards, views, prices, and options**: Each customer link can show its own WhatsApp preview. Opening the quote is counted in Supabase, with a reminder on WhatsApp after three days. Edited prices are remembered for the next similar line. A quote can offer Standard, Better, and Premium, and the customer picks one.
 - [x] **Email link sign-in**: The default Supabase magic-link email only contains the link, so tapping that link signs the person in and opens the dashboard. A 6-digit code can still be typed in when the email shows one. Password sign-in stays.
 - [x] **Live-site audit fixes**: Customer links are only offered after the quote is saved online (guests are asked to sign in). The “this browser only” banner waits until the page has loaded, so it no longer breaks the page. Link previews, page titles, a 16px mobile text size, local QR codes, a once-only cloud sync, and a tighter rough estimate are in. AI quoting stays signed-in only. Database grants, row rules, and indexes are in `supabase/schema.sql` and a re-runnable migration.
 - [x] **Configurable Gemini model**: Quote generation and scope expansion share one model setting (`GEMINI_MODEL`, default `gemini-3.5-flash`). New Google keys no longer accept `gemini-2.5-flash`. If Gemini returns 404, 429, 503, times out, or sends unusable JSON, the quote falls back to the existing rough estimate instead of an error.

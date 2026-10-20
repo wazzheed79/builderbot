@@ -45,13 +45,10 @@ test("WhatsApp Quote Message: Generates high-converting, professional trade copy
     "https://builderbot.co.uk"
   );
 
-  assert.match(msg, /Hi Sarah,/);
-  assert.match(msg, /Ensuite Bathroom Renovation/);
-  assert.match(msg, /Premier Trade Services/);
-  assert.match(msg, /https:\/\/builderbot\.co\.uk\/q\/q_demo_token_123/);
-  assert.match(msg, /£850\.00/);
-  assert.match(msg, /Deposit Required:\* £170\.00 \(20%\)/);
-  assert.match(msg, /Quotation Ref:\* BB-1042/);
+  assert.equal(
+    msg,
+    "Hi Sarah, here's your quote from Premier Trade Services for Ensuite Bathroom Renovation: https://builderbot.co.uk/q/q_demo_token_123"
+  );
 });
 
 test("WhatsApp Quote URL: Generates valid wa.me deep links with phone and encoded text", () => {
