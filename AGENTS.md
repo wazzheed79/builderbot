@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Live-site audit fixes**: Customer links are only offered after the quote is saved online (guests are asked to sign in). The “this browser only” banner waits until the page has loaded, so it no longer breaks the page. Link previews, page titles, a 16px mobile text size, local QR codes, email sign-in codes, a once-only cloud sync, and a tighter rough estimate are in. AI quoting stays signed-in only. Database grants, row rules, and indexes are in `supabase/schema.sql` and a re-runnable migration.
 - [x] **Configurable Gemini model**: Quote generation and scope expansion share one model setting (`GEMINI_MODEL`, default `gemini-3.5-flash`). New Google keys no longer accept `gemini-2.5-flash`. If Gemini returns 404, 429, 503, times out, or sends unusable JSON, the quote falls back to the existing rough estimate instead of an error.
 - [x] **Homepage sample quote spacing**: Qty, rate, and line total on the landing-page quote preview each have a label and their own column, so the prices no longer run together on a phone.
 - [x] **Free public beta**: One product name in `lib/brand.mjs` (Chuffed Quotes), empty start instead of fake customers, AI only for signed-in users, card payments switched off, quote accept rules, pinch-zoom, and layout that stays on the page at phone, tablet, and desktop widths.

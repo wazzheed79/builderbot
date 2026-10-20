@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import {
   getSupabase,
@@ -16,6 +16,7 @@ interface AuthContextType {
   isConfigured: boolean;
   isDemoMode: boolean;
   signInWithOtp: (email: string) => Promise<{ error: string | null }>;
+  verifyEmailCode: (email: string, code: string) => Promise<{ error: string | null }>;
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   isConfigured: false,
   isDemoMode: true,
   signInWithOtp: async () => ({ error: "Not initialized" }),
+  verifyEmailCode: async () => ({ error: "Not initialized" }),
   signInWithPassword: async () => ({ error: "Not initialized" }),
   signUp: async () => ({ error: "Not initialized" }),
   signOut: async () => {},
@@ -59,35 +61,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [configured]);
 
+  const syncedUserId = useRef<string | null>(null);
+
   useEffect(() => {
     if (!configured) return;
 
     const sb = getSupabase();
     if (!sb) return;
 
-    // 1. Initial Session Check
-    sb.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      if (initialSession?.user) {
-        syncFromCloud().finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    }).catch(() => {
-      setLoading(false);
-    });
-
-    // 2. Auth State Listener
     const {
       data: { subscription },
-    } = sb.auth.onAuthStateChange(async (event, newSession) => {
+    } = sb.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
-      if (event === "SIGNED_IN" && newSession?.user) {
-        await syncFromCloud();
+      const userId = newSession?.user?.id ?? null;
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && userId) {
+        if (syncedUserId.current !== userId) {
+          syncedUserId.current = userId;
+          // Do not await Supabase calls inside this callback.
+          window.setTimeout(() => {
+            void syncFromCloud();
+          }, 0);
+        }
       } else if (event === "SIGNED_OUT") {
+        syncedUserId.current = null;
         clearLocalData();
       }
       setLoading(false);
@@ -102,12 +100,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase authentication is not configured in this environment." };
 
-    const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
     const { error } = await sb.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: {
-        emailRedirectTo: `${siteUrl}/dashboard`,
-      },
+      options: { shouldCreateUser: true },
+    });
+
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
+  const verifyEmailCode = async (email: string, code: string): Promise<{ error: string | null }> => {
+    const sb = getSupabase();
+    if (!sb) return { error: "Supabase authentication is not configured in this environment." };
+
+    const token = code.replace(/\D/g, "");
+    if (token.length !== 6) return { error: "Enter the 6-digit code from the email." };
+
+    const { error } = await sb.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token,
+      type: "email",
     });
 
     if (error) return { error: error.message };
@@ -171,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isConfigured: configured,
         isDemoMode,
         signInWithOtp,
+        verifyEmailCode,
         signInWithPassword,
         signUp,
         signOut,

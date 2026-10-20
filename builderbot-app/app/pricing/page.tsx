@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { brand } from "@/lib/brand.mjs";
 import FoundingOffer from "@/components/FoundingOffer";
+
+export const metadata: Metadata = {
+  title: "Pricing",
+  description: `${brand.name} is free while it is in testing. No card needed.`,
+};
 
 export default function PricingPage() {
   return (

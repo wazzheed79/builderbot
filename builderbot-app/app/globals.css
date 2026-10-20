@@ -34,6 +34,15 @@ select {
   max-width: 100%;
 }
 
+/* iPhone zooms the page when a field's text is under 16px. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="image"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Quote rows that must stay on the page at every width. */
 .stack-table {
   overflow-x: visible;

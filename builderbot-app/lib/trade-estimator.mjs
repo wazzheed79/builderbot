@@ -2,6 +2,22 @@
 // Used as the smart offline/instant engine in app/api/quote/generate/route.ts.
 
 /**
+ * Hours the notes actually mention. Half a day is 4 hours. A bare day is 8.
+ * @param {string} [notes]
+ * @returns {number | null}
+ */
+export function statedLabourHours(notes = "") {
+  const text = String(notes || "").toLowerCase();
+  if (/\bhalf\s+(?:a\s+)?day\b/.test(text)) return 4;
+  const hours = text.match(/\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)\b/);
+  if (hours) return Math.max(0.5, Math.min(80, Number(hours[1])));
+  const days = text.match(/\b(\d+(?:\.\d+)?)\s*days?\b/);
+  if (days) return Math.max(0.5, Math.min(80, Number(days[1]) * 8));
+  if (/\b(?:a|one)\s+day\b/.test(text)) return 8;
+  return null;
+}
+
+/**
  * @param {string} [notes]
  * @param {string} [trade]
  * @param {any} [pricingMemory]
@@ -87,11 +103,10 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
       }
     );
   } else if (
-    lower.includes("fuse") ||
-    lower.includes("electric") ||
-    lower.includes("socket") ||
-    lower.includes("downlight") ||
     lower.includes("consumer unit") ||
+    lower.includes("fuse board") ||
+    lower.includes("fuseboard") ||
+    lower.includes("fuse box") ||
     lower.includes("rewire")
   ) {
     title = "Electrical Installation & Upgrades";
@@ -124,6 +139,45 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
         quantity: 1,
         unit: "service",
         rate: 120.0,
+      }
+    );
+  } else if (
+    lower.includes("socket") ||
+    lower.includes("downlight") ||
+    lower.includes("light switch") ||
+    lower.includes("electric")
+  ) {
+    const countMatch = lower.match(
+      /(\d+)\s*(?:x\s*)?(?:double\s+|single\s+|twin\s+)?(?:sockets?|downlights?|switches?)/
+    );
+    const count = countMatch ? Math.max(1, Math.min(100, Number(countMatch[1]))) : 1;
+    const sockets = lower.includes("socket");
+    title = sockets ? "Socket Replacement" : "Electrical Accessory Works";
+    suggestedDepositPercent = 20;
+    items.push(
+      sockets
+        ? {
+            type: "material",
+            description: "Double switched socket outlets",
+            quantity: count,
+            unit: "sockets",
+            rate: 8.5,
+          }
+        : {
+            type: "material",
+            description: "Electrical accessories and back boxes for the fittings described",
+            quantity: count,
+            unit: "items",
+            rate: 12.0,
+          },
+      {
+        type: "labor",
+        description: sockets
+          ? "Isolate the circuit, replace the sockets, and test them"
+          : "Isolate the circuit, fit the accessories described, and test them",
+        quantity: Math.max(1, Math.round(count * 0.75 * 10) / 10),
+        unit: "hrs",
+        rate: 55.0,
       }
     );
   } else if (
@@ -722,6 +776,16 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
         rate: 45.0,
       }
     );
+  }
+
+  const statedHours = statedLabourHours(notes);
+  if (statedHours != null) {
+    for (const it of items) {
+      if (it.type === "labor") {
+        it.quantity = statedHours;
+        it.unit = "hrs";
+      }
+    }
   }
 
   // Calibrate with personal pricing memory DNA if provided

@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { roundMoney } from "@/lib/storage";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
+import { takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 
@@ -78,29 +79,13 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
 
-    if (apiKey) {
-      if (userId) {
-        const userLimit = checkRateLimit(`ai-generate:user:${userId}`, 30, 60 * 60 * 1000);
-        if (!userLimit.allowed) {
-          return NextResponse.json(
-            { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
-            { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
-          );
-        }
-      } else {
-        const guestLimit = checkRateLimit(`ai-generate:guest:${clientIp}`, 15, 60 * 60 * 1000);
-        if (!guestLimit.allowed) {
-          // Graceful fallback to heuristic engine if guest limit reached
-          const estimate = estimateTradeJob(notes, trade, pricingMemory, photos);
-          return NextResponse.json({
-            title: estimate.title,
-            scopeOfWork: estimate.scopeOfWork,
-            suggestedDepositPercent: estimate.suggestedDepositPercent,
-            items: estimate.items,
-            aiPowered: false,
-            notice: "Guest preview limit reached. Sign in for full AI quoting, or edit prices below.",
-          });
-        }
+    if (apiKey && userId) {
+      const userLimit = await takeAiTurn(userId, "generate");
+      if (!userLimit.allowed) {
+        return NextResponse.json(
+          { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
+          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+        );
       }
 
       let systemInstruction =
@@ -282,7 +267,9 @@ export async function POST(request: NextRequest) {
       aiPowered: false,
       estimateOnly: true,
       notice:
-        "Rough estimate. Change every price before you send it.",
+        !userId && apiKey
+          ? "Rough estimate. Sign in for AI prices, and change every price before you send it."
+          : "Rough estimate. Change every price before you send it.",
     });
   } catch (error) {
     console.error("Error generating quote:", error);

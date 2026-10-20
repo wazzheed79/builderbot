@@ -42,7 +42,9 @@ import {
   getWhatsAppFollowUpUrl,
   formatWhatsAppFollowUpMessage,
 } from "@/lib/share";
-import { getAuthHeaders } from "@/lib/supabase";
+import { getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
+import type { Quote } from "@/lib/storage";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -76,6 +78,7 @@ export default function QuotesClient() {
   const searchParams = useSearchParams();
   const customerIdParam = searchParams.get("customerId");
 
+  const { user, isConfigured } = useAuth();
   const customers = useCustomerList();
   const profile = useBusinessProfile();
   const ready = useClientReady();
@@ -86,6 +89,8 @@ export default function QuotesClient() {
   // Active Quote tracking (prevents duplicate re-saving)
   const [activeQuoteId, setActiveQuoteId] = useState<string | null>(null);
   const [activeToken, setActiveToken] = useState<string | null>(null);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   // Client Details
   const [clientName, setClientName] = useState("");
@@ -389,36 +394,10 @@ export default function QuotesClient() {
   const total = roundMoney(subtotal + vat);
   const deposit = roundMoney((total * depositPercent) / 100);
 
-  const shareOnWhatsApp = () => {
-    if (!activeQuoteId && !activeToken) {
-      triggerToast("Save the quote first. Then you can send the customer link on WhatsApp.");
-      return;
-    }
-    const siteOrigin = window.location.origin;
-    const params = {
-      quoteId: activeQuoteId || "",
-      token: activeToken || activeQuoteId || "",
-      clientName: clientName || "there",
-      clientPhone: clientPhone,
-      quoteTitle: quoteTitle,
-      companyName: profile.companyName,
-      contractorName: profile.ownerName,
-      total,
-      deposit,
-      depositPercent,
-    };
-    const waUrl = getWhatsAppShareUrl(params, siteOrigin);
-    const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
-    navigator.clipboard.writeText(shareText).catch(() => {});
-    window.open(waUrl, "_blank", "noopener,noreferrer");
-    triggerToast("WhatsApp is opening with the customer link in the message.");
-  };
-
-  // Save to Repository (Updates existing if activeQuoteId set)
-  const handleSaveQuote = (status: "Draft" | "Sent" = "Sent") => {
+  const publishQuote = async (status: "Draft" | "Sent" = "Sent"): Promise<Quote | null> => {
     if (!clientName.trim() && items.length === 0) {
-      triggerToast("Please add client details or line items before saving.");
-      return;
+      setShareNotice("Add a customer name or some prices before you save.");
+      return null;
     }
 
     const saved = saveQuote({
@@ -426,7 +405,7 @@ export default function QuotesClient() {
       customerId: selectedCustomerId || undefined,
       clientName: clientName.trim() || "Private Client",
       clientCompany: clientCompany.trim() || undefined,
-      clientAddress: clientAddress.trim() || "Local Address",
+      clientAddress: clientAddress.trim() || "Address to be confirmed",
       clientPhone: clientPhone.trim() || undefined,
       clientEmail: clientEmail.trim() || undefined,
       title: quoteTitle.trim() || "Trade Works Specification",
@@ -444,7 +423,108 @@ export default function QuotesClient() {
 
     setActiveQuoteId(saved.id);
     setActiveToken(saved.token);
-    triggerToast(`Quote ${saved.id} saved! Link: /q/${saved.token}`);
+
+    if (!user) {
+      setShareNotice(
+        "Sign in before you share. The quote is saved on this phone only, so a customer who opens the link will see Quote not found."
+      );
+      return null;
+    }
+    if (!isConfigured) {
+      setShareNotice("Online save is not set up on this site yet, so the customer link will not work.");
+      return null;
+    }
+
+    const cloud = await syncQuoteToCloud(saved);
+    if (!cloud.ok) {
+      setShareNotice(cloud.error);
+      return null;
+    }
+
+    setShareNotice(null);
+    return saved;
+  };
+
+  const shareOnWhatsApp = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const saved = await publishQuote("Sent");
+      if (!saved) return;
+      const siteOrigin = window.location.origin;
+      const params = {
+        quoteId: saved.id,
+        token: saved.token,
+        clientName: clientName || "there",
+        clientPhone: clientPhone,
+        quoteTitle: quoteTitle,
+        companyName: profile.companyName,
+        contractorName: profile.ownerName,
+        total,
+        deposit,
+        depositPercent,
+      };
+      const waUrl = getWhatsAppShareUrl(params, siteOrigin);
+      const shareText = formatWhatsAppQuoteMessage(params, siteOrigin);
+      navigator.clipboard.writeText(shareText).catch(() => {});
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+      triggerToast("WhatsApp is opening. The customer link is saved online.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const openCustomerLink = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const saved = await publishQuote("Sent");
+      if (!saved) return;
+      window.open(`/q/${saved.token}`, "_blank", "noopener,noreferrer");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const sendFollowUp = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const saved = await publishQuote("Sent");
+      if (!saved) return;
+      const siteOrigin = window.location.origin;
+      const params = {
+        quoteId: saved.id,
+        token: saved.token,
+        clientName: clientName || "there",
+        clientPhone: clientPhone,
+        quoteTitle: quoteTitle,
+        companyName: profile.companyName,
+        contractorName: profile.ownerName,
+        total,
+        deposit,
+        depositPercent,
+      };
+      const waFollowUpUrl = getWhatsAppFollowUpUrl(params, siteOrigin);
+      const followUpText = formatWhatsAppFollowUpMessage(params, siteOrigin);
+      navigator.clipboard.writeText(followUpText).catch(() => {});
+      window.open(waFollowUpUrl, "_blank", "noopener,noreferrer");
+      triggerToast("WhatsApp is opening with a follow-up.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const saveAndIssue = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const saved = await publishQuote("Sent");
+      if (!saved) return;
+      triggerToast("Quote saved online. The customer link is ready to share.");
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -470,13 +550,15 @@ export default function QuotesClient() {
         </div>
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
           {activeToken || activeQuoteId ? (
-            <Link
-              href={`/q/${activeToken || activeQuoteId}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition"
+            <button
+              type="button"
+              onClick={openCustomerLink}
+              disabled={sharing}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition disabled:opacity-60"
             >
               <Eye className="w-3.5 h-3.5 text-slate-500" />
-              <span>Customer Link ({activeQuoteId})</span>
-            </Link>
+              <span>Customer link ({activeQuoteId})</span>
+            </button>
           ) : (
             <button
               type="button"
@@ -821,8 +903,9 @@ export default function QuotesClient() {
               <div id="quote-share" className="pt-4 space-y-2.5">
                 <button
                   type="button"
-                  onClick={() => handleSaveQuote("Sent")}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition active:scale-[0.98]"
+                  onClick={saveAndIssue}
+                  disabled={sharing}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition active:scale-[0.98] disabled:opacity-60"
                 >
                   <Save className="w-4 h-4" />
                   <span>{activeQuoteId ? "Update & Issue Quote" : "Save & Issue Quote to Client"}</span>
@@ -831,77 +914,70 @@ export default function QuotesClient() {
                 <button
                   type="button"
                   onClick={shareOnWhatsApp}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-extrabold text-emerald-900 hover:bg-emerald-100"
+                  disabled={sharing}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-extrabold text-emerald-900 hover:bg-emerald-100 disabled:opacity-60"
                 >
                   <Share2 className="h-4 w-4 text-emerald-700" />
                   <span>Share on WhatsApp</span>
                 </button>
 
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Link
-                    href={activeToken ? `/q/${activeToken}` : activeQuoteId ? `/q/${activeQuoteId}` : "#"}
-                    onClick={(e) => {
-                      if (!activeQuoteId && !activeToken) {
-                        e.preventDefault();
-                        triggerToast("Please save the quote first to generate a customer link.");
-                      }
-                    }}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
-                      activeQuoteId || activeToken
-                        ? "bg-slate-100 hover:bg-slate-200 text-slate-800"
-                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                    }`}
+                  <button
+                    type="button"
+                    onClick={openCustomerLink}
+                    disabled={sharing}
+                    className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-60"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Customer link</span>
-                  </Link>
+                  </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!activeQuoteId && !activeToken) {
-                        triggerToast("Save the quote first to generate a follow-up link.");
-                        return;
-                      }
-                      const siteOrigin = window.location.origin;
-                      const params = {
-                        quoteId: activeQuoteId || "",
-                        token: activeToken || activeQuoteId || "",
-                        clientName: clientName || "there",
-                        clientPhone: clientPhone,
-                        quoteTitle: quoteTitle,
-                        companyName: profile.companyName,
-                        contractorName: profile.ownerName,
-                        total,
-                        deposit,
-                        depositPercent,
-                      };
-                      const waFollowUpUrl = getWhatsAppFollowUpUrl(params, siteOrigin);
-                      const followUpText = formatWhatsAppFollowUpMessage(params, siteOrigin);
-                      navigator.clipboard.writeText(followUpText);
-                      window.open(waFollowUpUrl, "_blank");
-                      triggerToast("WhatsApp opened with warm follow-up message!");
-                    }}
-                    className="flex min-h-11 items-center justify-center gap-1.5 bg-clay-50 hover:bg-clay-100 text-clay-800 border border-clay-200 font-semibold py-2 px-3 rounded-xl text-xs transition sm:col-span-2"
-                    title="Send a polite follow-up message if the customer hasn't responded"
+                    onClick={sendFollowUp}
+                    disabled={sharing}
+                    className="flex min-h-11 items-center justify-center gap-1.5 bg-clay-50 hover:bg-clay-100 text-clay-800 border border-clay-200 font-semibold py-2 px-3 rounded-xl text-xs transition sm:col-span-2 disabled:opacity-60"
+                    title="Send a polite follow-up if the customer has not replied"
                   >
                     <MessageCircle className="w-3.5 h-3.5 text-clay-700" />
-                    <span>Send Polite Follow-Up (WhatsApp)</span>
+                    <span>Send a polite follow-up (WhatsApp)</span>
                   </button>
                 </div>
+
+                {shareNotice && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                    <p>{shareNotice}</p>
+                    {!user && /sign in/i.test(shareNotice) && (
+                      <Link href="/login" className="mt-2 inline-flex min-h-11 items-center font-bold text-clay-800 underline">
+                        Sign in
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Note */}
               <div className="p-3 bg-clay-50/70 border border-clay-200/60 rounded-xl flex items-start gap-2 text-xs text-clay-800">
                 <HelpCircle className="w-4 h-4 text-clay-700 shrink-0 mt-0.5" />
                 <span>
-                  Quotes get a unique, unguessable customer link where clients can sign digitally from any smartphone.
+                  Sign in before you share. The customer then gets a private link they can open and sign on their phone.
                 </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {shareNotice && (
+        <div className="lg:hidden fixed bottom-[132px] left-3 right-3 z-40 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 shadow-lg">
+          <p>{shareNotice}</p>
+          {!user && /sign in/i.test(shareNotice) && (
+            <Link href="/login" className="mt-2 inline-flex min-h-11 items-center font-bold text-clay-800 underline">
+              Sign in
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Mobile Sticky Summary & Fast Action Bar (lg:hidden) */}
       <div className="lg:hidden fixed bottom-[64px] left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t-2 border-slate-800 text-white px-4 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between gap-3">
@@ -920,7 +996,8 @@ export default function QuotesClient() {
             <button
               type="button"
               onClick={shareOnWhatsApp}
-              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-3.5 py-2 min-h-[46px] rounded-xl text-xs shadow-md active:scale-95 transition"
+              disabled={sharing}
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-3.5 py-2 min-h-[46px] rounded-xl text-xs shadow-md active:scale-95 transition disabled:opacity-60"
             >
               <Share2 className="w-4 h-4" />
               <span>WhatsApp</span>
@@ -928,7 +1005,8 @@ export default function QuotesClient() {
           ) : (
             <button
               type="button"
-              onClick={() => handleSaveQuote()}
+              onClick={saveAndIssue}
+              disabled={sharing}
               className="inline-flex items-center gap-1.5 bg-clay-700 hover:bg-clay-800 active:bg-blue-800 text-white font-extrabold px-4 py-2 min-h-[46px] rounded-xl text-xs sm:text-sm shadow-md active:scale-95 transition"
             >
               <Save className="w-4 h-4" />

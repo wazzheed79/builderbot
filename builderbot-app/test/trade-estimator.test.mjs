@@ -20,6 +20,18 @@ test("estimateTradeJob: generates realistic breakdowns across all major UK trade
   assert.equal(spark.title, "Electrical Installation & Upgrades");
   assert.ok(spark.items.some((i) => i.description.includes("Consumer Unit")));
 
+  const sockets = estimateTradeJob("Replace 3 double sockets, half a day");
+  assert.equal(sockets.title, "Socket Replacement");
+  assert.equal(
+    sockets.items.some((i) => /consumer unit/i.test(i.description)),
+    false
+  );
+  const socketMaterials = sockets.items.find((i) => i.type === "material");
+  assert.equal(socketMaterials.quantity, 3);
+  const socketLabour = sockets.items.find((i) => i.type === "labor");
+  assert.equal(socketLabour.quantity, 4);
+  assert.equal(socketLabour.unit, "hrs");
+
   // 4. Roofing
   const roof = estimateTradeJob("Replace broken roof slates and repair guttering");
   assert.equal(roof.title, "Roofing Repair & Weatherproofing");

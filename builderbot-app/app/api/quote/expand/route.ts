@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getSignedInUserId } from "@/lib/ai-access";
+import { takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 
@@ -63,25 +64,13 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
 
-    if (apiKey) {
-      if (userId) {
-        const userLimit = checkRateLimit(`ai-expand:user:${userId}`, 30, 60 * 60 * 1000);
-        if (!userLimit.allowed) {
-          return NextResponse.json(
-            { error: "AI limit reached for this hour. You can keep your own notes." },
-            { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
-          );
-        }
-      } else {
-        const guestLimit = checkRateLimit(`ai-expand:guest:${clientIp}`, 15, 60 * 60 * 1000);
-        if (!guestLimit.allowed) {
-          return NextResponse.json({
-            title: initialTitle || "Trade Works Specification",
-            scopeOfWork: notes,
-            aiPowered: false,
-            notice: "Guest preview limit reached. Sign in for full AI scope expansion.",
-          });
-        }
+    if (apiKey && userId) {
+      const userLimit = await takeAiTurn(userId, "expand");
+      if (!userLimit.allowed) {
+        return NextResponse.json(
+          { error: "AI limit reached for this hour. You can keep your own notes." },
+          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+        );
       }
 
       // Pass user notes securely as content parts, not prompt interpolation.
@@ -151,7 +140,9 @@ export async function POST(request: NextRequest) {
       title: initialTitle || "Trade works",
       scopeOfWork: notes,
       aiPowered: false,
-      notice: "Kept your own words. Edit them before you send the quote.",
+      notice: userId
+        ? "Kept your own words. Edit them before you send the quote."
+        : "Sign in for an AI rewrite. Your own words are still here.",
     });
   } catch (error) {
     console.error("Error expanding scope:", error);

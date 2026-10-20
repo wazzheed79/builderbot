@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { brand } from "@/lib/brand.mjs";
+
+export const metadata: Metadata = {
+  title: "Terms of use",
+  description: `Plain-language terms for the free ${brand.name} beta.`,
+};
 
 export default function TermsPage() {
   return (

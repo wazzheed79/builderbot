@@ -15,15 +15,15 @@ export function GET() {
     scope: "/",
     icons: [
       {
-        src: "/icon.svg",
+        src: "/icon-512.png",
         sizes: "512x512",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any maskable",
       },
       {
-        src: "/icon.svg",
+        src: "/icon-192.png",
         sizes: "192x192",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any",
       },
     ],
@@ -33,14 +33,14 @@ export function GET() {
         short_name: "New Quote",
         description: "Start a new trade quote",
         url: "/quotes",
-        icons: [{ src: "/icon.svg", sizes: "192x192" }],
+        icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }],
       },
       {
         name: "Customers",
         short_name: "Customers",
         description: "View customer directory and quotes",
         url: "/customers",
-        icons: [{ src: "/icon.svg", sizes: "192x192" }],
+        icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }],
       },
     ],
   });
