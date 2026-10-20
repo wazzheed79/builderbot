@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import AppNav from "@/components/AppNav";
 import { AuthProvider } from "@/components/AuthProvider";
+import AuthReturn from "@/components/AuthReturn";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import { brand, configuredSiteUrl } from "@/lib/brand.mjs";
 
@@ -77,6 +78,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-paper text-ink pb-24 lg:pb-0">
         <AuthProvider>
+          <Suspense fallback={null}>
+            <AuthReturn />
+          </Suspense>
           <ClientErrorReporter />
           <Suspense fallback={<div className="h-16 border-b border-stone-200 bg-white" />}>
             <AppNav />

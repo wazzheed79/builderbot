@@ -96,13 +96,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [configured, syncFromCloud]);
 
+  const emailRedirectTo = (): string | undefined => {
+    if (typeof window === "undefined") return undefined;
+    return `${window.location.origin}/auth/callback`;
+  };
+
   const signInWithOtp = async (email: string): Promise<{ error: string | null }> => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase authentication is not configured in this environment." };
 
     const { error } = await sb.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: emailRedirectTo(),
+      },
     });
 
     if (error) return { error: error.message };
@@ -149,12 +157,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase authentication is not configured in this environment." };
 
-    const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
     const { error } = await sb.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
-        emailRedirectTo: `${siteUrl}/dashboard`,
+        emailRedirectTo: emailRedirectTo(),
       },
     });
 

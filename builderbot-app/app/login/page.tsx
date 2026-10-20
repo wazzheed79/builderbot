@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [codeSent, setCodeSent] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   const [accountNote, setAccountNote] = useState(false);
 
   // If already logged in, show redirect CTA
@@ -173,6 +174,7 @@ export default function LoginPage() {
                 setMode("code");
                 setErrorMsg(null);
                 setCodeSent(false);
+                setShowCode(false);
                 setAccountNote(false);
               }}
               className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
@@ -182,7 +184,7 @@ export default function LoginPage() {
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-clay-700" />
-              <span>Email code</span>
+              <span>Email link</span>
             </button>
             <button
               type="button"
@@ -190,6 +192,7 @@ export default function LoginPage() {
                 setMode("password");
                 setErrorMsg(null);
                 setCodeSent(false);
+                setShowCode(false);
                 setAccountNote(false);
               }}
               className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
@@ -218,8 +221,8 @@ export default function LoginPage() {
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-1">Check your inbox</h3>
               <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                If this site asks you to confirm a new password account, use the code in the email for{" "}
-                <strong className="text-slate-900">{email}</strong>. Do not rely on a link. Outlook can open the link before you do.
+                If this site asks you to confirm the new account, tap the link in the email for{" "}
+                <strong className="text-slate-900">{email}</strong>. It brings you back signed in.
               </p>
               <button
                 type="button"
@@ -230,48 +233,61 @@ export default function LoginPage() {
               </button>
             </div>
           ) : codeSent ? (
-            <form onSubmit={handleVerifyCode} className="space-y-4">
+            <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Enter the 6-digit code</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Check your inbox</h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  We emailed a code to <strong className="text-slate-900">{email}</strong>. Type it here. You do not need to tap a link.
+                  We sent a sign-in link to <strong className="text-slate-900">{email}</strong>. Tap the link and it opens your dashboard.
                 </p>
               </div>
-              <div>
-                <label htmlFor="email-code" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Code
-                </label>
-                <input
-                  id="email-code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="123456"
-                  className="block w-full px-3 py-3 border border-slate-300 rounded-xl text-center tracking-[0.4em] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clay-700 focus:border-transparent"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading || code.length !== 6}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-clay-700 hover:bg-clay-800 transition disabled:opacity-50"
-              >
-                {loading ? "Checking the code..." : "Sign in"}
-              </button>
+              {showCode ? (
+                <form onSubmit={handleVerifyCode} className="space-y-4">
+                  <div>
+                    <label htmlFor="email-code" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Code
+                    </label>
+                    <input
+                      id="email-code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="123456"
+                      className="block w-full px-3 py-3 border border-slate-300 rounded-xl text-center tracking-[0.4em] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clay-700 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || code.length !== 6}
+                    className="w-full min-h-11 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-clay-700 hover:bg-clay-800 transition disabled:opacity-50"
+                  >
+                    {loading ? "Checking the code..." : "Sign in"}
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCode(true)}
+                  className="w-full min-h-11 py-3 px-4 rounded-xl text-sm font-semibold text-clay-800 bg-stone-100 hover:bg-stone-200"
+                >
+                  Got a code instead? Enter it here
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   setCodeSent(false);
+                  setShowCode(false);
                   setCode("");
                 }}
-                className="w-full text-xs font-semibold text-clay-700 hover:text-clay-800 underline"
+                className="w-full min-h-11 text-xs font-semibold text-clay-700 hover:text-clay-800 underline"
               >
                 Use a different email address
               </button>
-            </form>
+            </div>
           ) : mode === "code" ? (
             <form onSubmit={handleSendCode} className="space-y-4">
               <div>
@@ -293,7 +309,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <p className="text-sm text-slate-500 mt-1.5">
-                  We email a 6-digit code. Type it on this phone. A link in the email can be used up by Outlook before you see it.
+                  We email you a link. Tap it on this phone and you are signed in.
                 </p>
               </div>
 
@@ -305,12 +321,12 @@ export default function LoginPage() {
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Sending the code...
+                    Sending the email...
                   </span>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 text-blue-200" />
-                    <span>Email me a code</span>
+                    <span>Email me a sign-in link</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

@@ -23,7 +23,15 @@ let serverInstance: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured()) return null;
   if (!clientInstance && supabaseUrl && supabaseAnonKey) {
-    clientInstance = createClient(supabaseUrl, supabaseAnonKey);
+    clientInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // The default Magic Link email only has a link. Implicit flow brings
+        // that link back as a hash the callback page can turn into a session.
+        // PKCE would need a template edit, which the free plan does not allow.
+        flowType: "implicit",
+        detectSessionInUrl: false,
+      },
+    });
   }
   return clientInstance;
 }
