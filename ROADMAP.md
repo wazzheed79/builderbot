@@ -35,7 +35,7 @@ The goal is to remove paperwork and allow tradespeople to spend more time earnin
 - [x] Enter job description
 - [x] Itemize materials & trade supplier pricing
 - [x] Calculate labour hours and daily rates
-- [x] AI quote breakdown with UK trade intelligence (Gemini 2.5 Flash / Smart Rules)
+- [x] AI quote breakdown with UK trade intelligence (Gemini 3.5 Flash by default, or `GEMINI_MODEL`, with a rough-estimate fallback)
 
 ### PDF & Customer Portal
 - [x] Create professional branded PDF

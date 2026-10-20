@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { GoogleGenAI, Type } from "@google/genai";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getSignedInUserId } from "@/lib/ai-access";
 import { brand } from "@/lib/brand.mjs";
+import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 
 const ExpandRequestSchema = z.object({
   notes: z
@@ -84,64 +84,67 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const ai = new GoogleGenAI({ apiKey });
-
-      // Pass user notes securely as content parts, not prompt interpolation
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `Target Trade Category: ${trade || "General Building & Renovation"}\nExisting Title: ${initialTitle || "None"}\nRaw Job Notes to expand into professional scope of works:`,
-              },
-              { text: notes },
-            ],
-          },
-        ],
-        config: {
-          systemInstruction:
-            `You write scopes of work for ${brand.name}, for UK tradespeople. ` +
-            "Expand the user's raw notes into a formal, professional scope of works suitable for a customer contract. " +
-            "Detail preparation, safety, materials installation methodology, quality checks, and site clearance. " +
-            "CRITICAL: NEVER hallucinate or claim regulatory registrations (e.g. Gas Safe, NICEIC, Part P) unless explicitly mentioned in the notes. " +
-            "Keep the language clear, trustworthy, and free of unnecessary fluff.",
-          responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: {
-                type: Type.STRING,
-                description: "Polished trade title",
-              },
-              scopeOfWork: {
-                type: Type.STRING,
-                description: "Expanded professional scope of works",
-              },
+      // Pass user notes securely as content parts, not prompt interpolation.
+      // A failed Gemini call falls through to the kept-notes response below.
+      try {
+        const responseText = await generateGeminiText({
+          apiKey,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Target Trade Category: ${trade || "General Building & Renovation"}\nExisting Title: ${initialTitle || "None"}\nRaw Job Notes to expand into professional scope of works:`,
+                },
+                { text: notes },
+              ],
             },
-            required: ["title", "scopeOfWork"],
+          ],
+          config: {
+            systemInstruction:
+              `You write scopes of work for ${brand.name}, for UK tradespeople. ` +
+              "Expand the user's raw notes into a formal, professional scope of works suitable for a customer contract. " +
+              "Detail preparation, safety, materials installation methodology, quality checks, and site clearance. " +
+              "CRITICAL: NEVER hallucinate or claim regulatory registrations (e.g. Gas Safe, NICEIC, Part P) unless explicitly mentioned in the notes. " +
+              "Keep the language clear, trustworthy, and free of unnecessary fluff.",
+            responseMimeType: "application/json",
+            responseJsonSchema: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description: "Polished trade title",
+                },
+                scopeOfWork: {
+                  type: "string",
+                  description: "Expanded professional scope of works",
+                },
+              },
+              required: ["title", "scopeOfWork"],
+            },
           },
-        },
-      });
+        });
 
-      const responseText = response.text || "{}";
-      const parsed = JSON.parse(responseText);
+        const parsed = parseGeminiJson(responseText);
 
-      const cleanTitle = String(parsed.title || initialTitle || "Trade Works Specification")
-        .trim()
-        .slice(0, 150);
-      const cleanScope = String(parsed.scopeOfWork || notes)
-        .trim()
-        .slice(0, 3000);
+        const cleanTitle = String(parsed.title || initialTitle || "Trade Works Specification")
+          .trim()
+          .slice(0, 150);
+        const cleanScope = String(parsed.scopeOfWork || notes)
+          .trim()
+          .slice(0, 3000);
 
-      const result: ExpandResponse = {
-        title: cleanTitle,
-        scopeOfWork: cleanScope,
-        aiPowered: true,
-      };
+        const result: ExpandResponse = {
+          title: cleanTitle,
+          scopeOfWork: cleanScope,
+          aiPowered: true,
+        };
 
-      return NextResponse.json(result);
+        return NextResponse.json(result);
+      } catch (error) {
+        if (!shouldUseRoughEstimate(error)) throw error;
+        console.error("Gemini scope expansion failed. Keeping the original notes.", error);
+      }
     }
 
     return NextResponse.json({

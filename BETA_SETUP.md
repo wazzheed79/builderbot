@@ -31,6 +31,7 @@ In the Vercel project, open **Settings → Environment Variables** and add:
 | `NEXT_PUBLIC_APP_URL` | Your public address, no slash at the end. Optional. |
 | `NEXT_PUBLIC_FEEDBACK_EMAIL` | Optional. Leave blank to use wazzheed+chuffed@gmail.com. |
 | `GEMINI_API_KEY` | Only if you want AI prices. Optional. |
+| `GEMINI_MODEL` | Optional. Leave blank, or set `gemini-3.5-flash`. New keys cannot use `gemini-2.5-flash`. |
 
 Leave every Stripe key empty. Card payments are turned off in the app.
 
@@ -42,6 +43,7 @@ Press **Redeploy** after saving the variables.
 2. In Google Cloud billing, set a monthly cap you can afford (a few pounds is enough for a test).
 3. AI only runs for people who are signed in. Everyone else gets a rough estimate they must edit.
 4. Do not rely on a free Gemini key for customer photos. Google may use that content to improve its models.
+5. The app asks Google for `gemini-3.5-flash` unless `GEMINI_MODEL` is set. If Google is busy, the model is missing, or the reply takes longer than 20 seconds, the quote still uses the rough estimate. Change every price before you send it.
 
 ## 5. Owner details
 
