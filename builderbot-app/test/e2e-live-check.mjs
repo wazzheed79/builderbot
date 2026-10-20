@@ -56,30 +56,13 @@ async function runTestSuite() {
     if (!hasNewQuote) throw new Error("PWA shortcut for /quotes not found");
   });
 
-  // 3. Customer Quote Acceptance Page & Progress Tracker
-  await test("Customer Quote Page & Progress Tracker (GET /q/BB-1042)", async () => {
+  // 3. Unknown customer links are a real 404, not an empty quote page.
+  await test("Unknown quote link (GET /q/BB-1042)", async () => {
     const res = await fetch(`${BASE_URL}/q/BB-1042`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (res.status !== 404) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
-    if (!html.includes("Retrieving Quotation") && !html.includes("BB-1042")) {
-      throw new Error("Quote viewer shell not loaded");
-    }
-    const scriptMatches = [
-      ...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+\.js)"/g),
-    ].map((m) => m[1]);
-    let hasProgressTracker = false;
-    for (const s of scriptMatches) {
-      const chunkRes = await fetch(`${BASE_URL}${s}`);
-      if (chunkRes.ok) {
-        const text = await chunkRes.text();
-        if (text.includes("Job Progress Tracker") || text.includes("Progress Tracker")) {
-          hasProgressTracker = true;
-          break;
-        }
-      }
-    }
-    if (!hasProgressTracker) {
-      throw new Error("Progress Tracker component not detected in production client bundle");
+    if (!html.includes("Page not found") && !html.includes("That page is not here")) {
+      throw new Error("Missing quote did not show the not-found page");
     }
   });
 

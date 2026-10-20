@@ -5,6 +5,7 @@ import {
   recalculateQuoteTotals,
   validateStatusTransition,
 } from "./quote-rules.mjs";
+import { isPublicQuoteToken } from "./public-quote.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
@@ -463,6 +464,16 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
   } catch {
     return { ok: false, error: "The quote did not save online. Check your connection and try again." };
   }
+}
+
+/** True when this address is not a real customer quote. A database outage does not count. */
+export async function isMissingPublicQuote(token: string): Promise<boolean> {
+  if (!isPublicQuoteToken(token)) return true;
+  const sb = getServerSupabase();
+  if (!sb) return false;
+  const { data, error } = await sb.from("quotes").select("id").eq("token", token).maybeSingle();
+  if (error) return false;
+  return !data;
 }
 
 export async function fetchPublicQuoteCard(token: string): Promise<{
