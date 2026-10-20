@@ -23,7 +23,15 @@ let serverInstance: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured()) return null;
   if (!clientInstance && supabaseUrl && supabaseAnonKey) {
-    clientInstance = createClient(supabaseUrl, supabaseAnonKey);
+    clientInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // The default Magic Link email only has a link. Implicit flow brings
+        // that link back as a hash the callback page can turn into a session.
+        // PKCE would need a template edit, which the free plan does not allow.
+        flowType: "implicit",
+        detectSessionInUrl: false,
+      },
+    });
   }
   return clientInstance;
 }
@@ -323,15 +331,64 @@ export async function submitPublicDecision(
   }
 }
 
+export type CloudSaveResult = { ok: true } | { ok: false; error: string };
+
+function plainCloudError(message: string): string {
+  const text = message.toLowerCase();
+  if (text.includes("customer")) {
+    return "The customer record is not online yet. The quote was not saved for sharing.";
+  }
+  if (text.includes("address")) {
+    return "Add an address, then try sharing again.";
+  }
+  if (text.includes("jwt") || text.includes("session") || text.includes("auth")) {
+    return "Your sign-in has expired. Sign in again, then share the quote.";
+  }
+  return "The quote did not save online. Check your connection and try again.";
+}
+
 // Background sync helpers (authenticated)
-export async function syncQuoteToCloud(quote: Quote): Promise<boolean> {
+export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) {
+    return { ok: false, error: "Online save is not set up on this site yet." };
+  }
 
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
-    if (!ownerId) return false; // Private: requires logged-in user
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
+    if (!ownerId) {
+      return {
+        ok: false,
+        error:
+          "Sign in before you share. This quote is only on this phone until then, so the customer link will not open.",
+      };
+    }
+
+    const address = quote.clientAddress.trim() || "Address to be confirmed";
+    const clientName = quote.clientName.trim() || "Private client";
+    const title = quote.title.trim() || "Trade works";
+    let customerId = quote.customerId || null;
+
+    if (customerId) {
+      const existing = await sb
+        .from("customers")
+        .select("id")
+        .eq("id", customerId)
+        .eq("owner_id", ownerId)
+        .maybeSingle();
+      if (!existing.data) {
+        const created = await sb.from("customers").upsert({
+          id: customerId,
+          owner_id: ownerId,
+          name: clientName,
+          phone: quote.clientPhone?.trim() || "Not given",
+          email: quote.clientEmail?.trim() || "not-given@local.invalid",
+          address,
+        });
+        if (created.error) customerId = null;
+      }
+    }
 
     const recalculated = recalculateQuoteTotals(quote.items, quote.vatEnabled, quote.depositPercent);
     const photos = Array.isArray(quote.photos)
@@ -342,13 +399,13 @@ export async function syncQuoteToCloud(quote: Quote): Promise<boolean> {
       id: quote.id,
       token: quote.token,
       owner_id: ownerId,
-      customer_id: quote.customerId || null,
-      client_name: quote.clientName,
+      customer_id: customerId,
+      client_name: clientName,
       client_company: quote.clientCompany || null,
-      client_address: quote.clientAddress,
+      client_address: address,
       client_phone: quote.clientPhone || null,
       client_email: quote.clientEmail || null,
-      title: quote.title,
+      title,
       notes: quote.notes,
       items: quote.items,
       subtotal: recalculated.subtotal,
@@ -371,11 +428,37 @@ export async function syncQuoteToCloud(quote: Quote): Promise<boolean> {
         Object.entries(row).filter(([key]) => key !== "photos")
       );
       const retry = await sb.from("quotes").upsert(withoutPhotos);
-      return !retry.error;
+      if (retry.error) return { ok: false, error: plainCloudError(retry.error.message || "") };
+      return { ok: true };
     }
-    return !first.error;
+    if (first.error) return { ok: false, error: plainCloudError(first.error.message || "") };
+    return { ok: true };
   } catch {
-    return false;
+    return { ok: false, error: "The quote did not save online. Check your connection and try again." };
+  }
+}
+
+export async function fetchPublicQuoteHeading(token: string): Promise<string | null> {
+  const sb = getServerSupabase();
+  if (!sb || !token.startsWith("q_")) return null;
+  try {
+    const { data: quoteRow } = await sb
+      .from("quotes")
+      .select("owner_id, title")
+      .eq("token", token)
+      .maybeSingle();
+    if (!quoteRow?.owner_id) return null;
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("company_name, trading_name")
+      .eq("owner_id", quoteRow.owner_id)
+      .maybeSingle();
+    const company = String(profile?.trading_name || profile?.company_name || "").trim();
+    if (company) return `Quote from ${company}`;
+    const title = String(quoteRow.title || "").trim();
+    return title ? `Quote: ${title}` : "Your quote";
+  } catch {
+    return null;
   }
 }
 
@@ -384,8 +467,8 @@ export async function syncCustomerToCloud(customer: Customer): Promise<boolean> 
   if (!sb) return false;
 
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb.from("customers").upsert({
@@ -410,8 +493,8 @@ export async function syncProfileToCloud(profile: BusinessProfile): Promise<bool
   if (!sb) return false;
 
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb.from("profiles").upsert({
@@ -484,8 +567,8 @@ export async function fetchCloudProfile(): Promise<BusinessProfile | null> {
   const sb = getSupabase();
   if (!sb) return null;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return null;
 
     const { data, error } = await sb
@@ -505,8 +588,8 @@ export async function fetchCloudCustomers(): Promise<Customer[]> {
   const sb = getSupabase();
   if (!sb) return [];
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return [];
 
     const { data, error } = await sb
@@ -526,8 +609,8 @@ export async function fetchCloudQuotes(): Promise<Quote[]> {
   const sb = getSupabase();
   if (!sb) return [];
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return [];
 
     const { data, error } = await sb
@@ -554,8 +637,8 @@ export async function pullUserDataFromCloud(): Promise<{
   if (!sb) return null;
 
   try {
-    const { data: userData } = await sb.auth.getUser();
-    if (!userData?.user?.id) return null;
+    const { data: userData } = await sb.auth.getSession();
+    if (!userData.session?.user?.id) return null;
 
     const [profile, customers, quotes, jobs, invoices] = await Promise.all([
       fetchCloudProfile(),
@@ -576,8 +659,8 @@ export async function deleteCloudCustomer(id: string): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb
@@ -596,8 +679,8 @@ export async function deleteCloudQuote(id: string): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb
@@ -617,8 +700,8 @@ export async function syncJobToCloud(job: Job): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb.from("jobs").upsert({
@@ -642,8 +725,8 @@ export async function deleteCloudJob(id: string): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb.from("jobs").delete().eq("id", id).eq("owner_id", ownerId);
@@ -657,8 +740,8 @@ export async function fetchCloudJobs(): Promise<Job[]> {
   const sb = getSupabase();
   if (!sb) return [];
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return [];
 
     const { data, error } = await sb
@@ -679,8 +762,8 @@ export async function syncInvoiceToCloud(invoice: Invoice): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb.from("invoices").upsert({
@@ -716,8 +799,8 @@ export async function deleteCloudInvoice(id: string): Promise<boolean> {
   const sb = getSupabase();
   if (!sb) return false;
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return false;
 
     const { error } = await sb.from("invoices").delete().eq("id", id).eq("owner_id", ownerId);
@@ -731,8 +814,8 @@ export async function fetchCloudInvoices(): Promise<Invoice[]> {
   const sb = getSupabase();
   if (!sb) return [];
   try {
-    const { data: userData } = await sb.auth.getUser();
-    const ownerId = userData?.user?.id;
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
     if (!ownerId) return [];
 
     const { data, error } = await sb

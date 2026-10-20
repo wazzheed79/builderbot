@@ -21,7 +21,7 @@
 - **Speech / Audio:** Web Speech API / Voice Dictation for Van Use
 - **State & Data Store:** `lib/storage.ts` (Client repository for Customers, Quotes, and Dashboard KPIs)
 - **Backend / Database:** Supabase (Auth, Postgres, Storage)
-- **AI Engine:** Google Gemini (fast structured output with `gemini-2.5-flash`)
+- **AI Engine:** Google Gemini (structured JSON quotes). The model id lives in `builderbot-app/lib/gemini.mjs`, defaults to `gemini-3.5-flash`, and can be overridden with `GEMINI_MODEL`.
 - **Payments:** Stripe (invoicing & deposit collection)
 - **Deployment:** Vercel
 
@@ -50,6 +50,9 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Email link sign-in**: The default Supabase magic-link email only contains the link, so tapping that link signs the person in and opens the dashboard. A 6-digit code can still be typed in when the email shows one. Password sign-in stays.
+- [x] **Live-site audit fixes**: Customer links are only offered after the quote is saved online (guests are asked to sign in). The “this browser only” banner waits until the page has loaded, so it no longer breaks the page. Link previews, page titles, a 16px mobile text size, local QR codes, a once-only cloud sync, and a tighter rough estimate are in. AI quoting stays signed-in only. Database grants, row rules, and indexes are in `supabase/schema.sql` and a re-runnable migration.
+- [x] **Configurable Gemini model**: Quote generation and scope expansion share one model setting (`GEMINI_MODEL`, default `gemini-3.5-flash`). New Google keys no longer accept `gemini-2.5-flash`. If Gemini returns 404, 429, 503, times out, or sends unusable JSON, the quote falls back to the existing rough estimate instead of an error.
 - [x] **Homepage sample quote spacing**: Qty, rate, and line total on the landing-page quote preview each have a label and their own column, so the prices no longer run together on a phone.
 - [x] **Free public beta**: One product name in `lib/brand.mjs` (Chuffed Quotes), empty start instead of fake customers, AI only for signed-in users, card payments switched off, quote accept rules, pinch-zoom, and layout that stays on the page at phone, tablet, and desktop widths.
 - [x] **Voice-first homepage**: Talk or type on the home page, a short notes-to-quote animation, a founding-member offer (first 100 sign-ups, free for 12 months), and a Share on WhatsApp button for the customer link. Customer-facing copy uses plain British spelling.
@@ -68,7 +71,7 @@ stateDiagram-v2
 - [x] **Live Dashboard Metrics (`app/dashboard/page.tsx`)**: Real-time KPI metrics (Quotes Sent, Won Contract Value, Win Rate %, Pending Value) dynamically calculated from stored quotes.
 - [x] **Repository & CI/CD**: Verified with clean Next.js 16 build and pushed to GitHub (`wazzheed79/builderbot`).
 - [x] **Business Profile & Branding System (`app/settings/page.tsx`, `lib/storage.ts`)**: User-editable profile for company details, trading name, bank details for wire deposits, and legitimate trade accreditations (removed the hardcoded sample company and one-tap fake registration badges).
-- [x] **Real Server-Side Gemini AI Endpoints (`app/api/quote/generate`, `app/api/quote/expand`)**: Official `@google/genai` SDK integration with `gemini-2.5-flash` and strict JSON schemas, providing intelligent itemization, market rates, and contract-ready scopes with fallback.
+- [x] **Real Server-Side Gemini AI Endpoints (`app/api/quote/generate`, `app/api/quote/expand`)**: Official `@google/genai` SDK integration with strict JSON schemas, providing intelligent itemization, market rates, and contract-ready scopes. The model id is shared (`lib/gemini.mjs`, default `gemini-3.5-flash`) and a failed call falls back to the rough estimate.
 - [x] **Supabase Multi-Device Cloud Sync (`lib/supabase.ts`, `app/api/quote/[id]`, `supabase/schema.sql`)**: Postgres tables with RLS and public token resolution allowing clients on any smartphone or browser to view, accept, and sign quotes remotely.
 - [x] **Clean Zero-Warning Production Build**: Resolved all 14 ESLint errors and Next.js 16 partial prerendering issues.
 

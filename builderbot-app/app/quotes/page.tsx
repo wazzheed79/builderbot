@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import QuotesClient from "./QuotesClient";
+
+export const metadata: Metadata = {
+  title: "Quote builder",
+  description: "Talk or type the job, set the prices, then share a link the customer can sign.",
+};
 
 export default function QuotesPage() {
   return (

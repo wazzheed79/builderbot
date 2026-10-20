@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
@@ -13,8 +13,14 @@ export default function DemoBanner() {
   const { isDemoMode, loading } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (
+    !mounted ||
     loading ||
     !isDemoMode ||
     dismissed ||

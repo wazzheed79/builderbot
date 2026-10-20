@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { GoogleGenAI, Type } from "@google/genai";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { roundMoney } from "@/lib/storage";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
+import { takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
+import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 
 const GenerateRequestSchema = z.object({
   notes: z
@@ -78,32 +79,14 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
 
-    if (apiKey) {
-      if (userId) {
-        const userLimit = checkRateLimit(`ai-generate:user:${userId}`, 30, 60 * 60 * 1000);
-        if (!userLimit.allowed) {
-          return NextResponse.json(
-            { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
-            { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
-          );
-        }
-      } else {
-        const guestLimit = checkRateLimit(`ai-generate:guest:${clientIp}`, 15, 60 * 60 * 1000);
-        if (!guestLimit.allowed) {
-          // Graceful fallback to heuristic engine if guest limit reached
-          const estimate = estimateTradeJob(notes, trade, pricingMemory as any, photos);
-          return NextResponse.json({
-            title: estimate.title,
-            scopeOfWork: estimate.scopeOfWork,
-            suggestedDepositPercent: estimate.suggestedDepositPercent,
-            items: estimate.items,
-            aiPowered: false,
-            notice: "Guest preview limit reached. Sign in for full AI quoting, or edit prices below.",
-          });
-        }
+    if (apiKey && userId) {
+      const userLimit = await takeAiTurn(userId, "generate");
+      if (!userLimit.allowed) {
+        return NextResponse.json(
+          { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
+          { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
+        );
       }
-
-      const ai = new GoogleGenAI({ apiKey });
 
       let systemInstruction =
         `You are the quoting assistant for ${brand.name}, helping UK builders, electricians, plumbers, roofers, landscapers, and carpenters. ` +
@@ -144,128 +127,133 @@ export async function POST(request: NextRequest) {
         systemInstruction += ` MULTIMODAL SITE INSPECTION: ${imageParts.length} site photo(s) have been provided. Inspect visible site conditions, materials, dimensions, damages, and required prep/demolition work. Include any visually detected requirements as explicit line items.`;
       }
 
-      // Separate system instruction from user content to resist prompt injection
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `Target Trade Category: ${trade || "General Building & Renovation"}\nItemize the following job notes into UK trade line items:`,
-              },
-              { text: notes },
-              ...imageParts,
-            ],
-          },
-        ],
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: {
-                type: Type.STRING,
-                description: "Concise professional title for the quote",
-              },
-              scopeOfWork: {
-                type: Type.STRING,
-                description: "Detailed professional scope of works",
-              },
-              suggestedDepositPercent: {
-                type: Type.INTEGER,
-                description: "Suggested deposit percentage (typically 15-25)",
-              },
-              items: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: {
-                      type: Type.STRING,
-                      description: "One of: 'labor', 'material', 'service'",
-                    },
-                    description: {
-                      type: Type.STRING,
-                      description: "Clear description of material, labor task, or service",
-                    },
-                    quantity: {
-                      type: Type.NUMBER,
-                      description: "Numeric quantity",
-                    },
-                    unit: {
-                      type: Type.STRING,
-                      description: "Unit of measure (e.g. hrs, days, m², m, bags, unit, lot)",
-                    },
-                    rate: {
-                      type: Type.NUMBER,
-                      description: "Unit price or hourly/daily rate in GBP (£)",
-                    },
-                  },
-                  required: ["type", "description", "quantity", "unit", "rate"],
+      // Separate system instruction from user content to resist prompt injection.
+      // A failed Gemini call falls through to the rough estimate below.
+      try {
+        const responseText = await generateGeminiText({
+          apiKey,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Target Trade Category: ${trade || "General Building & Renovation"}\nItemize the following job notes into UK trade line items:`,
                 },
-                description: "Itemized materials, labor tasks, and waste disposal services",
-              },
+                { text: notes },
+                ...imageParts,
+              ],
             },
-            required: ["title", "scopeOfWork", "suggestedDepositPercent", "items"],
+          ],
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseJsonSchema: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description: "Concise professional title for the quote",
+                },
+                scopeOfWork: {
+                  type: "string",
+                  description: "Detailed professional scope of works",
+                },
+                suggestedDepositPercent: {
+                  type: "integer",
+                  description: "Suggested deposit percentage (typically 15-25)",
+                },
+                items: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: {
+                        type: "string",
+                        description: "One of: 'labor', 'material', 'service'",
+                      },
+                      description: {
+                        type: "string",
+                        description: "Clear description of material, labor task, or service",
+                      },
+                      quantity: {
+                        type: "number",
+                        description: "Numeric quantity",
+                      },
+                      unit: {
+                        type: "string",
+                        description: "Unit of measure (e.g. hrs, days, m², m, bags, unit, lot)",
+                      },
+                      rate: {
+                        type: "number",
+                        description: "Unit price or hourly/daily rate in GBP (£)",
+                      },
+                    },
+                    required: ["type", "description", "quantity", "unit", "rate"],
+                  },
+                  description: "Itemized materials, labor tasks, and waste disposal services",
+                },
+              },
+              required: ["title", "scopeOfWork", "suggestedDepositPercent", "items"],
+            },
           },
-        },
-      });
-
-      const responseText = response.text || "{}";
-      const parsed = JSON.parse(responseText);
-
-      // Clamping & Sanity Validation on AI output
-      const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
-      const cleanedItems: LineItemResponse[] = rawItems
-        .slice(0, 50) // Cap to max 50 items
-        .map((it: Partial<LineItemResponse>, idx: number) => {
-          const rawType = String(it.type || "material").toLowerCase();
-          const validTypes: LineItemResponse["type"][] = ["labor", "material", "service"];
-          const itemType = validTypes.includes(rawType as LineItemResponse["type"])
-            ? (rawType as LineItemResponse["type"])
-            : "material";
-
-          // Clamp quantities between 0.01 and 10,000
-          const rawQty = Number(it.quantity) || 1;
-          const clampedQty = Math.max(0.01, Math.min(10000, roundMoney(rawQty)));
-
-          // Clamp unit rates between £0 and £50,000
-          const rawRate = Number(it.rate) || 0;
-          const clampedRate = Math.max(0, Math.min(50000, roundMoney(rawRate)));
-
-          const cleanDesc = String(it.description || `Trade item #${idx + 1}`)
-            .trim()
-            .slice(0, 200);
-
-          const cleanUnit = String(it.unit || "unit")
-            .trim()
-            .slice(0, 30);
-
-          return {
-            type: itemType,
-            description: cleanDesc,
-            quantity: clampedQty,
-            unit: cleanUnit,
-            rate: clampedRate,
-          };
         });
 
-      const depositPercent = Math.max(
-        0,
-        Math.min(100, Number(parsed.suggestedDepositPercent) || 20)
-      );
+        const parsed = parseGeminiJson(responseText);
 
-      const result: GenerateResponse = {
-        title: String(parsed.title || "Trade Works Specification").trim().slice(0, 150),
-        scopeOfWork: String(parsed.scopeOfWork || notes).trim().slice(0, 2500),
-        suggestedDepositPercent: depositPercent,
-        items: cleanedItems,
-        aiPowered: true,
-      };
+        // Clamping & Sanity Validation on AI output
+        const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+        const cleanedItems: LineItemResponse[] = rawItems
+          .slice(0, 50) // Cap to max 50 items
+          .map((it: Partial<LineItemResponse>, idx: number) => {
+            const rawType = String(it.type || "material").toLowerCase();
+            const validTypes: LineItemResponse["type"][] = ["labor", "material", "service"];
+            const itemType = validTypes.includes(rawType as LineItemResponse["type"])
+              ? (rawType as LineItemResponse["type"])
+              : "material";
 
-      return NextResponse.json(result);
+            // Clamp quantities between 0.01 and 10,000
+            const rawQty = Number(it.quantity) || 1;
+            const clampedQty = Math.max(0.01, Math.min(10000, roundMoney(rawQty)));
+
+            // Clamp unit rates between £0 and £50,000
+            const rawRate = Number(it.rate) || 0;
+            const clampedRate = Math.max(0, Math.min(50000, roundMoney(rawRate)));
+
+            const cleanDesc = String(it.description || `Trade item #${idx + 1}`)
+              .trim()
+              .slice(0, 200);
+
+            const cleanUnit = String(it.unit || "unit")
+              .trim()
+              .slice(0, 30);
+
+            return {
+              type: itemType,
+              description: cleanDesc,
+              quantity: clampedQty,
+              unit: cleanUnit,
+              rate: clampedRate,
+            };
+          });
+
+        const depositPercent = Math.max(
+          0,
+          Math.min(100, Number(parsed.suggestedDepositPercent) || 20)
+        );
+
+        const result: GenerateResponse = {
+          title: String(parsed.title || "Trade Works Specification").trim().slice(0, 150),
+          scopeOfWork: String(parsed.scopeOfWork || notes).trim().slice(0, 2500),
+          suggestedDepositPercent: depositPercent,
+          items: cleanedItems,
+          aiPowered: true,
+        };
+
+        return NextResponse.json(result);
+      } catch (error) {
+        if (!shouldUseRoughEstimate(error)) throw error;
+        console.error("Gemini quote generation failed. Using the rough estimate.", error);
+      }
     }
 
     // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
@@ -279,7 +267,9 @@ export async function POST(request: NextRequest) {
       aiPowered: false,
       estimateOnly: true,
       notice:
-        "Rough estimate. Change every price before you send it.",
+        !userId && apiKey
+          ? "Rough estimate. Sign in for AI prices, and change every price before you send it."
+          : "Rough estimate. Change every price before you send it.",
     });
   } catch (error) {
     console.error("Error generating quote:", error);

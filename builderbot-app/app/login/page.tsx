@@ -17,15 +17,18 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, signInWithOtp, signInWithPassword, signUp, isConfigured } = useAuth();
+  const { user, signInWithOtp, verifyEmailCode, signInWithPassword, signUp, isConfigured } = useAuth();
 
-  const [mode, setMode] = useState<"magic" | "password">("magic");
+  const [mode, setMode] = useState<"code" | "password">("code");
   const [passwordMode, setPasswordMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+  const [accountNote, setAccountNote] = useState(false);
 
   // If already logged in, show redirect CTA
   if (user) {
@@ -58,7 +61,7 @@ export default function LoginPage() {
     );
   }
 
-  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     if (!email || !email.includes("@")) {
@@ -73,7 +76,20 @@ export default function LoginPage() {
     if (error) {
       setErrorMsg(error);
     } else {
-      setMagicLinkSent(true);
+      setCodeSent(true);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setLoading(true);
+    const { error } = await verifyEmailCode(email, code);
+    setLoading(false);
+    if (error) {
+      setErrorMsg(error);
+    } else {
+      router.push("/dashboard");
     }
   };
 
@@ -104,7 +120,7 @@ export default function LoginPage() {
       if (error) {
         setErrorMsg(error);
       } else {
-        setMagicLinkSent(true);
+        setAccountNote(true);
       }
     }
   };
@@ -155,25 +171,29 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                setMode("magic");
+                setMode("code");
                 setErrorMsg(null);
-                setMagicLinkSent(false);
+                setCodeSent(false);
+                setShowCode(false);
+                setAccountNote(false);
               }}
               className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
-                mode === "magic"
+                mode === "code"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-clay-700" />
-              <span>1-Click Magic Link</span>
+              <span>Email link</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 setMode("password");
                 setErrorMsg(null);
-                setMagicLinkSent(false);
+                setCodeSent(false);
+                setShowCode(false);
+                setAccountNote(false);
               }}
               className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
                 mode === "password"
@@ -194,27 +214,82 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Magic Link Confirmation State */}
-          {magicLinkSent ? (
+          {accountNote ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-1">Check your inbox</h3>
-              <p className="text-xs sm:text-sm text-slate-600 mb-4 leading-relaxed">
-                We sent a secure, passwordless sign-in link to{" "}
-                <strong className="text-slate-900">{email}</strong>. Click the link on this device to instantly access your quotes.
+              <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                If this site asks you to confirm the new account, tap the link in the email for{" "}
+                <strong className="text-slate-900">{email}</strong>. It brings you back signed in.
               </p>
               <button
-                onClick={() => setMagicLinkSent(false)}
+                type="button"
+                onClick={() => setAccountNote(false)}
                 className="text-xs font-semibold text-clay-700 hover:text-clay-800 underline"
+              >
+                Back
+              </button>
+            </div>
+          ) : codeSent ? (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Check your inbox</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  We sent a sign-in link to <strong className="text-slate-900">{email}</strong>. Tap the link and it opens your dashboard.
+                </p>
+              </div>
+              {showCode ? (
+                <form onSubmit={handleVerifyCode} className="space-y-4">
+                  <div>
+                    <label htmlFor="email-code" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Code
+                    </label>
+                    <input
+                      id="email-code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="123456"
+                      className="block w-full px-3 py-3 border border-slate-300 rounded-xl text-center tracking-[0.4em] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clay-700 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || code.length !== 6}
+                    className="w-full min-h-11 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-clay-700 hover:bg-clay-800 transition disabled:opacity-50"
+                  >
+                    {loading ? "Checking the code..." : "Sign in"}
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCode(true)}
+                  className="w-full min-h-11 py-3 px-4 rounded-xl text-sm font-semibold text-clay-800 bg-stone-100 hover:bg-stone-200"
+                >
+                  Got a code instead? Enter it here
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setCodeSent(false);
+                  setShowCode(false);
+                  setCode("");
+                }}
+                className="w-full min-h-11 text-xs font-semibold text-clay-700 hover:text-clay-800 underline"
               >
                 Use a different email address
               </button>
             </div>
-          ) : mode === "magic" ? (
-            /* Magic Link Form */
-            <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
+          ) : mode === "code" ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
               <div>
                 <label htmlFor="magic-email" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                   Your Trade Email
@@ -233,8 +308,8 @@ export default function LoginPage() {
                     className="block w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1.5">
-                  No passwords to remember. We send a quick login link directly to your phone or desktop.
+                <p className="text-sm text-slate-500 mt-1.5">
+                  We email you a link. Tap it on this phone and you are signed in.
                 </p>
               </div>
 
@@ -246,12 +321,12 @@ export default function LoginPage() {
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Sending Magic Link...
+                    Sending the email...
                   </span>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 text-blue-200" />
-                    <span>Send Login Link</span>
+                    <span>Email me a sign-in link</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

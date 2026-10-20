@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { brand } from "@/lib/brand.mjs";
+
+export const metadata: Metadata = {
+  title: "Privacy notice",
+  description: `How ${brand.name} handles quotes, sign-in, and AI.`,
+};
 
 export default function PrivacyPage() {
   return (
