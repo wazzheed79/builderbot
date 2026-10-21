@@ -6,6 +6,9 @@ import {
   roundMoney,
   recalculateQuoteTotals,
   validateStatusTransition,
+  isQuoteIdConflict,
+  isSharedSequentialQuoteId,
+  newQuoteId,
 } from "./quote-rules.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
@@ -147,7 +150,7 @@ export function mapRowToTemplate(row: Record<string, unknown>): SavedQuoteTempla
 }
 
 
-export type CloudSaveResult = { ok: true } | { ok: false; error: string };
+export type CloudSaveResult = { ok: true; id: string } | { ok: false; error: string };
 
 function plainCloudError(message: string): string {
   const text = message.toLowerCase();
@@ -167,6 +170,19 @@ function plainCloudError(message: string): string {
 // and send again while the first request is still in flight.
 let quoteCloudSerial = 0;
 
+const OPTIONAL_QUOTE_COLUMNS = ["photos", "options", "selected_option_id", "sent_at", "reminder_after_days"];
+
+async function writeQuoteRow(sb: SupabaseClient, row: Record<string, unknown>) {
+  const first = await sb.from("quotes").upsert(row);
+  if (first.error && /photo|option|sent_at|reminder/i.test(first.error.message || "")) {
+    const withoutExtras = Object.fromEntries(
+      Object.entries(row).filter(([key]) => !OPTIONAL_QUOTE_COLUMNS.includes(key))
+    );
+    return sb.from("quotes").upsert(withoutExtras);
+  }
+  return first;
+}
+
 // Background sync helpers (authenticated)
 export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
   const serial = ++quoteCloudSerial;
@@ -177,7 +193,7 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
 
   try {
     const { data: userData } = await sb.auth.getSession();
-    if (serial !== quoteCloudSerial) return { ok: true };
+    if (serial !== quoteCloudSerial) return { ok: true, id: quote.id };
     const ownerId = userData.session?.user?.id;
     if (!ownerId) {
       return {
@@ -255,19 +271,16 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
       photos,
     };
 
-    if (serial !== quoteCloudSerial) return { ok: true };
-    const first = await sb.from("quotes").upsert(row);
-    if (serial !== quoteCloudSerial) return { ok: true };
-    if (first.error && /photo|option|sent_at|reminder/i.test(first.error.message || "")) {
-      const withoutPhotos = Object.fromEntries(
-        Object.entries(row).filter(([key]) => !["photos", "options", "selected_option_id", "sent_at", "reminder_after_days"].includes(key))
-      );
-      const retry = await sb.from("quotes").upsert(withoutPhotos);
-      if (retry.error) return { ok: false, error: plainCloudError(retry.error.message || "") };
-      return { ok: true };
+    if (serial !== quoteCloudSerial) return { ok: true, id: quote.id };
+    let rowId = quote.id;
+    let written = await writeQuoteRow(sb, { ...row, id: rowId });
+    if (serial !== quoteCloudSerial) return { ok: true, id: quote.id };
+    if (written.error && isSharedSequentialQuoteId(rowId) && isQuoteIdConflict(written.error)) {
+      rowId = newQuoteId();
+      written = await writeQuoteRow(sb, { ...row, id: rowId });
     }
-    if (first.error) return { ok: false, error: plainCloudError(first.error.message || "") };
-    return { ok: true };
+    if (written.error) return { ok: false, error: plainCloudError(written.error.message || "") };
+    return { ok: true, id: rowId };
   } catch {
     return { ok: false, error: "The quote did not save online. Check your connection and try again." };
   }

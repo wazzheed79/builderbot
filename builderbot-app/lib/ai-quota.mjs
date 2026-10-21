@@ -19,8 +19,9 @@ export function readQuotaPayload(data) {
 }
 
 /**
- * The browser cannot decide this. A failed database check blocks the AI call.
- * Memory is only used when this server has no service-role key (local try-out).
+ * The browser cannot decide this. A failed database check allows the AI call
+ * so a broken limit does not stop every quote. A stored "not allowed" answer
+ * still blocks it. Memory is only used when this server has no service-role key.
  * @param {{
  *   serviceRoleConfigured: boolean,
  *   rpcError: boolean,
@@ -38,7 +39,15 @@ export function decideAiTurn(input) {
     };
   }
 
-  const payload = input.rpcError ? null : readQuotaPayload(input.data);
+  if (input.rpcError) {
+    return {
+      allowed: true,
+      retryAfterSec: 0,
+      source: /** @type {"open"} */ ("open"),
+    };
+  }
+
+  const payload = readQuotaPayload(input.data);
   if (!payload || typeof payload.allowed !== "boolean") {
     return {
       allowed: false,

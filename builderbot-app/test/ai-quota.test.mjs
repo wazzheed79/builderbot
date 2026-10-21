@@ -14,16 +14,15 @@ test("the database count blocks the next AI quote once the hour is used up", () 
   assert.match(quotaMessage(turn, "generate"), /this hour/);
 });
 
-test("a permission error blocks AI instead of allowing another generation", () => {
+test("a permission error allows the quote instead of stopping every build", () => {
   const turn = decideAiTurn({
     serviceRoleConfigured: true,
     rpcError: true,
     data: { allowed: true },
   });
-  assert.equal(turn.allowed, false);
-  assert.equal(turn.source, "blocked");
-  assert.match(quotaMessage(turn, "generate"), /paused/);
-  assert.match(quotaMessage(turn, "expand"), /notes are still here/);
+  assert.equal(turn.allowed, true);
+  assert.equal(turn.source, "open");
+  assert.equal(turn.retryAfterSec, 0);
 });
 
 test("a broken quota reply cannot be treated as allowed", () => {

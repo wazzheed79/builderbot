@@ -29,8 +29,9 @@ export function getServerSupabase(): SupabaseClient | null {
 }
 
 /**
- * Quota and other private writes. This never falls back to the anon key, and it
- * does not reuse a client that was opened with that key.
+ * Quota, rate limits, and other private writes. This never falls back to the
+ * anon key, and it does not reuse a client that was opened with that key.
+ * A signed-in session must not replace the service-role key on the request.
  */
 export function getServiceRoleSupabase(): SupabaseClient | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,6 +41,7 @@ export function getServiceRoleSupabase(): SupabaseClient | null {
     serviceInstanceKey = key;
     serviceInstance = createClient(supabaseUrl, key, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      accessToken: async () => null,
     });
   }
   return serviceInstance;
@@ -180,6 +182,10 @@ function isMissingViewFunction(error: { code?: string; message?: string } | null
   return /record_public_quote_view/i.test(message) && /does not exist|could not find|schema cache/i.test(message);
 }
 
+/**
+ * Count one customer open. The SQL function is service-role only, so this
+ * uses the service-role client and never the signed-in or anon client.
+ */
 export async function recordCustomerQuoteView(
   token: string,
   visitorId: string

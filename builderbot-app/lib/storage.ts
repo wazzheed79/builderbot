@@ -310,6 +310,8 @@ import {
   validateStatusTransition,
   generateToken,
   calculateQuoteExpiry,
+  newQuoteId,
+  reassignQuoteReferences,
 } from "./quote-rules.mjs";
 import {
   buildInvoiceFromQuote,
@@ -682,6 +684,31 @@ export function getQuoteById(idOrToken: string): Quote | undefined {
   return quotes.find((q) => q.id.toLowerCase() === lower || q.token.toLowerCase() === lower);
 }
 
+/**
+ * The online row had to use a different id because BB-1041 already belonged to
+ * someone else. Local quotes, jobs, and invoices follow that id. The customer
+ * link token is left as it was.
+ */
+export function reassignStoredQuoteId(fromId: string, toId: string): Quote | undefined {
+  if (!fromId || !toId || fromId === toId) return getQuoteById(fromId || toId);
+  const next = reassignQuoteReferences(
+    {
+      quotes: readStoredList<Quote>(QUOTES_KEY),
+      jobs: readStoredList<Job>(JOBS_KEY),
+      invoices: readStoredList<Invoice>(INVOICES_KEY),
+    },
+    fromId,
+    toId
+  );
+  if (typeof window !== "undefined") {
+    localStorage.setItem(QUOTES_KEY, JSON.stringify(next.quotes));
+    localStorage.setItem(JOBS_KEY, JSON.stringify(next.jobs));
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(next.invoices));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  return next.quotes.find((quote) => quote.id === toId) as Quote | undefined;
+}
+
 export function saveQuote(
   quote: Omit<Quote, "id" | "token" | "createdAt"> & { id?: string; token?: string; createdAt?: string }
 ): Quote {
@@ -712,16 +739,12 @@ export function saveQuote(
       window.dispatchEvent(new Event("builderbot_storage_updated"));
     }
   } else {
-    // New quote: find max number to avoid duplicates after deletion
-    let maxNum = 1040;
-    for (const q of current) {
-      const match = q.id.match(/^BB-(\d+)$/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
+    // A random ref, so two accounts cannot both be given BB-1041.
+    const used = new Set(current.map((q) => q.id));
+    let nextId = newQuoteId();
+    for (let attempt = 0; used.has(nextId) && attempt < 5; attempt += 1) {
+      nextId = newQuoteId();
     }
-    const nextId = `BB-${maxNum + 1}`;
 
     saved = {
       ...quote,

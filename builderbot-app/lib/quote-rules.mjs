@@ -115,3 +115,75 @@ export function calculateQuoteExpiry(createdAtIso, validityDays = 30, currentTim
     expiryFormatted,
   };
 }
+
+/** Letters and digits that are not easy to mix up. Eight of these is the quote ref. */
+const QUOTE_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/**
+ * @returns {Uint8Array}
+ */
+function randomQuoteBytes() {
+  const bytes = new Uint8Array(8);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+    return bytes;
+  }
+  return bytes;
+}
+
+/**
+ * A quote id that is not shared across accounts. Existing BB-1041 style ids stay as they are.
+ * @param {Uint8Array | number[]} [bytes]
+ */
+export function newQuoteId(bytes = randomQuoteBytes()) {
+  const list = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes || []);
+  let id = "BB-";
+  for (let i = 0; i < 8; i += 1) {
+    id += QUOTE_ID_ALPHABET[(list[i] || 0) % QUOTE_ID_ALPHABET.length];
+  }
+  return id;
+}
+
+/**
+ * The old shared sequence. BB-1041 on one account is the same id as BB-1041 on another.
+ * @param {unknown} id
+ */
+export function isSharedSequentialQuoteId(id) {
+  return /^BB-\d+$/i.test(String(id || "").trim());
+}
+
+/**
+ * True when another account already owns this quote id.
+ * A duplicate customer-link token is a different problem and is left alone.
+ * @param {unknown} error
+ */
+export function isQuoteIdConflict(error) {
+  const message = typeof error === "string" ? error : String(error && typeof error === "object" && "message" in error ? error.message : "");
+  if (/quotes_pkey/i.test(message)) return true;
+  return /row-level security/i.test(message) && /quote/i.test(message);
+}
+
+/**
+ * Point local quotes, jobs, and invoices at a new quote id. Tokens and invoice numbers stay.
+ * @param {{
+ *   quotes?: Array<{ id?: string }>,
+ *   jobs?: Array<{ quoteId?: string }>,
+ *   invoices?: Array<{ quoteId?: string, number?: string }>
+ * }} records
+ * @param {unknown} fromId
+ * @param {unknown} toId
+ */
+export function reassignQuoteReferences(records, fromId, toId) {
+  const from = String(fromId || "");
+  const to = String(toId || "");
+  const quotes = Array.isArray(records?.quotes) ? records.quotes : [];
+  const jobs = Array.isArray(records?.jobs) ? records.jobs : [];
+  const invoices = Array.isArray(records?.invoices) ? records.invoices : [];
+  return {
+    quotes: quotes.map((quote) => (quote && quote.id === from ? { ...quote, id: to } : quote)),
+    jobs: jobs.map((job) => (job && job.quoteId === from ? { ...job, quoteId: to } : job)),
+    invoices: invoices.map((invoice) =>
+      invoice && invoice.quoteId === from ? { ...invoice, quoteId: to } : invoice
+    ),
+  };
+}

@@ -10,9 +10,10 @@ import {
   getClientIp,
   hashRateSubject,
   isMissingRateLimitFunction,
+  isServiceRoleKey,
 } from "../lib/rate-limit.mjs";
 
-test("the database count blocks once the window is used, and a broken reply does not allow the call", () => {
+test("the database count blocks once the window is used", () => {
   const blocked = decideRateLimit({
     serviceRoleConfigured: true,
     rpcError: false,
@@ -21,11 +22,26 @@ test("the database count blocks once the window is used, and a broken reply does
   assert.equal(blocked.allowed, false);
   assert.equal(blocked.source, "database");
   assert.equal(blocked.retryAfterSec, 40);
+});
 
+test("a database check that errors allows the request", () => {
   const broken = decideRateLimit({
     serviceRoleConfigured: true,
     rpcError: true,
     data: { allowed: true },
+    openRemaining: 15,
+  });
+  assert.equal(broken.allowed, true);
+  assert.equal(broken.source, "open");
+  assert.equal(broken.remaining, 15);
+  assert.equal(broken.retryAfterSec, 0);
+});
+
+test("a broken reply is not treated as permission to call", () => {
+  const broken = decideRateLimit({
+    serviceRoleConfigured: true,
+    rpcError: false,
+    data: { allowed: "yes" },
   });
   assert.equal(broken.allowed, false);
   assert.equal(broken.source, "blocked");
@@ -58,6 +74,17 @@ test("without the SQL function, or without a service role key, the memory counte
 test("a missing consume_rate_limit function is recognised, and other errors are not", () => {
   assert.equal(isMissingRateLimitFunction({ code: "PGRST202", message: "could not find consume_rate_limit" }), true);
   assert.equal(isMissingRateLimitFunction({ code: "42501", message: "permission denied" }), false);
+});
+
+test("only a service-role key may call the private limit", () => {
+  assert.equal(isServiceRoleKey("sb_secret_example"), true);
+  assert.equal(isServiceRoleKey("sb_publishable_example"), false);
+  assert.equal(isServiceRoleKey(""), false);
+  const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url");
+  const servicePayload = Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url");
+  const anonPayload = Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url");
+  assert.equal(isServiceRoleKey(`${header}.${servicePayload}.sig`), true);
+  assert.equal(isServiceRoleKey(`${header}.${anonPayload}.sig`), false);
 });
 
 test("the stored subject is a hash, not the IP address", () => {
