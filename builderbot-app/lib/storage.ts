@@ -8,6 +8,8 @@ import {
   deleteCloudJob,
   syncInvoiceToCloud,
   deleteCloudInvoice,
+  syncQuoteTemplateToCloud,
+  deleteCloudQuoteTemplate,
 } from "./supabase";
 import { cloudListsToStore } from "./cloud-hydrate.mjs";
 import { clearWorkingDraft } from "./quote-autosave.mjs";
@@ -89,13 +91,21 @@ export interface Job {
   createdAt: string;
 }
 
+export type StoredInvoiceStatus = "Draft" | "Sent" | "Paid";
+
 export interface Invoice {
   id: string;
+  number: string;
+  token: string;
   quoteId?: string;
   jobId?: string;
-  customerId: string;
+  customerId?: string;
+  optionId?: string;
+  optionLabel?: string;
   title: string;
+  notes?: string;
   clientName: string;
+  clientCompany?: string;
   clientAddress: string;
   clientEmail?: string;
   clientPhone?: string;
@@ -106,9 +116,33 @@ export interface Invoice {
   total: number;
   depositPaid: number;
   balanceDue: number;
-  status: "Draft" | "Issued" | "Partially Paid" | "Paid" | "Overdue";
+  status: StoredInvoiceStatus;
+  issueDate: string;
   dueDate: string;
   paidAt?: string;
+  createdAt: string;
+  companyName?: string;
+  tradingName?: string;
+  ownerName?: string;
+  businessPhone?: string;
+  businessEmail?: string;
+  businessAddress?: string;
+  vatNumber?: string;
+  bankName?: string;
+  bankSortCode?: string;
+  bankAccountNumber?: string;
+  logoUrl?: string;
+  accreditations?: string[];
+  termsAndConditions?: string;
+}
+
+export interface SavedQuoteTemplate {
+  id: string;
+  name: string;
+  title: string;
+  notes: string;
+  items: LineItem[];
+  vatEnabled: boolean;
   createdAt: string;
 }
 
@@ -277,6 +311,16 @@ import {
   generateToken,
   calculateQuoteExpiry,
 } from "./quote-rules.mjs";
+import {
+  buildInvoiceFromQuote,
+  invoiceTotals,
+  newInvoiceId,
+  newInvoiceToken,
+  normalizeStoredInvoice,
+  nextInvoiceNumber,
+  todayIso,
+} from "./invoice-rules.mjs";
+import { normalizeStoredTemplate, templateFromQuote } from "./quote-template-rules.mjs";
 
 export {
   roundMoney,
@@ -545,9 +589,17 @@ export const DEFAULT_INVOICES: Invoice[] = [
     depositPaid: 894.0,
     balanceDue: 0.0,
     status: "Paid",
+    issueDate: "2026-10-15",
     dueDate: "2026-10-17",
     paidAt: "2026-10-15T14:30:00Z",
     createdAt: "2026-10-15",
+    number: "INV-1042",
+    token: "i_demo1042invoice01",
+    notes: "",
+    companyName: "",
+    bankName: "",
+    bankSortCode: "",
+    bankAccountNumber: "",
   },
 ];
 
@@ -555,6 +607,7 @@ const CUSTOMERS_KEY = "builderbot_customers_v1";
 const QUOTES_KEY = "builderbot_quotes_v1";
 const JOBS_KEY = "builderbot_jobs_v1";
 const INVOICES_KEY = "builderbot_invoices_v1";
+const TEMPLATES_KEY = "builderbot_quote_templates_v1";
 
 function readStoredList<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -843,56 +896,57 @@ export function deleteJob(id: string): void {
 
 // Invoices Repository
 export function getInvoices(): Invoice[] {
-  return readStoredList<Invoice>(INVOICES_KEY);
+  return readStoredList<Invoice>(INVOICES_KEY).map((invoice) => normalizeStoredInvoice(invoice) as Invoice);
 }
 
-export function getInvoiceById(id: string): Invoice | undefined {
-  return getInvoices().find((i) => i.id === id);
+export function getInvoiceById(idOrToken: string): Invoice | undefined {
+  if (!idOrToken) return undefined;
+  const lower = idOrToken.toLowerCase();
+  return getInvoices().find(
+    (invoice) =>
+      invoice.id.toLowerCase() === lower ||
+      invoice.token.toLowerCase() === lower ||
+      invoice.number.toLowerCase() === lower
+  );
 }
 
 export function getInvoicesByCustomer(customerId: string): Invoice[] {
-  return getInvoices().filter((i) => i.customerId === customerId);
+  return getInvoices().filter((invoice) => invoice.customerId === customerId);
 }
 
 export function saveInvoice(
-  invoice: Omit<Invoice, "id" | "createdAt"> & { id?: string; createdAt?: string }
+  invoice: Omit<Invoice, "id" | "createdAt" | "number" | "token"> & {
+    id?: string;
+    createdAt?: string;
+    number?: string;
+    token?: string;
+  }
 ): Invoice {
   const current = getInvoices();
-  let saved: Invoice;
-
-  if (invoice.id) {
-    saved = {
-      ...(invoice as Invoice),
-      createdAt: (invoice as Invoice).createdAt || new Date().toISOString().split("T")[0],
-    };
-    const updated = current.map((i) => (i.id === invoice.id ? saved : i));
-    if (typeof window !== "undefined") {
-      localStorage.setItem(INVOICES_KEY, JSON.stringify(updated));
-      window.dispatchEvent(new Event("builderbot_storage_updated"));
-    }
-  } else {
-    let maxNum = 1040;
-    for (const inv of current) {
-      const match = inv.id.match(/^INV-(\d+)$/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-    const nextId = `INV-${maxNum + 1}`;
-
-    saved = {
-      ...invoice,
-      id: nextId,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    const updated = [saved, ...current];
-    if (typeof window !== "undefined") {
-      localStorage.setItem(INVOICES_KEY, JSON.stringify(updated));
-      window.dispatchEvent(new Event("builderbot_storage_updated"));
-    }
+  const today = new Date().toISOString().split("T")[0];
+  const existing = invoice.id ? current.find((row) => row.id === invoice.id) : undefined;
+  const numbers = current.filter((row) => row.id !== invoice.id).flatMap((row) => [row.number, row.id]);
+  const normalized = normalizeStoredInvoice({
+    ...invoice,
+    id: invoice.id || newInvoiceId(),
+    number: invoice.number || existing?.number || nextInvoiceNumber(numbers),
+    token: invoice.token || existing?.token || newInvoiceToken(),
+    createdAt: invoice.createdAt || existing?.createdAt || today,
+    issueDate: invoice.issueDate || existing?.issueDate || today,
+  }) as Invoice;
+  const figures = invoiceTotals(normalized.items, normalized.vatEnabled, normalized.status === "Paid" ? normalized.total : normalized.depositPaid);
+  const saved: Invoice = {
+    ...normalized,
+    ...figures,
+    depositPaid: normalized.status === "Paid" ? figures.total : figures.depositPaid,
+    balanceDue: normalized.status === "Paid" ? 0 : figures.balanceDue,
+    paidAt: normalized.status === "Paid" ? normalized.paidAt || new Date().toISOString() : undefined,
+  };
+  const updated = existing ? current.map((row) => (row.id === saved.id ? saved : row)) : [saved, ...current];
+  if (typeof window !== "undefined") {
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
   }
-
   syncInvoiceToCloud(saved).catch(() => {});
   return saved;
 }
@@ -906,64 +960,64 @@ export function deleteInvoice(id: string): void {
   deleteCloudInvoice(id).catch(() => {});
 }
 
-// 1-Tap Convert Quote to Invoice
+// 1-Tap Convert Quote to Invoice. One invoice per quote. Payment is marked by hand.
 export function convertQuoteToInvoice(quote: Quote, depositOnly: boolean = false): Invoice {
   const currentInvoices = getInvoices();
-  const existing = currentInvoices.find((i) => i.quoteId === quote.id);
+  const existing = currentInvoices.find((invoice) => invoice.quoteId === quote.id);
   if (existing) return existing;
 
-  const profile = getBusinessProfile();
-  const paymentDays = profile.paymentTermsDays || 7;
-  const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-
-  let items: LineItem[] = quote.items;
-  let subtotal = quote.subtotal;
-  let vat = quote.vat;
-  let total = quote.total;
-  let depositPaid = quote.acceptedSignatureName ? quote.deposit : 0;
-  let balanceDue = roundMoney(Math.max(0, total - depositPaid));
-
-  if (depositOnly) {
-    total = quote.deposit;
-    subtotal = quote.vatEnabled ? roundMoney(total / 1.2) : total;
-    vat = roundMoney(total - subtotal);
-    depositPaid = 0;
-    balanceDue = total;
-    items = [
-      {
-        id: "dep-1",
-        type: "service",
-        description: `Initial Deposit (${quote.depositPercent}%) for: ${quote.title}`,
-        quantity: 1,
-        unit: "stage",
-        rate: total,
-      },
-    ];
-  }
-
-  const invoice = saveInvoice({
-    quoteId: quote.id,
-    customerId: quote.customerId || "cust-unknown",
-    title: depositOnly ? `Deposit: ${quote.title}` : `Invoice: ${quote.title}`,
-    clientName: quote.clientName,
-    clientAddress: quote.clientAddress,
-    clientEmail: quote.clientEmail,
-    clientPhone: quote.clientPhone,
-    items,
-    subtotal,
-    vatEnabled: quote.vatEnabled,
-    vat,
-    total,
-    depositPaid,
-    balanceDue,
-    status: balanceDue === 0 ? "Paid" : "Issued",
-    dueDate,
+  const built = buildInvoiceFromQuote({
+    quote,
+    profile: getBusinessProfile(),
+    existingNumbers: currentInvoices.flatMap((invoice) => [invoice.number, invoice.id]),
+    today: todayIso(),
+    id: newInvoiceId(),
+    token: newInvoiceToken(),
+    depositOnly,
   });
-
-  return invoice;
+  if (!built.ok) {
+    throw new Error(built.error);
+  }
+  return saveInvoice(built.invoice as Invoice);
 }
+
+export function getQuoteTemplates(): SavedQuoteTemplate[] {
+  return readStoredList<SavedQuoteTemplate>(TEMPLATES_KEY).map(
+    (template) => normalizeStoredTemplate(template) as SavedQuoteTemplate
+  );
+}
+
+export function saveQuoteTemplate(
+  template: Omit<SavedQuoteTemplate, "id" | "createdAt"> & { id?: string; createdAt?: string }
+): SavedQuoteTemplate {
+  const current = getQuoteTemplates();
+  const today = new Date().toISOString().slice(0, 10);
+  const saved = normalizeStoredTemplate({
+    ...template,
+    id: template.id || `tpl_${Date.now()}`,
+    createdAt: template.createdAt || today,
+  }) as SavedQuoteTemplate;
+  const updated = current.some((row) => row.id === saved.id)
+    ? current.map((row) => (row.id === saved.id ? saved : row))
+    : [saved, ...current];
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  syncQuoteTemplateToCloud(saved).catch(() => {});
+  return saved;
+}
+
+export function deleteQuoteTemplate(id: string): void {
+  const current = getQuoteTemplates().filter((template) => template.id !== id);
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(current));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
+  }
+  deleteCloudQuoteTemplate(id).catch(() => {});
+}
+
+export { templateFromQuote };
 
 // Cloud Hydration & Cache Synchronization
 export function hydrateLocalCache(data: {
@@ -972,6 +1026,7 @@ export function hydrateLocalCache(data: {
   quotes?: Quote[] | null;
   jobs?: Job[] | null;
   invoices?: Invoice[] | null;
+  templates?: SavedQuoteTemplate[] | null;
 }): void {
   if (typeof window === "undefined") return;
   if (data.profile) {
@@ -989,6 +1044,9 @@ export function hydrateLocalCache(data: {
   }
   if (lists.invoices) {
     localStorage.setItem(INVOICES_KEY, JSON.stringify(lists.invoices));
+  }
+  if (lists.templates) {
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(lists.templates));
   }
   localStorage.setItem("builderbot_data_source", "cloud");
   window.dispatchEvent(new Event("builderbot_storage_updated"));
@@ -1011,6 +1069,7 @@ export function clearLocalData(): void {
   localStorage.setItem(QUOTES_KEY, JSON.stringify([]));
   localStorage.setItem(JOBS_KEY, JSON.stringify([]));
   localStorage.setItem(INVOICES_KEY, JSON.stringify([]));
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify([]));
   localStorage.removeItem("builderbot_data_source");
   clearWorkingDraft(localStorage);
   window.dispatchEvent(new Event("builderbot_storage_updated"));

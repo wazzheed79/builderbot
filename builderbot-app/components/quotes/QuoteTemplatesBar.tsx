@@ -4,11 +4,13 @@ import { Sparkles } from "lucide-react";
 import { LineItem } from "@/lib/storage";
 
 export interface QuoteTemplate {
+  id?: string;
   name: string;
   category: string;
   title: string;
   notes: string;
   items: LineItem[];
+  vatEnabled?: boolean;
 }
 
 export const DEFAULT_QUOTE_TEMPLATES: QuoteTemplate[] = [
@@ -327,15 +329,47 @@ export const DEFAULT_QUOTE_TEMPLATES: QuoteTemplate[] = [
 
 interface QuoteTemplatesBarProps {
   templates?: QuoteTemplate[];
+  savedTemplates?: QuoteTemplate[];
   onSelectTemplate: (template: QuoteTemplate) => void;
+  onDeleteSaved?: (id: string) => void;
 }
 
 export default function QuoteTemplatesBar({
   templates = DEFAULT_QUOTE_TEMPLATES,
+  savedTemplates = [],
   onSelectTemplate,
+  onDeleteSaved,
 }: QuoteTemplatesBarProps) {
   return (
     <div className="mt-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+      {savedTemplates.length > 0 && (
+        <div className="mb-4">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Your templates</span>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {savedTemplates.map((tpl) => (
+              <div key={tpl.id || tpl.name} className="inline-flex max-w-full items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onSelectTemplate(tpl)}
+                  className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl border border-clay-200 bg-clay-50 px-3 py-2 text-left text-sm font-bold text-clay-900"
+                >
+                  <span>{tpl.name}</span>
+                </button>
+                {tpl.id && onDeleteSaved && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteSaved(tpl.id!)}
+                    className="inline-flex min-h-11 items-center rounded-xl px-2 text-xs font-bold text-stone-500"
+                    aria-label={`Delete ${tpl.name}`}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-2.5">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-clay-700" />
@@ -348,7 +382,7 @@ export default function QuoteTemplatesBar({
       <div className="flex flex-wrap items-center gap-2">
         {templates.map((tpl) => (
           <button
-            key={tpl.name}
+            key={tpl.id || tpl.name}
             type="button"
             onClick={() => onSelectTemplate(tpl)}
             className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-bold text-slate-800 shadow-2xs transition hover:border-clay-300 hover:bg-clay-50 hover:text-clay-800 active:scale-95"

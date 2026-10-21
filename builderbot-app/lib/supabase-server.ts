@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { BusinessProfile, Quote } from "./storage";
+import { BusinessProfile, Invoice, Quote } from "./storage";
 import { isPublicQuoteToken } from "./public-quote.mjs";
+import { isPublicInvoiceToken, normalizeStoredInvoice } from "./invoice-rules.mjs";
 import { hashVisitorId, QUOTE_VIEW_WINDOW_SECONDS } from "./quote-view.mjs";
 import { displayBusinessName, hasBusinessName } from "./business-name.mjs";
 import { isSupabaseConfigured, mapRowToQuote } from "./supabase";
@@ -235,6 +236,74 @@ export async function fetchPublicQuoteByToken(token: string): Promise<{
     return quoteFromPublicPayload(payload);
   } catch (err) {
     console.error("Error in fetchPublicQuoteByToken:", err);
+    return null;
+  }
+}
+
+type PublicInvoicePayload = {
+  invoice?: Record<string, unknown>;
+  contractor?: Record<string, unknown>;
+};
+
+const DISPLAY_INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
+
+function invoiceFromPublicPayload(payload: PublicInvoicePayload): {
+  invoice: Invoice;
+  statusLabel: string;
+} | null {
+  const raw = payload.invoice;
+  if (!raw || typeof raw !== "object") return null;
+  const contractor = payload.contractor || {};
+  const reported = String(raw.status || "Sent");
+  const statusLabel = DISPLAY_INVOICE_STATUSES.includes(reported) ? reported : "Sent";
+  const invoice = normalizeStoredInvoice({
+    ...raw,
+    status: statusLabel === "Overdue" ? "Sent" : statusLabel,
+    companyName: contractor.companyName,
+    tradingName: contractor.tradingName,
+    ownerName: contractor.ownerName,
+    businessPhone: contractor.phone,
+    businessEmail: contractor.email,
+    businessAddress: contractor.address,
+    vatNumber: contractor.vatNumber,
+    logoUrl: contractor.logoUrl,
+    accreditations: contractor.accreditations,
+    termsAndConditions: contractor.termsAndConditions,
+    bankName: contractor.bankName,
+    bankSortCode: contractor.bankSortCode,
+    bankAccountNumber: contractor.bankAccountNumber,
+  }) as Invoice;
+  return { invoice, statusLabel };
+}
+
+async function readPublicInvoice(token: string): Promise<PublicInvoicePayload | null> {
+  const sb = getServerSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc("get_public_invoice", { lookup_token: token });
+  if (error || data == null || typeof data !== "object") return null;
+  return data as PublicInvoicePayload;
+}
+
+export async function isMissingPublicInvoice(token: string): Promise<boolean> {
+  if (!isPublicInvoiceToken(token)) return true;
+  const sb = getServerSupabase();
+  if (!sb) return false;
+  const { data, error } = await sb.rpc("get_public_invoice", { lookup_token: token });
+  if (error) return false;
+  return data == null;
+}
+
+export async function fetchPublicInvoiceByToken(token: string): Promise<{
+  invoice: Invoice;
+  statusLabel: string;
+} | null> {
+  if (!isPublicInvoiceToken(token)) return null;
+  try {
+    const payload = await readPublicInvoice(token);
+    if (!payload) return null;
+    return invoiceFromPublicPayload(payload);
+  } catch (err) {
+    console.error("Error in fetchPublicInvoiceByToken:", err);
     return null;
   }
 }

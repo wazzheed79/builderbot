@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { legacyDomainLocation } from "@/lib/domain-redirect.mjs";
 import { isMissingPublicQuote } from "@/lib/supabase-server";
 
 export async function proxy(request: NextRequest) {
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const location = legacyDomainLocation(host, request.nextUrl.pathname, request.nextUrl.search);
+  if (location) {
+    return NextResponse.redirect(location, 308);
+  }
+
   const match = request.nextUrl.pathname.match(/^\/q\/([^/]+)$/);
   if (!match) return NextResponse.next();
 
@@ -15,5 +22,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/q/:token",
+  matcher: ["/((?!_next/static|_next/image).*)"],
 };

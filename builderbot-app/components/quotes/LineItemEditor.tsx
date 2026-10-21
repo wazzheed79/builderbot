@@ -11,6 +11,7 @@ interface LineItemEditorProps {
   isAiDraft: boolean;
   estimateOnly?: boolean;
   onAcknowledgeAiDraft: () => void;
+  heading?: string;
 }
 
 export default function LineItemEditor({
@@ -21,13 +22,14 @@ export default function LineItemEditor({
   isAiDraft,
   estimateOnly = false,
   onAcknowledgeAiDraft,
+  heading = "Quote Line Items",
 }: LineItemEditorProps) {
   return (
     <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-xs min-w-0 max-w-full">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4 min-w-0">
         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 min-w-0">
           <Wrench className="w-4 h-4 text-slate-500 shrink-0" />
-          <span>Quote Line Items</span>
+          <span>{heading}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <button

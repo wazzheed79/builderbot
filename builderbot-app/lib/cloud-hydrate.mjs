@@ -1,4 +1,4 @@
-const LIST_KEYS = ["customers", "quotes", "jobs", "invoices"];
+const LIST_KEYS = ["customers", "quotes", "jobs", "invoices", "templates"];
 
 /**
  * A failed cloud read is null and must not replace the phone's copy.

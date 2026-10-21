@@ -80,6 +80,7 @@ export default function DashboardPage() {
       change: "Awaiting settlement",
       icon: Clock,
       color: "text-purple-600 bg-purple-50 border-purple-200",
+      href: "/invoices",
     },
     {
       title: "Active Customers",
@@ -126,9 +127,8 @@ export default function DashboardPage() {
       <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
-          return (
+          const card = (
             <div
-              key={idx}
               className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between"
             >
               <div>
@@ -145,6 +145,14 @@ export default function DashboardPage() {
                 <Icon className="w-6 h-6" />
               </div>
             </div>
+          );
+          const href = "href" in stat ? stat.href : "";
+          return href ? (
+            <Link key={idx} href={href} className="block min-h-12">
+              {card}
+            </Link>
+          ) : (
+            <div key={idx}>{card}</div>
           );
         })}
       </div>

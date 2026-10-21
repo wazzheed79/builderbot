@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Quote, Customer, BusinessProfile, Job, Invoice } from "./storage";
+import { Quote, Customer, BusinessProfile, Job, Invoice, SavedQuoteTemplate } from "./storage";
+import { normalizeStoredInvoice } from "./invoice-rules.mjs";
+import { normalizeStoredTemplate } from "./quote-template-rules.mjs";
 import {
   roundMoney,
   recalculateQuoteTotals,
@@ -137,28 +139,11 @@ export function mapRowToJob(row: Record<string, unknown>): Job {
 
 // Convert Supabase DB row to Invoice object
 export function mapRowToInvoice(row: Record<string, unknown>): Invoice {
-  return {
-    id: String(row.id),
-    quoteId: row.quote_id ? String(row.quote_id) : undefined,
-    jobId: row.job_id ? String(row.job_id) : undefined,
-    customerId: String(row.customer_id),
-    title: String(row.title ?? ""),
-    clientName: String(row.client_name ?? ""),
-    clientAddress: String(row.client_address ?? ""),
-    clientEmail: row.client_email ? String(row.client_email) : undefined,
-    clientPhone: row.client_phone ? String(row.client_phone) : undefined,
-    items: Array.isArray(row.items) ? (row.items as Invoice["items"]) : [],
-    subtotal: Number(row.subtotal ?? 0),
-    vatEnabled: Boolean(row.vat_enabled ?? true),
-    vat: Number(row.vat ?? 0),
-    total: Number(row.total ?? 0),
-    depositPaid: Number(row.deposit_paid ?? 0),
-    balanceDue: Number(row.balance_due ?? 0),
-    status: (row.status as Invoice["status"]) || "Issued",
-    dueDate: row.due_date ? String(row.due_date).split("T")[0] : new Date().toISOString().split("T")[0],
-    paidAt: row.paid_at ? String(row.paid_at) : undefined,
-    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
-  };
+  return normalizeStoredInvoice(row) as Invoice;
+}
+
+export function mapRowToTemplate(row: Record<string, unknown>): SavedQuoteTemplate {
+  return normalizeStoredTemplate(row) as SavedQuoteTemplate;
 }
 
 
@@ -459,6 +444,7 @@ export async function pullUserDataFromCloud(): Promise<{
   quotes: Quote[] | null;
   jobs: Job[] | null;
   invoices: Invoice[] | null;
+  templates: SavedQuoteTemplate[] | null;
 } | null> {
   const sb = getSupabase();
   if (!sb) return null;
@@ -467,15 +453,16 @@ export async function pullUserDataFromCloud(): Promise<{
     const { data: userData } = await sb.auth.getSession();
     if (!userData.session?.user?.id) return null;
 
-    const [profile, customers, quotes, jobs, invoices] = await Promise.all([
+    const [profile, customers, quotes, jobs, invoices, templates] = await Promise.all([
       fetchCloudProfile(),
       fetchCloudCustomers(),
       fetchCloudQuotes(),
       fetchCloudJobs(),
       fetchCloudInvoices(),
+      fetchCloudQuoteTemplates(),
     ]);
 
-    return { profile, customers, quotes, jobs, invoices };
+    return { profile, customers, quotes, jobs, invoices, templates };
   } catch (err) {
     console.error("Failed to pull user data from cloud:", err);
     return null;
@@ -595,13 +582,19 @@ export async function syncInvoiceToCloud(invoice: Invoice): Promise<boolean> {
 
     const { error } = await sb.from("invoices").upsert({
       id: invoice.id,
+      number: invoice.number,
+      token: invoice.token,
       owner_id: ownerId,
       quote_id: invoice.quoteId || null,
       job_id: invoice.jobId || null,
-      customer_id: invoice.customerId,
+      customer_id: invoice.customerId || null,
+      option_id: invoice.optionId || null,
+      option_label: invoice.optionLabel || null,
       title: invoice.title,
+      notes: invoice.notes || null,
       client_name: invoice.clientName,
-      client_address: invoice.clientAddress,
+      client_company: invoice.clientCompany || null,
+      client_address: invoice.clientAddress || "Address to be confirmed",
       client_email: invoice.clientEmail || null,
       client_phone: invoice.clientPhone || null,
       items: invoice.items,
@@ -612,8 +605,22 @@ export async function syncInvoiceToCloud(invoice: Invoice): Promise<boolean> {
       deposit_paid: invoice.depositPaid,
       balance_due: invoice.balanceDue,
       status: invoice.status,
-      due_date: invoice.dueDate,
+      issue_date: invoice.issueDate || null,
+      due_date: invoice.dueDate || null,
       paid_at: invoice.paidAt || null,
+      company_name: invoice.companyName || null,
+      trading_name: invoice.tradingName || null,
+      owner_name: invoice.ownerName || null,
+      business_phone: invoice.businessPhone || null,
+      business_email: invoice.businessEmail || null,
+      business_address: invoice.businessAddress || null,
+      vat_number: invoice.vatNumber || null,
+      bank_name: invoice.bankName || null,
+      bank_sort_code: invoice.bankSortCode || null,
+      bank_account_number: invoice.bankAccountNumber || null,
+      logo_url: invoice.logoUrl || null,
+      accreditations: invoice.accreditations || [],
+      terms_and_conditions: invoice.termsAndConditions || null,
       created_at: invoice.createdAt,
     });
     return !error;
@@ -653,6 +660,62 @@ export async function fetchCloudInvoices(): Promise<Invoice[] | null> {
 
     if (error || !data) return null;
     return data.map(mapRowToInvoice);
+  } catch {
+    return null;
+  }
+}
+
+export async function syncQuoteTemplateToCloud(template: SavedQuoteTemplate): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
+    if (!ownerId) return false;
+    const { error } = await sb.from("quote_templates").upsert({
+      id: template.id,
+      owner_id: ownerId,
+      name: template.name,
+      title: template.title,
+      notes: template.notes,
+      items: template.items,
+      vat_enabled: template.vatEnabled,
+      created_at: template.createdAt,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteCloudQuoteTemplate(id: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
+    if (!ownerId) return false;
+    const { error } = await sb.from("quote_templates").delete().eq("id", id).eq("owner_id", ownerId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchCloudQuoteTemplates(): Promise<SavedQuoteTemplate[] | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data: userData } = await sb.auth.getSession();
+    const ownerId = userData.session?.user?.id;
+    if (!ownerId) return null;
+    const { data, error } = await sb
+      .from("quote_templates")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+    if (error || !data) return null;
+    return data.map(mapRowToTemplate);
   } catch {
     return null;
   }

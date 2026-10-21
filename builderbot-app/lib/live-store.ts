@@ -14,6 +14,8 @@ import {
   getInvoices,
   getJobs,
   getQuotes,
+  getQuoteTemplates,
+  SavedQuoteTemplate,
   getRecentActivityFeed,
   BusinessProfile,
 } from "./storage";
@@ -22,12 +24,14 @@ const CUSTOMERS_KEY = "builderbot_customers_v1";
 const QUOTES_KEY = "builderbot_quotes_v1";
 const JOBS_KEY = "builderbot_jobs_v1";
 const INVOICES_KEY = "builderbot_invoices_v1";
+const TEMPLATES_KEY = "builderbot_quote_templates_v1";
 const PROFILE_KEY = "builderbot_business_profile";
 
 const EMPTY_CUSTOMERS: Customer[] = [];
 const EMPTY_QUOTES: Quote[] = [];
 const EMPTY_JOBS: Job[] = [];
 const EMPTY_INVOICES: Invoice[] = [];
+const EMPTY_TEMPLATES: SavedQuoteTemplate[] = [];
 const EMPTY_ACTIVITY: ActivityItem[] = [];
 const EMPTY_METRICS = {
   totalQuotesCount: 0,
@@ -65,6 +69,7 @@ const customerSlot = { raw: "\u0000", value: EMPTY_CUSTOMERS };
 const quoteSlot = { raw: "\u0000", value: EMPTY_QUOTES };
 const jobSlot = { raw: "\u0000", value: EMPTY_JOBS };
 const invoiceSlot = { raw: "\u0000", value: EMPTY_INVOICES };
+const templateSlot = { raw: "\u0000", value: EMPTY_TEMPLATES };
 const profileSlot = { raw: "\u0000", value: DEFAULT_BUSINESS_PROFILE };
 const metricsSlot = { raw: "\u0000", value: EMPTY_METRICS as Metrics };
 const activitySlot = { raw: "\u0000", value: EMPTY_ACTIVITY };
@@ -128,6 +133,14 @@ export function useInvoiceList(): Invoice[] {
     subscribe,
     () => cached(INVOICES_KEY, getInvoices, EMPTY_INVOICES, invoiceSlot),
     () => EMPTY_INVOICES
+  );
+}
+
+export function useSavedQuoteTemplates(): SavedQuoteTemplate[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => cached(TEMPLATES_KEY, getQuoteTemplates, EMPTY_TEMPLATES, templateSlot),
+    () => EMPTY_TEMPLATES
   );
 }
 

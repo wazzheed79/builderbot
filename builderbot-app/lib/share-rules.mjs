@@ -58,13 +58,18 @@ export function formatWhatsAppInvoiceMessage(params) {
   const firstName = (params.clientName || "").trim().split(" ")[0] || "there";
 
   let bankDetails = "";
-  if (params.bankSortCode && params.bankAccountNumber) {
+  if (params.bankAccountNumber) {
     bankDetails =
       `\n\n*Direct Bank Payment Details:*\n` +
       (params.bankName ? `Bank: ${params.bankName}\n` : "") +
-      `Sort Code: ${params.bankSortCode}\n` +
+      (params.bankSortCode ? `Sort Code: ${params.bankSortCode}\n` : "") +
       `Account: ${params.bankAccountNumber}\n` +
       `Payment Reference: ${params.invoiceId}`;
+  } else {
+    bankDetails = `\n\n${params.paymentNote || "Payment details to follow"}`;
+  }
+  if (params.link) {
+    bankDetails += `\n\nInvoice link: ${params.link}`;
   }
 
   return (

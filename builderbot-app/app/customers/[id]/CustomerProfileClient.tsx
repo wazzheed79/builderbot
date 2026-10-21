@@ -2,6 +2,7 @@
 
 import { useState, use, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Building,
@@ -34,6 +35,8 @@ import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl } from "@/lib/share";
 import { hasBusinessName } from "@/lib/business-name.mjs";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
+import { useTodayIso } from "@/components/invoices/useTodayIso";
+import { canCreateInvoiceFromQuote, displayInvoiceStatus } from "@/lib/invoice-rules.mjs";
 import {
   useClientReady,
   useCustomerList,
@@ -51,7 +54,9 @@ export default function CustomerProfileClient({
 }) {
   const resolvedParams = use(params);
   const customerId = resolvedParams.id || "";
+  const router = useRouter();
   const ready = useClientReady();
+  const today = useTodayIso();
   const siteOrigin = useSiteOrigin();
   const customer = useCustomerList().find((item) => item.id === customerId);
   const businessProfile = useBusinessProfile();
@@ -171,11 +176,14 @@ export default function CustomerProfileClient({
     }
   };
 
-  const handleConvertQuoteToInvoice = (quote: Quote, depositOnly: boolean = false) => {
-    const inv = convertQuoteToInvoice(quote, depositOnly);
-    setActiveTab("invoices");
-    setActionNotice(`Invoice ${inv.id} generated from quote ${quote.id}.`);
-    setTimeout(() => setActionNotice(null), 4000);
+  const handleConvertQuoteToInvoice = (quote: Quote) => {
+    try {
+      const inv = convertQuoteToInvoice(quote, false);
+      router.push(`/invoices/${inv.id}`);
+    } catch (error) {
+      setActionNotice(error instanceof Error ? error.message : "Could not create the invoice.");
+      setTimeout(() => setActionNotice(null), 4000);
+    }
   };
 
   const handleMarkInvoicePaid = (inv: Invoice) => {
@@ -186,7 +194,7 @@ export default function CustomerProfileClient({
       balanceDue: 0,
       paidAt: new Date().toISOString(),
     });
-    setActionNotice(`Invoice ${inv.id} marked as fully settled.`);
+    setActionNotice(`Invoice ${inv.number || inv.id} marked as paid.`);
     setTimeout(() => setActionNotice(null), 3500);
   };
 
@@ -549,12 +557,12 @@ export default function CustomerProfileClient({
                           </td>
                           <td className="py-4 px-6 text-right whitespace-nowrap space-x-2">
                             {/* Convert to Invoice Button when Accepted */}
-                            {q.status === "Accepted" && (
+                            {canCreateInvoiceFromQuote(q.status) && (
                               <button
                                 type="button"
-                                onClick={() => handleConvertQuoteToInvoice(q, false)}
-                                title="Convert accepted quote to tax invoice"
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition"
+                                onClick={() => handleConvertQuoteToInvoice(q)}
+                                title="Create an invoice from this quote"
+                                className="inline-flex min-h-11 items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-clay-50 hover:bg-clay-100 text-clay-800 border border-clay-200 transition"
                               >
                                 <Receipt className="w-3 h-3" />
                                 <span>Invoice</span>
@@ -759,10 +767,14 @@ export default function CustomerProfileClient({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {invoices.map((inv) => (
+                      {invoices.map((inv) => {
+                        const shownStatus = today ? displayInvoiceStatus(inv.status, inv.dueDate, today) : inv.status;
+                        return (
                         <tr key={inv.id} className="hover:bg-slate-50/80 transition">
                           <td className="py-4 px-6 font-mono font-bold text-xs text-slate-900">
-                            {inv.id}
+                            <Link href={`/invoices/${inv.id}`} className="underline">
+                              {inv.number || inv.id}
+                            </Link>
                           </td>
                           <td className="py-4 px-6">
                             <p className="font-semibold text-slate-900 text-xs sm:text-sm">{inv.title}</p>
@@ -777,20 +789,20 @@ export default function CustomerProfileClient({
                           <td className="py-4 px-6 text-center">
                             <span
                               className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                inv.status === "Paid"
+                                shownStatus === "Paid"
                                   ? "bg-emerald-100 text-emerald-800"
-                                  : inv.status === "Partially Paid"
-                                  ? "bg-clay-100 text-clay-800"
-                                  : inv.status === "Overdue"
+                                  : shownStatus === "Overdue"
                                   ? "bg-rose-100 text-rose-800"
+                                  : shownStatus === "Draft"
+                                  ? "bg-slate-100 text-slate-700"
                                   : "bg-amber-100 text-amber-900"
                               }`}
                             >
-                              {inv.status}
+                              {shownStatus}
                             </span>
                           </td>
                           <td className="py-4 px-6 text-right whitespace-nowrap space-x-2">
-                            {inv.status !== "Paid" && (
+                            {shownStatus !== "Paid" && (
                               <button
                                 type="button"
                                 onClick={() => handleMarkInvoicePaid(inv)}
@@ -803,18 +815,19 @@ export default function CustomerProfileClient({
 
                             <a
                               href={getWhatsAppInvoiceShareUrl({
-                                invoiceId: inv.id,
+                                invoiceId: inv.number || inv.id,
+                                link: inv.token ? `${siteOrigin}/i/${inv.token}` : undefined,
                                 clientName: customer.name,
                                 clientPhone: customer.phone,
                                 title: inv.title,
-                                companyName: businessProfile.companyName,
-                                contractorName: businessProfile.ownerName,
+                                companyName: inv.companyName || businessProfile.companyName,
+                                contractorName: inv.ownerName || businessProfile.ownerName,
                                 total: inv.total,
                                 balanceDue: inv.balanceDue,
                                 dueDate: inv.dueDate,
-                                bankName: businessProfile.bankName,
-                                bankSortCode: businessProfile.bankSortCode,
-                                bankAccountNumber: businessProfile.bankAccountNumber,
+                                bankName: inv.bankName,
+                                bankSortCode: inv.bankSortCode,
+                                bankAccountNumber: inv.bankAccountNumber,
                               })}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -825,7 +838,8 @@ export default function CustomerProfileClient({
                             </a>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

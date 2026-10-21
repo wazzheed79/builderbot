@@ -30,6 +30,8 @@ export interface ShareQuoteParams {
 
 export interface ShareInvoiceParams {
   invoiceId: string;
+  link?: string;
+  paymentNote?: string;
   clientName: string;
   clientPhone?: string;
   title: string;
