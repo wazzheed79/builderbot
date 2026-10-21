@@ -71,6 +71,7 @@ import {
   writeWorkingDraft,
 } from "@/lib/quote-autosave.mjs";
 import { BUSINESS_NAME_PROMPT, hasBusinessName } from "@/lib/business-name.mjs";
+import { captureEvent } from "@/lib/analytics";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 
@@ -608,6 +609,7 @@ export default function QuotesClient() {
       return;
     }
     saveQuoteTemplate(result.template);
+    captureEvent("template_saved");
     setTemplateName("");
     triggerToast(`Saved “${result.template.name}” for next time.`);
   };
@@ -746,7 +748,9 @@ export default function QuotesClient() {
       return;
     }
     try {
+      const alreadyInvoiced = Boolean(quoteInvoice);
       const invoice = quoteInvoice ?? convertQuoteToInvoice(openQuote, false);
+      if (!alreadyInvoiced) captureEvent("invoice_created");
       router.push(`/invoices/${invoice.id}`);
     } catch (error) {
       triggerToast(error instanceof Error ? error.message : "Could not create the invoice.");
@@ -802,6 +806,8 @@ export default function QuotesClient() {
     }
 
     const existing = draft.activeQuoteId ? getQuoteById(draft.activeQuoteId) : undefined;
+    const created = !existing;
+    const firstSend = status === "Sent" && existing?.status !== "Sent";
     const retireAutosaveId = autosaveRowToRetire(draft.cloudDraftId, draft.activeQuoteId);
     const saved = saveQuote({
       ...(draft.activeQuoteId ? { id: draft.activeQuoteId, token: draft.activeToken ?? undefined } : {}),
@@ -830,6 +836,7 @@ export default function QuotesClient() {
       deposit: priced.deposit,
       status,
     });
+    if (created) captureEvent("quote_created", { ai_used: isAiDraft && !estimateOnly });
 
     setActiveQuoteId(saved.id);
     setActiveToken(saved.token);
@@ -859,6 +866,7 @@ export default function QuotesClient() {
     }
 
     setShareNotice(null);
+    if (firstSend) captureEvent("quote_sent");
     return saved;
   };
 

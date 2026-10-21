@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { brand } from "@/lib/brand.mjs";
 
 export default function AppError({
@@ -11,6 +12,13 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      try {
+        Sentry.captureException(error);
+      } catch {
+        // The on-page message still has to render.
+      }
+    }
     fetch("/api/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

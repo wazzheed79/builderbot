@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
+import AnalyticsConsentBanner from "@/components/AnalyticsConsent";
 import AppNav from "@/components/AppNav";
 import { AuthProvider } from "@/components/AuthProvider";
 import AuthReturn from "@/components/AuthReturn";
@@ -86,6 +87,9 @@ export default function RootLayout({
           <ClientErrorReporter />
           <Suspense fallback={<div className="h-16 border-b border-stone-200 bg-white" />}>
             <AppNav />
+          </Suspense>
+          <Suspense fallback={null}>
+            <AnalyticsConsentBanner />
           </Suspense>
           <div className="flex-1 flex flex-col min-w-0 w-full">{children}</div>
         </AuthProvider>

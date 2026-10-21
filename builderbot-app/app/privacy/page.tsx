@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         Back to {brand.name}
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Privacy notice</h1>
-      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 20 October 2026</p>
+      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 21 October 2026</p>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
         A plain-language notice for the free beta. It is not legal advice.
       </p>
@@ -67,7 +67,30 @@ export default function PrivacyPage() {
           <p className="mt-2">
             There is no advertising tracker. Sign-in keeps a session so you stay signed in on
             that phone. A customer quote page stores a cookie on that phone so a repeat open the
-            same day is not counted again.
+            same day is not counted again. Optional usage counts do not store a cookie, and do
+            not start, until you tap Accept. Decline is remembered on this phone.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-lg font-bold text-ink">If a page breaks</h2>
+          <p className="mt-2">
+            A short error report can be sent to Sentry so the fault can be fixed. Before it is
+            sent, names, email addresses, phone numbers, addresses, and the words of a quote are
+            removed. Sentry does not record the screen. If Sentry is not switched on, no report
+            is sent.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-lg font-bold text-ink">Optional usage counts</h2>
+          <p className="mt-2">
+            If you tap Accept, PostHog counts how the app is used. That includes a new account, a
+            quote being created, sent, opened, or accepted, an invoice being created or marked
+            paid, and a template being saved. A signed-in tradesperson is recognised by an account
+            id only, not by their email. Customer names, phone numbers, addresses, and quote
+            wording are not included. A customer quote page and a customer invoice page are not
+            recorded. On the tradesperson’s own pages, anything typed into a box is hidden.
+            Decline means none of this is turned on. When it is switched on, these counts go to
+            PostHog in the EU.
           </p>
         </section>
         <section>
