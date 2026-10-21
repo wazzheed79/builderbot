@@ -10,10 +10,7 @@ import { useAuth } from "./AuthProvider";
 export default function HomeCtas({ tone = "paper" }: { tone?: "paper" | "ink" }) {
   const { user, loading } = useAuth();
   const onInk = tone === "ink";
-
-  if (loading) {
-    return <div className="mt-6 h-12" aria-hidden="true" />;
-  }
+  const signedIn = !loading && Boolean(user);
 
   const primary = onInk
     ? "bg-white text-ink hover:bg-paper"
@@ -24,7 +21,7 @@ export default function HomeCtas({ tone = "paper" }: { tone?: "paper" | "ink" })
 
   return (
     <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-      {user ? (
+      {signedIn ? (
         <>
           <Link
             href="/quotes"
