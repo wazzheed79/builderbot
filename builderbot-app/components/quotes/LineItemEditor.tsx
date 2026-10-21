@@ -33,14 +33,14 @@ export default function LineItemEditor({
           <button
             type="button"
             onClick={() => onAddItem("material")}
-            className="min-h-[40px] px-3.5 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl transition inline-flex items-center gap-1.5 active:scale-95 shadow-2xs"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 text-sm font-bold text-slate-800 shadow-2xs transition hover:bg-slate-200 active:scale-95 active:bg-slate-300"
           >
             <Plus className="w-3.5 h-3.5" /> Material
           </button>
           <button
             type="button"
             onClick={() => onAddItem("labor")}
-            className="min-h-[40px] px-3.5 py-2 text-xs font-bold bg-clay-50 hover:bg-clay-100 active:bg-blue-200 text-clay-800 border border-clay-200 rounded-xl transition inline-flex items-center gap-1.5 active:scale-95 shadow-2xs"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-clay-200 bg-clay-50 px-3.5 text-sm font-bold text-clay-800 shadow-2xs transition hover:bg-clay-100 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" /> Labour
           </button>
@@ -68,7 +68,7 @@ export default function LineItemEditor({
           <button
             type="button"
             onClick={onAcknowledgeAiDraft}
-            className="text-amber-700 hover:text-amber-900 font-bold underline shrink-0 text-left sm:text-right"
+            className="inline-flex min-h-11 shrink-0 items-center text-left font-bold text-amber-800 underline sm:text-right"
           >
             Acknowledge & Mark Checked
           </button>
@@ -100,17 +100,21 @@ export default function LineItemEditor({
                 {item.type === "labor" ? "Labour" : item.type === "material" ? "Material" : "Service"}
               </span>
 
+              <label className="sr-only" htmlFor={`line-desc-${item.id}`}>
+                Description
+              </label>
               <input
+                id={`line-desc-${item.id}`}
                 type="text"
                 value={item.description}
                 onChange={(e) => onUpdateItem(item.id, "description", e.target.value)}
-                className="block w-full min-w-0 bg-white px-3 py-2.5 min-h-[44px] text-base font-semibold rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-slate-900"
+                className="block min-h-12 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-semibold text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-clay-700"
                 placeholder="Item description"
               />
 
               <div className="grid grid-cols-2 gap-2 min-w-0">
                 <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Qty</span>
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Qty</span>
                   <span className="flex items-center gap-1.5 min-w-0">
                     <input
                       type="number"
@@ -121,14 +125,14 @@ export default function LineItemEditor({
                       onChange={(e) =>
                         onUpdateItem(item.id, "quantity", parseFloat(e.target.value) || 0)
                       }
-                      className="w-full min-w-0 min-h-[44px] bg-white px-2 py-2 text-base font-bold text-center rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900"
+                      className="min-h-12 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-2 py-2 text-center text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-clay-700"
                     />
                     <span className="text-xs text-slate-600 font-bold shrink-0 max-w-16 truncate">{item.unit}</span>
                   </span>
                 </label>
 
                 <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Rate</span>
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-600">Rate</span>
                   <span className="flex items-center gap-1 min-w-0">
                     <span className="text-xs text-slate-500 font-semibold shrink-0">£</span>
                     <input
@@ -140,15 +144,15 @@ export default function LineItemEditor({
                       onChange={(e) =>
                         onUpdateItem(item.id, "rate", parseFloat(e.target.value) || 0)
                       }
-                      className="w-full min-w-0 min-h-[44px] bg-white px-2 py-2 text-base font-bold text-right rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900"
+                      className="min-h-12 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-2 py-2 text-right text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-clay-700"
                     />
                   </span>
                 </label>
               </div>
 
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="min-w-0 text-sm font-extrabold text-slate-900">
-                  £{roundMoney(item.quantity * item.rate).toFixed(2)}
+                <span className="min-w-0 text-base font-extrabold tabular-nums text-slate-900">
+                  £{roundMoney(item.quantity * item.rate).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   {item.usualPrice ? (
                     <span className="mt-1 block text-[11px] font-semibold text-clay-800">Using your usual price</span>
                   ) : null}
@@ -156,8 +160,8 @@ export default function LineItemEditor({
                 <button
                   type="button"
                   onClick={() => onDeleteItem(item.id)}
-                  className="min-h-[44px] min-w-[44px] shrink-0 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 rounded-xl transition active:scale-90"
-                  title="Delete item"
+                  className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-700 active:scale-90 active:bg-red-100"
+                  aria-label={`Delete ${item.description || "line"}`}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

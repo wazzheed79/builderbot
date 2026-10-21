@@ -351,7 +351,7 @@ export default function QuoteTemplatesBar({
             key={tpl.name}
             type="button"
             onClick={() => onSelectTemplate(tpl)}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 hover:bg-clay-50 text-slate-800 hover:text-clay-800 border border-slate-200 hover:border-blue-300 transition shadow-2xs active:scale-95"
+            className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-bold text-slate-800 shadow-2xs transition hover:border-clay-300 hover:bg-clay-50 hover:text-clay-800 active:scale-95"
           >
             <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-clay-100/80 text-clay-800">
               {tpl.category}

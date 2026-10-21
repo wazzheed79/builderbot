@@ -89,6 +89,10 @@ select {
   font-family: Georgia, "Palatino Linotype", serif;
 }
 
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
 /* Homepage demo: rough notes cover the quote, then fade so the quote shows. */
 .demo-notes {
   animation: demo-notes-fade 12s ease-in-out infinite;
@@ -203,6 +207,17 @@ select {
   .quote-line-long p {
     overflow-wrap: anywhere;
     word-break: break-word;
+  }
+
+  .quote-totals,
+  .quote-choice,
+  .quote-letterhead {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .quote-sticky-accept {
+    display: none !important;
   }
 
   /* Retain background graphics and badge colors in PDF */

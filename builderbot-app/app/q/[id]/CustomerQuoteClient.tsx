@@ -400,7 +400,7 @@ export default function CustomerQuoteClient({
   };
 
   return (
-    <div className="min-h-screen bg-paper py-8 px-4 sm:px-6 lg:px-8">
+    <div className={`min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8 ${status === "pending" ? "pb-32 sm:pb-8" : ""}`}>
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Banner / Notice for Customer */}
         <div className="no-print space-y-4">
@@ -571,13 +571,13 @@ export default function CustomerQuoteClient({
         </div>
 
         {/* Main Document Card */}
-        <div className="quote-document bg-[#fffdf8] rounded-2xl shadow-xl border border-stone-200 border-t-8 border-t-clay-700 overflow-hidden print:overflow-visible print-page">
+        <div className="quote-document print-page overflow-hidden rounded-2xl border border-stone-200 border-t-8 border-t-clay-700 bg-[#fffdf8] shadow-xl print:overflow-visible">
           {/* Header & Contractor Details */}
-          <div className="p-6 sm:p-8 bg-[#fffdf8] text-ink border-b border-stone-200">
+          <div className="quote-letterhead border-b border-stone-200 bg-[#fffdf8] p-6 text-ink sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-stone-200">
               <div className="flex items-start gap-4">
                 {printable.hasLogo && activeProfile.logoUrl && (
-                  <div className="w-16 h-16 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white p-1.5 shadow-sm">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={activeProfile.logoUrl}
@@ -587,11 +587,12 @@ export default function CustomerQuoteClient({
                   </div>
                 )}
                 <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-clay-50 text-clay-800 text-xs font-bold border border-clay-200 mb-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-clay-800">Quotation</p>
+                  <div className="mb-2 mt-2 inline-flex items-center gap-2 rounded-full border border-clay-200 bg-clay-50 px-3 py-1 text-xs font-bold text-clay-800">
                     <Wrench className="w-3.5 h-3.5" />
                     <span>{activeProfile.trade || "Trade quote"}</span>
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-ink">
+                  <h1 className="text-3xl font-black tracking-tight text-ink sm:text-4xl">
                     {contractorName}
                   </h1>
                 {activeProfile.tradingName && (
@@ -731,10 +732,13 @@ export default function CustomerQuoteClient({
             )}
 
             {offeringChoice && (
-              <div>
-                <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-3">
-                  Choose one
+              <div className="quote-choice">
+                <h2 className="mb-1 text-xs font-extrabold uppercase tracking-widest text-stone-600">
+                  Choose a price
                 </h2>
+                <p className="mb-3 text-sm text-stone-700">
+                  Pick one. The lines below match that choice.
+                </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {choiceOptions.map((option) => {
                     const selected = (pickedOptionId || loadedQuote.selectedOptionId) === option.id;
@@ -742,16 +746,17 @@ export default function CustomerQuoteClient({
                       <button
                         key={option.id}
                         type="button"
+                        aria-pressed={selected}
                         onClick={() => {
                           setPickedOptionId(option.id);
                           setDecisionError(null);
                         }}
-                        className={`min-h-11 rounded-xl border px-3 py-3 text-left ${
+                        className={`min-h-[4.5rem] rounded-2xl border-2 px-4 py-3 text-left ${
                           selected ? "border-clay-700 bg-clay-50" : "border-stone-200 bg-white"
                         }`}
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>
-                        <span className="block text-lg font-black text-clay-700">{formatGbp(option.total)}</span>
+                        <span className="block text-xl font-black tabular-nums text-clay-800">{formatGbp(option.total)}</span>
                       </button>
                     );
                   })}
@@ -761,50 +766,56 @@ export default function CustomerQuoteClient({
 
             {/* Line Items Table */}
             <div>
-              <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+              <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-stone-600">
                 Itemised cost breakdown
               </h2>
-              <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
+              <div className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200">
                 {printable.lines.map((item) => (
-                  <div key={item.key} className={`p-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end ${item.long ? "quote-line quote-line-long" : "quote-line"}`}>
-                    <div className="min-w-0">
-                      <p className="font-medium text-stone-900 wrap-break-word">{item.description}</p>
-                      <p className="text-[11px] uppercase tracking-wider text-stone-500 mt-1 wrap-break-word">
-                        {item.meta}
-                      </p>
+                  <div key={item.key} className={`grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_18rem] md:items-end ${item.long ? "quote-line quote-line-long" : "quote-line"}`}>
+                    <p className="min-w-0 font-medium wrap-break-word text-ink">{item.description}</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Qty</p>
+                        <p className="mt-0.5 text-sm tabular-nums text-stone-800">{item.qtyLabel} {item.unit}</p>
+                      </div>
+                      <div className="min-w-0 border-l border-stone-200 pl-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Rate</p>
+                        <p className="mt-0.5 text-sm tabular-nums text-stone-800">{item.rateLabel}</p>
+                      </div>
+                      <div className="min-w-0 border-l border-stone-200 pl-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Total</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{item.lineTotal}</p>
+                      </div>
                     </div>
-                    <p className="font-semibold tabular-nums text-stone-900 sm:text-right">
-                      {item.lineTotal}
-                    </p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Totals & Deposit */}
-            <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div className="quote-totals flex flex-col items-start justify-between gap-6 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
               <div className="text-xs text-slate-500 space-y-1">
                 <p className="font-semibold text-slate-700">Payment & Deposit Terms:</p>
                 <p>• {loadedQuote.depositPercent ?? 20}% deposit ({printable.deposit}) required upon quote acceptance.</p>
                 <p>• Remaining balance due upon completion of works.</p>
               </div>
 
-              <div className="w-full sm:w-64 space-y-2 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div className="flex justify-between text-slate-600">
-                  <span>Subtotal:</span>
-                  <span className="font-medium text-slate-900">{printable.subtotal}</span>
+              <div className="w-full space-y-2 rounded-xl border border-stone-300 bg-white p-4 text-sm sm:w-72">
+                <div className="flex justify-between gap-3 text-stone-700">
+                  <span>Net</span>
+                  <span className="font-medium tabular-nums text-ink">{printable.subtotal}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>{loadedQuote.vatEnabled ? "VAT (20%):" : "VAT:"}</span>
-                  <span className="font-medium text-slate-900">{printable.vat}</span>
+                <div className="flex justify-between gap-3 text-stone-700">
+                  <span>{loadedQuote.vatEnabled ? "VAT (20%)" : "VAT not added"}</span>
+                  <span className="font-medium tabular-nums text-ink">{printable.vat}</span>
                 </div>
-                <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline font-black">
-                  <span className="text-base text-slate-900">Total Price:</span>
-                  <span className="text-2xl text-clay-700">{printable.total}</span>
+                <div className="flex items-baseline justify-between gap-3 border-t-2 border-ink pt-2 font-black">
+                  <span className="text-base text-ink">{loadedQuote.vatEnabled ? "Total inc. VAT" : "Total"}</span>
+                  <span className="text-2xl tabular-nums text-clay-800">{printable.total}</span>
                 </div>
-                <div className="pt-1 flex justify-between text-xs text-emerald-700 font-bold">
-                  <span>Deposit Required:</span>
-                  <span>{printable.deposit}</span>
+                <div className="flex justify-between gap-3 pt-1 text-xs font-bold text-emerald-800">
+                  <span>Deposit due if accepted</span>
+                  <span className="tabular-nums">{printable.deposit}</span>
                 </div>
               </div>
             </div>
@@ -879,7 +890,7 @@ export default function CustomerQuoteClient({
                       setDecisionError(null);
                       setShowSignModal(true);
                     }}
-                    className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-600/20 transition active:scale-[0.98]"
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 font-bold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800 active:scale-[0.98] sm:flex-1"
                   >
                     <CheckCircle2 className="w-5 h-5" />
                     <span>Accept & Sign Quote</span>
@@ -987,6 +998,29 @@ export default function CustomerQuoteClient({
         </div>
       </div>
 
+      {status === "pending" && (
+        <div className="quote-sticky-accept no-print fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white px-3 py-3 shadow-[0_-8px_24px_rgba(44,36,22,0.12)] sm:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-3xl items-center gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-600">
+                {loadedQuote.vatEnabled ? "Total inc. VAT" : "Total"}
+              </p>
+              <p className="text-xl font-black tabular-nums text-ink">{printable.total}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDecisionError(null);
+                setShowSignModal(true);
+              }}
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-700 px-4 text-base font-bold text-white"
+            >
+              Accept & sign
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Accept & Sign Modal */}
       {showSignModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs overflow-y-auto p-4">
@@ -1025,8 +1059,9 @@ export default function CustomerQuoteClient({
                           setPickedOptionId(option.id);
                           setDecisionError(null);
                         }}
-                        className={`min-h-11 rounded-xl border px-3 py-3 text-left ${
-                          selected ? "border-emerald-700 bg-emerald-50" : "border-stone-200 bg-white"
+                        aria-pressed={selected}
+                        className={`min-h-12 rounded-xl border-2 px-3 py-3 text-left ${
+                          selected ? "border-emerald-800 bg-emerald-50" : "border-stone-200 bg-white"
                         }`}
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>

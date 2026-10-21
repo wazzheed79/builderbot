@@ -68,6 +68,13 @@ import { BUSINESS_NAME_PROMPT, hasBusinessName } from "@/lib/business-name.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 
+function money(amount: number) {
+  return amount.toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 interface SpeechRecognitionResultItem {
   transcript: string;
 }
@@ -966,7 +973,7 @@ export default function QuotesClient() {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-36 lg:pb-12">
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 pb-44 sm:px-6 sm:py-10 lg:px-8 lg:pb-12">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-20 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-semibold border border-slate-700 animate-in slide-in-from-top-2">
@@ -978,21 +985,21 @@ export default function QuotesClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <FileText className="w-8 h-8 text-clay-700" />
+          <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            <FileText className="h-7 w-7 shrink-0 text-clay-700" />
             <span>Quote Builder</span>
           </h1>
           <p className="text-slate-600 text-sm mt-1">
             Pick a customer, build line items with day rates or templates, and save active quotes.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
           {activeToken || activeQuoteId ? (
             <button
               type="button"
               onClick={openCustomerLink}
               disabled={sharing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs transition disabled:opacity-60"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-60"
             >
               <Eye className="w-3.5 h-3.5 text-slate-500" />
               <span>Customer link ({activeQuoteId})</span>
@@ -1001,7 +1008,7 @@ export default function QuotesClient() {
             <button
               type="button"
               onClick={handleLoadSample}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
             >
               <span>Load Example Data</span>
             </button>
@@ -1051,22 +1058,23 @@ export default function QuotesClient() {
           {/* Real Customer Selector Bar */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <User className="w-4 h-4 text-clay-700" />
+              <label htmlFor="customer-record" className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <User className="h-4 w-4 text-clay-700" />
                 <span>Link to Customer Record</span>
               </label>
               <Link
                 href="/customers"
-                className="text-xs text-clay-700 font-semibold hover:underline"
+                className="inline-flex min-h-11 items-center text-xs font-semibold text-clay-800 underline"
               >
                 + New Customer
               </Link>
             </div>
 
             <select
+              id="customer-record"
               value={selectedCustomerId}
               onChange={(e) => handleSelectCustomer(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 bg-slate-50 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="min-h-12 w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-clay-700"
             >
               <option value="">-- Select from Customer Directory (or enter custom) --</option>
               {customers.map((c) => (
@@ -1080,8 +1088,8 @@ export default function QuotesClient() {
           {/* Voice & Text Prompt Box */}
           <div className="bg-gradient-to-br from-paper/70 via-white to-slate-50 p-5 sm:p-6 rounded-2xl border-2 border-clay-200/90 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
-              <label className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-clay-700" />
+              <label htmlFor="job-notes" className="flex items-center gap-2 text-sm font-black text-slate-900">
+                <Sparkles className="h-4 w-4 text-clay-700" />
                 <span>Job Notes & Van Voice Dictation</span>
               </label>
 
@@ -1117,6 +1125,7 @@ export default function QuotesClient() {
             )}
 
             <textarea
+              id="job-notes"
               rows={4}
               value={notesInput}
               onChange={(e) => setNotesInput(e.target.value)}
@@ -1146,28 +1155,28 @@ export default function QuotesClient() {
               </div>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-clay-100/80">
-              <div className="flex items-center gap-2">
+            <div className="mt-3 flex flex-col gap-2 border-t border-clay-100/80 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={handleExpandDescription}
                   disabled={isExpanding || !notesInput.trim()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition disabled:opacity-50"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-bold text-amber-950 transition hover:bg-amber-100 disabled:opacity-50 sm:w-auto"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{isExpanding ? "Polishing..." : "✨ Expand to Professional Scope"}</span>
+                  <Sparkles className="h-4 w-4 text-amber-700" />
+                  <span>{isExpanding ? "Polishing..." : "Expand to professional scope"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setNotesInput("")}
-                  className="text-xs text-slate-400 hover:text-slate-600 font-medium inline-flex items-center gap-1"
+                  className="inline-flex min-h-11 items-center justify-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
                 >
-                  <RotateCcw className="w-3 h-3" /> Clear
+                  <RotateCcw className="h-4 w-4" /> Clear notes
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {photos.length > 0 && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
                     <Camera className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -1179,7 +1188,7 @@ export default function QuotesClient() {
                   type="button"
                   onClick={handleGenerateAI}
                   disabled={isGenerating || !notesInput.trim()}
-                  className="inline-flex min-h-12 items-center gap-2 bg-clay-700 hover:bg-clay-800 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-xl shadow-md transition active:scale-[0.98]"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-clay-700 px-4 py-2 text-base font-bold text-white shadow-md transition hover:bg-clay-800 active:scale-[0.98] disabled:opacity-50 sm:w-auto"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>{isGenerating ? "Building your quote…" : "Build the quote"}</span>
@@ -1196,31 +1205,34 @@ export default function QuotesClient() {
           </p>
 
           {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+          <div className="grid grid-cols-2 gap-2 border-b border-slate-200 pb-3">
             <button
               type="button"
               onClick={() => setActiveTab("items")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${
                 activeTab === "items"
                   ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
               }`}
             >
-              <Wrench className="w-4 h-4" />
-              <span>Itemised breakdown ({items.length})</span>
+              <Wrench className="h-4 w-4 shrink-0" />
+              <span className="text-left leading-tight">
+                Lines
+                <span className="mt-0.5 block text-[11px] font-semibold opacity-80">{items.length} items</span>
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("calculator")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${
                 activeTab === "calculator"
                   ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
               }`}
             >
-              <Calculator className="w-4 h-4" />
-              <span>Labour & Margin Calculator</span>
+              <Calculator className="h-4 w-4 shrink-0" />
+              <span className="text-left leading-tight">Margin</span>
             </button>
           </div>
 
@@ -1236,39 +1248,42 @@ export default function QuotesClient() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label htmlFor="project-title" className="mb-1 block text-xs font-semibold text-slate-700">
                       Project Title
                     </label>
                     <input
+                      id="project-title"
                       type="text"
                       placeholder="e.g. Garden Wall Construction"
                       value={quoteTitle}
                       onChange={(e) => setQuoteTitle(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="min-h-12 w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-clay-700"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label htmlFor="client-name" className="mb-1 block text-xs font-semibold text-slate-700">
                       Client Name
                     </label>
                     <input
+                      id="client-name"
                       type="text"
                       placeholder="e.g. John Doe"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="min-h-12 w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-clay-700"
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label htmlFor="client-address" className="mb-1 block text-xs font-semibold text-slate-700">
                       Site / Property Address
                     </label>
                     <input
+                      id="client-address"
                       type="text"
                       placeholder="e.g. 15 High Street, Bristol"
                       value={clientAddress}
                       onChange={(e) => setClientAddress(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="min-h-12 w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-clay-700"
                     />
                   </div>
                 </div>
@@ -1310,7 +1325,7 @@ export default function QuotesClient() {
                       >
                         <span className="block text-sm font-bold">{option.label}</span>
                         <span className="text-xs text-stone-600">
-                          £{recalculateQuoteTotals(index === choiceIndex ? items : option.items, vatEnabled, depositPercent).total.toFixed(2)}
+                          £{money(recalculateQuoteTotals(index === choiceIndex ? items : option.items, vatEnabled, depositPercent).total)}
                         </span>
                       </button>
                     ))}
@@ -1336,7 +1351,7 @@ export default function QuotesClient() {
         </div>
 
         {/* Right Column: Live Quote Card & Persistence Actions (5 cols) */}
-        <div className="lg:col-span-5 sticky top-20 space-y-6 min-w-0">
+        <div className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:col-span-5">
           <div className="bg-white rounded-2xl border-2 border-slate-800 shadow-xl overflow-hidden">
             {/* Header */}
             <div className="bg-slate-900 text-white p-5 sm:p-6">
@@ -1359,21 +1374,21 @@ export default function QuotesClient() {
               <div className="space-y-2.5 text-sm text-slate-600 pb-4 border-b border-slate-200">
                 <div className="flex justify-between">
                   <span>Subtotal (Net)</span>
-                  <span className="font-semibold text-slate-900">£{subtotal.toFixed(2)}</span>
+                  <span className="font-semibold tabular-nums text-slate-900">£{money(subtotal)}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-medium">
+                  <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 text-sm font-medium">
                     <input
                       type="checkbox"
                       checked={vatEnabled}
                       onChange={(e) => setVatEnabled(e.target.checked)}
-                      className="rounded text-clay-700 focus:ring-clay-600 h-4 w-4"
+                      className="h-5 w-5 rounded text-clay-700 focus:ring-clay-600"
                     />
                     <span>Add 20% VAT</span>
                   </label>
-                  <span className="font-semibold text-slate-900">
-                    {vatEnabled ? `£${vat.toFixed(2)}` : "£0.00"}
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    {vatEnabled ? `£${money(vat)}` : "£0.00"}
                   </span>
                 </div>
 
@@ -1381,9 +1396,10 @@ export default function QuotesClient() {
                   <div className="flex items-center gap-1.5 text-xs">
                     <span>Deposit on Signing</span>
                     <select
+                      aria-label="Deposit percentage"
                       value={depositPercent}
                       onChange={(e) => setDepositPercent(parseInt(e.target.value))}
-                      className="bg-slate-100 rounded px-1.5 py-0.5 text-xs font-semibold"
+                      className="min-h-11 rounded-lg bg-slate-100 px-2 text-sm font-semibold"
                     >
                       <option value={0}>0% (No Deposit)</option>
                       <option value={10}>10%</option>
@@ -1392,18 +1408,20 @@ export default function QuotesClient() {
                       <option value={50}>50%</option>
                     </select>
                   </div>
-                  <span className="font-semibold text-emerald-700">£{deposit.toFixed(2)}</span>
+                  <span className="font-semibold tabular-nums text-emerald-800">£{money(deposit)}</span>
                 </div>
               </div>
 
               {/* Grand Total */}
               <div className="flex items-baseline justify-between pt-1">
                 <div>
-                  <span className="text-xs uppercase font-extrabold text-slate-400">Total Price</span>
-                  <p className="text-xs text-slate-500">Includes materials and labour</p>
+                  <span className="text-xs font-extrabold uppercase text-slate-500">
+                    {vatEnabled ? "Total inc. VAT" : "Total"}
+                  </span>
+                  <p className="text-xs text-slate-600">Materials and labour</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-3xl font-black text-slate-900">£{total.toFixed(2)}</span>
+                  <span className="text-3xl font-black tabular-nums text-slate-900 sm:text-4xl">£{money(total)}</span>
                 </div>
               </div>
 
@@ -1414,7 +1432,7 @@ export default function QuotesClient() {
                   type="button"
                   onClick={saveAndIssue}
                   disabled={sharing}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition active:scale-[0.98] disabled:opacity-60"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white shadow-md transition hover:bg-emerald-800 active:scale-[0.98] disabled:opacity-60"
                 >
                   <Save className="w-4 h-4" />
                   <span>{activeQuoteId ? "Update & Issue Quote" : "Save & Issue Quote to Client"}</span>
@@ -1478,7 +1496,7 @@ export default function QuotesClient() {
       </div>
 
       {shareNotice && (
-        <div className="lg:hidden fixed bottom-[132px] left-3 right-3 z-40 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 shadow-lg">
+        <div className="fixed bottom-[calc(10.5rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-40 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 shadow-lg lg:hidden">
           {shareNotice === BUSINESS_NAME_PROMPT ? (
             <BusinessNamePrompt className="border-0 bg-transparent p-0" />
           ) : (
@@ -1493,49 +1511,48 @@ export default function QuotesClient() {
       )}
 
       {/* Mobile Sticky Summary & Fast Action Bar (lg:hidden) */}
-      <div className="lg:hidden fixed inset-x-0 bottom-[64px] z-40 w-full max-w-[100vw] overflow-hidden bg-slate-950/95 backdrop-blur-md border-t-2 border-slate-800 text-white px-3 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between gap-2">
+      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-40 flex w-full max-w-[100vw] items-center justify-between gap-2 overflow-hidden border-t-2 border-slate-800 bg-slate-950/95 px-3 py-2.5 text-white shadow-[0_-8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md lg:hidden">
         <div className="flex min-w-0 flex-col">
-          <div className="flex items-baseline gap-1.5 min-w-0">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">Total</span>
-            <span className="text-lg font-black text-white truncate">£{total.toFixed(2)}</span>
-          </div>
-          <span className="text-[11px] font-bold text-amber-400 truncate">
-            Deposit: £{deposit.toFixed(2)} ({depositPercent}%)
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
+            {vatEnabled ? "Total inc. VAT" : "Total"}
+          </span>
+          <span className="text-xl font-black tabular-nums text-white">£{money(total)}</span>
+          <span className="text-[11px] font-bold text-amber-200">
+            Deposit £{money(deposit)} ({depositPercent}%)
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {activeQuoteId || activeToken ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={saveAndIssue}
+            disabled={sharing}
+            className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-clay-700 px-3 text-sm font-extrabold text-white shadow-md transition hover:bg-clay-800 active:scale-95 disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" />
+            <span>Save</span>
+          </button>
+          {(activeQuoteId || activeToken) && (
             <button
               type="button"
               onClick={shareOnWhatsApp}
               disabled={sharing}
-              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-3.5 py-2 min-h-[46px] rounded-xl text-xs shadow-md active:scale-95 transition disabled:opacity-60"
+              className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
             >
-              <Share2 className="w-4 h-4" />
-              <span>WhatsApp</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={saveAndIssue}
-              disabled={sharing}
-              className="inline-flex items-center gap-1.5 bg-clay-700 hover:bg-clay-800 active:bg-blue-800 text-white font-extrabold px-4 py-2 min-h-[46px] rounded-xl text-xs sm:text-sm shadow-md active:scale-95 transition"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Quote</span>
+              <Share2 className="h-4 w-4" />
+              <span>Send</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={() => {
-              window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+              document.getElementById("quote-share")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
-            className="p-2 min-h-[46px] min-w-[46px] flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold active:scale-90 transition"
-            title="Jump to Details"
+            className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200 transition hover:bg-slate-700 hover:text-white"
+            aria-label="Jump to save and share"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="h-4 w-4" />
           </button>
         </div>
       </div>
