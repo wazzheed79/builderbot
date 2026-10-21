@@ -43,7 +43,7 @@ export async function takeAiTurn(userId: string, kind: "generate" | "expand"): P
 
   const memory = serviceRoleConfigured
     ? undefined
-    : checkRateLimit(`ai-${kind}:user:${userId}`, AI_LIMIT, AI_WINDOW_MS);
+    : await checkRateLimit(`ai-${kind}:user:${userId}`, AI_LIMIT, AI_WINDOW_MS);
 
   const turn = decideAiTurn({
     serviceRoleConfigured,

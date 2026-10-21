@@ -1,58 +1,77 @@
-// Simple in-memory sliding window rate limiter for Next.js API routes
+import { getServiceRoleSupabase } from "@/lib/supabase-server";
+import {
+  bucketFromIdentifier,
+  checkMemoryRateLimit,
+  decideRateLimit,
+  getClientIp,
+  hashRateSubject,
+  isMissingRateLimitFunction,
+} from "./rate-limit.mjs";
 
-interface RateLimitRecord {
-  timestamps: number[];
-}
+export { getClientIp };
 
-const rateLimitMap = new Map<string, RateLimitRecord>();
+export type RateLimitResult = {
+  allowed: boolean;
+  remaining: number;
+  retryAfterSec?: number;
+  source: "database" | "memory" | "blocked";
+};
 
-// Cleanup stale records every 5 minutes
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, record] of rateLimitMap.entries()) {
-      record.timestamps = record.timestamps.filter((t) => now - t < 60000);
-      if (record.timestamps.length === 0) {
-        rateLimitMap.delete(key);
-      }
-    }
-  }, 300000);
-}
-
-export function checkRateLimit(
+/**
+ * One request against a named limit. The database counter survives a new
+ * server. If that check cannot be completed, the request is refused. Memory
+ * is only used when the service role key is not set, or the SQL function is
+ * not installed yet.
+ */
+export async function checkRateLimit(
   identifier: string,
   maxRequests = 15,
   windowMs = 60000
-): { allowed: boolean; remaining: number; retryAfterSec?: number } {
-  const now = Date.now();
-  const record = rateLimitMap.get(identifier) || { timestamps: [] };
+): Promise<RateLimitResult> {
+  const serviceRoleConfigured = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // Filter timestamps within window
-  record.timestamps = record.timestamps.filter((t) => now - t < windowMs);
+  if (!serviceRoleConfigured) {
+    return { ...checkMemoryRateLimit(identifier, maxRequests, windowMs), source: "memory" };
+  }
 
-  if (record.timestamps.length >= maxRequests) {
-    const oldestTimestamp = record.timestamps[0];
-    const retryAfterSec = Math.ceil((oldestTimestamp + windowMs - now) / 1000);
+  const sb = getServiceRoleSupabase();
+  if (!sb) {
+    const blocked = decideRateLimit({ serviceRoleConfigured: true, rpcError: true, data: null });
     return {
-      allowed: false,
-      remaining: 0,
-      retryAfterSec: Math.max(1, retryAfterSec),
+      allowed: blocked.allowed,
+      remaining: blocked.remaining,
+      retryAfterSec: blocked.retryAfterSec,
+      source: blocked.source,
     };
   }
 
-  record.timestamps.push(now);
-  rateLimitMap.set(identifier, record);
+  const result = await sb.rpc("consume_rate_limit", {
+    p_bucket: bucketFromIdentifier(identifier),
+    p_subject: hashRateSubject(identifier),
+    p_limit: maxRequests,
+    p_window_seconds: Math.max(1, Math.round(windowMs / 1000)),
+  });
 
-  return {
-    allowed: true,
-    remaining: maxRequests - record.timestamps.length,
-  };
-}
-
-export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
+  if (result.error && isMissingRateLimitFunction(result.error)) {
+    console.error(
+      "Rate limit storage is not installed yet. Using this server's memory until the migration is applied."
+    );
+    return { ...checkMemoryRateLimit(identifier, maxRequests, windowMs), source: "memory" };
   }
-  return req.headers.get("x-real-ip") || "127.0.0.1";
+
+  if (result.error) {
+    console.error("Rate limit check failed", result.error.message);
+  }
+
+  const decided = decideRateLimit({
+    serviceRoleConfigured: true,
+    rpcError: Boolean(result.error),
+    data: result.data,
+  });
+  return {
+    allowed: decided.allowed,
+    remaining: decided.remaining,
+    retryAfterSec: decided.retryAfterSec,
+    source: decided.source,
+  };
 }

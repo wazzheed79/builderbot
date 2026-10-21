@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { roundMoney } from "@/lib/storage";
+import { sanitizeGeneratedQuote } from "@/lib/quote-ai.mjs";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { applyRememberedPrices } from "@/lib/price-memory.mjs";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
@@ -21,7 +21,10 @@ const GenerateRequestSchema = z.object({
     .trim()
     .max(100)
     .optional(),
-  photos: z.array(z.string()).max(6).optional(),
+  photos: z
+    .array(z.string().max(1_500_000, "Each photo must be a smaller image."))
+    .max(6)
+    .optional(),
   pricingMemory: z
     .object({
       laborHourlyRate: z.number().positive().optional(),
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Rate Limiting Check (15 requests/min per IP)
     const clientIp = getClientIp(request);
-    const rateCheck = checkRateLimit(`ai-generate:${clientIp}`, 15, 60000);
+    const rateCheck = await checkRateLimit(`ai-generate:${clientIp}`, 15, 60000);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Too many AI generation requests. Please wait a moment before trying again." },
@@ -228,59 +231,27 @@ export async function POST(request: NextRequest) {
         });
 
         const parsed = parseGeminiJson(responseText);
-
-        // Clamping & Sanity Validation on AI output
-        const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
-        const cleanedItems: LineItemResponse[] = rawItems
-          .slice(0, 50) // Cap to max 50 items
-          .map((it: Partial<LineItemResponse>, idx: number) => {
-            const rawType = String(it.type || "material").toLowerCase();
-            const validTypes: LineItemResponse["type"][] = ["labor", "material", "service"];
-            const itemType = validTypes.includes(rawType as LineItemResponse["type"])
-              ? (rawType as LineItemResponse["type"])
-              : "material";
-
-            // Clamp quantities between 0.01 and 10,000
-            const rawQty = Number(it.quantity) || 1;
-            const clampedQty = Math.max(0.01, Math.min(10000, roundMoney(rawQty)));
-
-            // Clamp unit rates between £0 and £50,000
-            const rawRate = Number(it.rate) || 0;
-            const clampedRate = Math.max(0, Math.min(50000, roundMoney(rawRate)));
-
-            const cleanDesc = String(it.description || `Trade item #${idx + 1}`)
-              .trim()
-              .slice(0, 200);
-
-            const cleanUnit = String(it.unit || "unit")
-              .trim()
-              .slice(0, 30);
-
-            return {
-              type: itemType,
-              description: cleanDesc,
-              quantity: clampedQty,
-              unit: cleanUnit,
-              rate: clampedRate,
-            };
-          });
-        const rememberedItems = applyRememberedPrices(cleanedItems, remembered) as LineItemResponse[];
-
-        const depositPercent = Math.max(
-          0,
-          Math.min(100, Number(parsed.suggestedDepositPercent) || 20)
-        );
-
-        const result: GenerateResponse = {
-          title: String(parsed.title || "Trade Works Specification").trim().slice(0, 150),
-          scopeOfWork: String(parsed.scopeOfWork || notes).trim().slice(0, 2500),
-          suggestedDepositPercent: depositPercent,
-          items: rememberedItems,
-          aiPowered: true,
-          ...(tiers ? { options: buildChoiceOptions(rememberedItems, true, depositPercent) } : {}),
-        };
-
-        return NextResponse.json(result);
+        const cleaned = sanitizeGeneratedQuote(parsed, { notes });
+        // A reply that is missing lines, or is not an object, uses the rough estimate.
+        if (!cleaned.ok) {
+          console.error(
+            "Gemini quote did not match the expected shape. Using the rough estimate.",
+            cleaned.reason
+          );
+        } else {
+          const rememberedItems = applyRememberedPrices(cleaned.items, remembered) as LineItemResponse[];
+          const result: GenerateResponse = {
+            title: cleaned.title,
+            scopeOfWork: cleaned.scopeOfWork,
+            suggestedDepositPercent: cleaned.suggestedDepositPercent,
+            items: rememberedItems,
+            aiPowered: true,
+            ...(tiers
+              ? { options: buildChoiceOptions(rememberedItems, true, cleaned.suggestedDepositPercent) }
+              : {}),
+          };
+          return NextResponse.json(result);
+        }
       } catch (error) {
         if (!shouldUseRoughEstimate(error)) throw error;
         console.error("Gemini quote generation failed. Using the rough estimate.", error);

@@ -14,7 +14,7 @@ const EventSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const limit = checkRateLimit(`event:${ip}`, 60, 60_000);
+  const limit = await checkRateLimit(`event:${ip}`, 60, 60_000);
   if (!limit.allowed) {
     return NextResponse.json({ ok: false }, { status: 429 });
   }
@@ -25,12 +25,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
+  const oneLine = (value: string) => value.replace(/[\r\n]+/g, " ");
   console.info(
     "[beta-event]",
     JSON.stringify({
-      name: parsed.data.name,
-      path: parsed.data.path || "",
-      detail: parsed.data.detail || "",
+      name: oneLine(parsed.data.name),
+      path: oneLine(parsed.data.path || ""),
+      detail: oneLine(parsed.data.detail || ""),
     })
   );
 
