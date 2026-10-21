@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **Draft recovery, AI quota, and printable quotes**: A quote being written is kept in this browser and offered back after a refresh or a closed tab. Signed-in drafts also upload when the signal returns. AI builds stop after 30 an hour, and a failed quota check refuses another build instead of ignoring the limit. Printed quotes wrap long lines, split a long list across pages, and format pounds with pence. Accepted quotes no longer invent a bank name or sort code.
 - [x] **Business name, privacy, sample quote, and tap-to-sign-in**: Quotes are not sent until a real business name is saved. Privacy and terms describe the live beta. The homepage example matches the en-suite quote, and the free-beta offer matches the terms. Email links open /auth/confirm and are only used when the person taps.
 - [x] **Customer sign box**: Accept and decline errors show inside the box. A quote with Standard, Better, and Premium can be chosen there, and the signed confirmation appears after the quote is saved.
 - [x] **Phone test fixes**: A real customer link opens again. The public lookup uses `get_public_quote`, which the anon key may call, because row security hides the quotes table from that key. Save and WhatsApp send the lines on the screen, and Good/Better/Best are built from those lines. The quote editor fits a 360px-wide phone. Sign-in leads with the email link.

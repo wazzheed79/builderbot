@@ -168,22 +168,41 @@ select {
     display: none !important;
   }
 
-  .print-page {
+  .print-page,
+  .quote-document {
     box-shadow: none !important;
     border: none !important;
     margin: 0 !important;
     padding: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
+    overflow: visible !important;
   }
 
   table {
-    page-break-inside: avoid;
     width: 100% !important;
   }
 
-  tr {
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  .quote-line {
+    break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .quote-line-long,
+  .quote-line-long p {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .quote-line p,
+  .quote-line-long p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   /* Retain background graphics and badge colors in PDF */

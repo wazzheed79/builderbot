@@ -6,7 +6,7 @@ import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { applyRememberedPrices } from "@/lib/price-memory.mjs";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
-import { takeAiTurn } from "@/lib/ai-quota";
+import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       const userLimit = await takeAiTurn(userId, "generate");
       if (!userLimit.allowed) {
         return NextResponse.json(
-          { error: "AI quote limit reached for this hour. Edit prices yourself, or try again later." },
+          { error: quotaMessage(userLimit, "generate") },
           { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
         );
       }
@@ -116,22 +116,18 @@ export async function POST(request: NextRequest) {
         "Recommend a deposit % between 10 and 30 (default 20). " +
         "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes.";
 
-      if (pricingMemory) {
-        const customLabor = pricingMemory.laborHourlyRate
-          ? `£${pricingMemory.laborHourlyRate}/hr`
-          : pricingMemory.laborDayRate
+      const customLabor = pricingMemory?.laborHourlyRate
+        ? `£${pricingMemory.laborHourlyRate}/hr`
+        : pricingMemory?.laborDayRate
           ? `£${pricingMemory.laborDayRate}/day`
           : "standard UK rates";
-        systemInstruction += ` CONTRACTOR PRICING DNA: The contractor typically charges ${customLabor} for labour and expects approximately ${pricingMemory.preferredMarkupPercent || 20}% material markup. Calibrate your line item rates to this contractor's personal pricing profile.`;
-      }
-
-      if (remembered.length > 0) {
-        const samples = remembered
-          .slice(0, 12)
-          .map((row) => `${row.description || row.key} £${row.rate} per ${row.unit}`)
-          .join("; ");
-        systemInstruction += ` USE THESE REMEMBERED PRICES when the line is the same sort of work: ${samples}.`;
-      }
+      const rememberedPrices =
+        remembered.length > 0
+          ? remembered
+              .slice(0, 12)
+              .map((row) => `${row.description || row.key} £${row.rate} per ${row.unit}`)
+              .join("; ")
+          : "";
 
       // Extract up to 3 site photos for multimodal AI visual assessment
       const imageParts = (photos || [])
@@ -164,7 +160,13 @@ export async function POST(request: NextRequest) {
               role: "user",
               parts: [
                 {
-                  text: `Target Trade Category: ${trade || "General Building & Renovation"}\nItemize the following job notes into UK trade line items:`,
+                  text:
+                    `Target Trade Category: ${trade || "General Building & Renovation"}\n` +
+                    `Contractor labour rate: ${customLabor}. Material markup about ${pricingMemory?.preferredMarkupPercent || 20}%.\n` +
+                    (rememberedPrices
+                      ? `Use these remembered prices when the line is the same sort of work: ${rememberedPrices}\n`
+                      : "") +
+                    "Itemize the following job notes into UK trade line items:",
                 },
                 { text: notes },
                 ...imageParts,

@@ -35,6 +35,7 @@ import { getWhatsAppShareUrl } from "@/lib/share";
 import { getAuthHeaders } from "@/lib/supabase";
 import { brand } from "@/lib/brand.mjs";
 import { displayBusinessName } from "@/lib/business-name.mjs";
+import { bankInstruction, formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
 import {
   useBusinessProfile,
   useClientReady,
@@ -209,6 +210,19 @@ export default function CustomerQuoteClient({
     ? ({ ...profile, ...serverContractor } as BusinessProfile)
     : profile;
   const contractorName = displayBusinessName(activeProfile.companyName, activeProfile.ownerName);
+  const printable = preparePrintableQuote({
+    items: shownItems,
+    logoUrl: activeProfile.logoUrl,
+    vatEnabled: Boolean(loadedQuote?.vatEnabled),
+    depositPercent: loadedQuote?.depositPercent ?? 20,
+    totals: {
+      subtotal: shownSubtotal,
+      vat: shownVat,
+      total: shownTotal,
+      deposit: shownDeposit,
+    },
+  });
+  const bank = bankInstruction(activeProfile);
   const contactPhone = activeProfile.phone || "";
   const contactEmail = activeProfile.email || "";
 
@@ -479,29 +493,33 @@ export default function CustomerQuoteClient({
                     Signed: {loadedQuote.acceptedSignatureName || signatureName}
                   </span>
                   <span className="text-xs bg-emerald-700/80 px-3 py-1 rounded-lg font-semibold">
-                    Deposit Due: £{loadedQuote.deposit.toFixed(2)}
+                    Deposit Due: {formatGbp(loadedQuote.deposit)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {status === "accepted" && activeProfile.bankAccountNumber && (
+            {status === "accepted" && bank && (
               <div className="bg-emerald-700/60 border border-emerald-500/40 rounded-xl p-4 text-xs space-y-2">
                 <p className="font-bold text-emerald-100 uppercase tracking-wider text-[11px]">
                   Deposit Payment Instructions (Bank Transfer):
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 font-mono">
+                  {bank.bankName && (
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Bank</span>
-                    <span className="text-white font-bold">{activeProfile.bankName || "Commercial Bank"}</span>
+                    <span className="text-white font-bold">{bank.bankName}</span>
                   </div>
+                  )}
+                  {bank.sortCode && (
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Sort Code</span>
-                    <span className="text-white font-bold">{activeProfile.bankSortCode || "20-00-00"}</span>
+                    <span className="text-white font-bold">{bank.sortCode}</span>
                   </div>
+                  )}
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Account No</span>
-                    <span className="text-white font-bold">{activeProfile.bankAccountNumber}</span>
+                    <span className="text-white font-bold">{bank.accountNumber}</span>
                   </div>
                   <div>
                     <span className="text-emerald-300 text-[10px] block font-sans">Reference</span>
@@ -545,12 +563,12 @@ export default function CustomerQuoteClient({
         </div>
 
         {/* Main Document Card */}
-        <div className="quote-document bg-[#fffdf8] rounded-2xl shadow-xl border border-stone-200 border-t-8 border-t-clay-700 overflow-hidden print-page">
+        <div className="quote-document bg-[#fffdf8] rounded-2xl shadow-xl border border-stone-200 border-t-8 border-t-clay-700 overflow-hidden print:overflow-visible print-page">
           {/* Header & Contractor Details */}
           <div className="p-6 sm:p-8 bg-[#fffdf8] text-ink border-b border-stone-200">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-stone-200">
               <div className="flex items-start gap-4">
-                {activeProfile.logoUrl && (
+                {printable.hasLogo && activeProfile.logoUrl && (
                   <div className="w-16 h-16 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -698,7 +716,7 @@ export default function CustomerQuoteClient({
                 <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-2">
                   Scope of Work & Specification
                 </h2>
-                <p className="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 leading-relaxed font-normal">
+                <p className="quote-line-long text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 leading-relaxed font-normal wrap-break-word whitespace-pre-wrap">
                   {loadedQuote.notes}
                 </p>
               </div>
@@ -725,7 +743,7 @@ export default function CustomerQuoteClient({
                         }`}
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>
-                        <span className="block text-lg font-black text-clay-700">£{option.total.toFixed(2)}</span>
+                        <span className="block text-lg font-black text-clay-700">{formatGbp(option.total)}</span>
                       </button>
                     );
                   })}
@@ -739,16 +757,16 @@ export default function CustomerQuoteClient({
                 Itemised cost breakdown
               </h2>
               <div className="border border-stone-200 rounded-xl divide-y divide-stone-100">
-                {shownItems.map((item, idx) => (
-                  <div key={idx} className="p-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                {printable.lines.map((item) => (
+                  <div key={item.key} className={`p-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end ${item.long ? "quote-line quote-line-long" : "quote-line"}`}>
                     <div className="min-w-0">
-                      <p className="font-medium text-stone-900">{item.description}</p>
-                      <p className="text-[11px] uppercase tracking-wider text-stone-500 mt-1">
-                        {item.type === "labor" ? "Labour" : item.type === "material" ? "Material" : "Service"} · {item.quantity} {item.unit} × £{item.rate.toFixed(2)}
+                      <p className="font-medium text-stone-900 wrap-break-word">{item.description}</p>
+                      <p className="text-[11px] uppercase tracking-wider text-stone-500 mt-1 wrap-break-word">
+                        {item.meta}
                       </p>
                     </div>
                     <p className="font-semibold tabular-nums text-stone-900 sm:text-right">
-                      £{(item.quantity * item.rate).toFixed(2)}
+                      {item.lineTotal}
                     </p>
                   </div>
                 ))}
@@ -759,26 +777,26 @@ export default function CustomerQuoteClient({
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
               <div className="text-xs text-slate-500 space-y-1">
                 <p className="font-semibold text-slate-700">Payment & Deposit Terms:</p>
-                <p>• {loadedQuote.depositPercent ?? 20}% deposit (£{shownDeposit.toFixed(2)}) required upon quote acceptance.</p>
+                <p>• {loadedQuote.depositPercent ?? 20}% deposit ({printable.deposit}) required upon quote acceptance.</p>
                 <p>• Remaining balance due upon completion of works.</p>
               </div>
 
               <div className="w-full sm:w-64 space-y-2 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal:</span>
-                  <span className="font-medium text-slate-900">£{shownSubtotal.toFixed(2)}</span>
+                  <span className="font-medium text-slate-900">{printable.subtotal}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>{loadedQuote.vatEnabled ? "VAT (20%):" : "VAT:"}</span>
-                  <span className="font-medium text-slate-900">£{shownVat.toFixed(2)}</span>
+                  <span className="font-medium text-slate-900">{printable.vat}</span>
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline font-black">
                   <span className="text-base text-slate-900">Total Price:</span>
-                  <span className="text-2xl text-clay-700">£{shownTotal.toFixed(2)}</span>
+                  <span className="text-2xl text-clay-700">{printable.total}</span>
                 </div>
                 <div className="pt-1 flex justify-between text-xs text-emerald-700 font-bold">
                   <span>Deposit Required:</span>
-                  <span>£{shownDeposit.toFixed(2)}</span>
+                  <span>{printable.deposit}</span>
                 </div>
               </div>
             </div>
@@ -982,7 +1000,7 @@ export default function CustomerQuoteClient({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              By typing your legal name below, you confirm acceptance of quotation <strong>{loadedQuote.id}</strong> (£{shownTotal.toFixed(2)}) and agree to the required deposit of <strong>£{shownDeposit.toFixed(2)}</strong>.
+              By typing your legal name below, you confirm acceptance of quotation <strong>{loadedQuote.id}</strong> ({printable.total}) and agree to the required deposit of <strong>{printable.deposit}</strong>.
             </p>
 
             {offeringChoice && (
@@ -1004,7 +1022,7 @@ export default function CustomerQuoteClient({
                         }`}
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>
-                        <span className="block text-lg font-black text-clay-700">£{option.total.toFixed(2)}</span>
+                        <span className="block text-lg font-black text-clay-700">{formatGbp(option.total)}</span>
                       </button>
                     );
                   })}
