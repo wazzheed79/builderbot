@@ -2,10 +2,11 @@
 /**
  * Reddit Assistant for Chuffed Quotes
  * 
- * Safely connects to Reddit via the official OAuth2 API to:
- *  1. Read inbox, unread direct messages, and comment mentions.
- *  2. Send direct messages or reply to comments.
+ * Safely connects to Reddit to:
+ *  1. Read inbox, unread direct messages, and comment mentions (OAuth2).
+ *  2. Send direct messages or reply to comments (OAuth2).
  *  3. Scan UK subreddits (r/DIYUK, r/UKPersonalFinance, trade subs) for quoting discussions.
+ *  4. Public RSS Monitor: Watch post threads or usernames for new comments with ZERO API keys needed!
  * 
  * Uses built-in Node.js fetch — zero extra packages needed.
  */
@@ -70,6 +71,7 @@ function checkConfig() {
     console.error("   REDDIT_CLIENT_SECRET=your_client_secret_here");
     console.error("   REDDIT_USERNAME=your_reddit_username");
     console.error("   REDDIT_PASSWORD=your_reddit_password\n");
+    console.error("💡 Note: You can still run 'node scripts/reddit-assistant.mjs watch <post_url>' with ZERO credentials!");
     process.exit(1);
   }
 }
@@ -264,7 +266,7 @@ async function cmdReply(thingId, text) {
 async function cmdPost(subName, title, text) {
   if (!subName || !title || !text) {
     console.error("Usage: node scripts/reddit-assistant.mjs post <subreddit> \"<title>\" \"<text>\"");
-    console.error("Example: node scripts/reddit-assistant.mjs post UKSmallBusiness \"Built a free quoting tool for trades\" \"Hey everyone...\"");
+    console.error("Example: node scripts/reddit-assistant.mjs post SideProject \"Built a free quoting tool for trades\" \"Hey everyone...\"");
     process.exit(1);
   }
 
@@ -356,6 +358,98 @@ async function cmdScan(targetSub) {
   console.log(`💡 Tip: Open any discussion link above in your browser to read and participate thoughtfully.`);
 }
 
+function decodeHtml(html) {
+  return html
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Public RSS Monitor for posts or usernames (Zero API credentials needed)
+ */
+async function cmdWatch(target) {
+  if (!target) {
+    console.error("\n❌ Usage: node scripts/reddit-assistant.mjs watch <post_url_or_reddit_username>\n");
+    console.log("Examples:");
+    console.log("  node scripts/reddit-assistant.mjs watch https://www.reddit.com/r/SideProject/comments/xxxx/title");
+    console.log("  node scripts/reddit-assistant.mjs watch your_reddit_username\n");
+    process.exit(1);
+  }
+
+  let rssUrl = target.trim();
+  if (rssUrl.startsWith("http://") || rssUrl.startsWith("https://")) {
+    rssUrl = rssUrl.split("?")[0].replace(/\/+$/, "") + ".rss";
+  } else {
+    const cleanUser = rssUrl.replace(/^\/?u\//, "");
+    rssUrl = `https://www.reddit.com/user/${cleanUser}/comments.rss`;
+  }
+
+  console.log(`\n🔍 Fetching latest updates from: ${rssUrl}\n`);
+  const res = await fetch(rssUrl, {
+    headers: {
+      "User-Agent": "ChuffedQuotesMonitor/1.0 (Public RSS Reader)",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch RSS feed (${res.status} ${res.statusText})`);
+  }
+
+  const xml = await res.text();
+  const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+  const entries = [];
+  let match;
+  while ((match = entryRegex.exec(xml)) !== null) {
+    const block = match[1];
+    const authorMatch = block.match(/<author>[\s\S]*?<name>(.*?)<\/name>/);
+    const titleMatch = block.match(/<title>([\s\S]*?)<\/title>/);
+    const contentMatch = block.match(/<content type="html">([\s\S]*?)<\/content>/);
+    const linkMatch = block.match(/<link href="([^"]+)"/);
+    const updatedMatch = block.match(/<updated>(.*?)<\/updated>/);
+    const idMatch = block.match(/<id>(.*?)<\/id>/);
+
+    entries.push({
+      author: authorMatch ? authorMatch[1] : "Unknown",
+      title: titleMatch ? decodeHtml(titleMatch[1]) : "",
+      content: contentMatch ? decodeHtml(contentMatch[1]) : "",
+      link: linkMatch ? linkMatch[1] : "",
+      updated: updatedMatch ? updatedMatch[1] : "",
+      id: idMatch ? idMatch[1] : "",
+    });
+  }
+
+  if (entries.length === 0) {
+    console.log("✨ No comments or replies found yet. The thread is quiet!");
+    return;
+  }
+
+  console.log(`💬 Found ${entries.length} recent comment(s) / updates:\n`);
+  for (let i = 0; i < entries.length; i++) {
+    const item = entries[i];
+    console.log(`------------------------------------------------------`);
+    console.log(`👤 From: ${item.author}  |  🕒 ${new Date(item.updated).toLocaleString()}`);
+    console.log(`📝 Content:\n   "${item.content}"`);
+    console.log(`🔗 Direct link: ${item.link}`);
+    console.log(`💡 Suggested reply:`);
+    if (/price|cost|how much|rate/i.test(item.content)) {
+      console.log(`   "Thanks for the question! It uses UK regional averages for sparkies (£250-£350/day) and plumbers, plus live merchant material costs. You can also customize your own rates in Settings."`);
+    } else if (/app|mobile|ios|android|download/i.test(item.content)) {
+      console.log(`   "It runs directly in mobile Safari/Chrome as a PWA at https://tradematequotes.co.uk — no App Store download needed, works offline and quotes send in 1 tap via WhatsApp."`);
+    } else if (/free|paid|subscription|stripe/i.test(item.content)) {
+      console.log(`   "It's 100% free right now while in beta with unlimited quotes. Founding trades who join now keep free access for 12 months."`);
+    } else {
+      console.log(`   "Thanks mate, really appreciate the feedback! If there's any specific feature that would save you time on the tools, let me know."`);
+    }
+    console.log("");
+  }
+}
+
 // -----------------------------------------------------------------------------
 // CLI Router
 // -----------------------------------------------------------------------------
@@ -378,14 +472,21 @@ Commands:
   post <subreddit> "<title>" "<message>"  Post a new discussion to a subreddit
   read <id>                               Mark a message as read
   scan [subreddit]                        Scan UK subreddits (r/DIYUK, etc.) for trade quoting discussions
+  watch <url_or_user>                     Monitor comments on a post or user (Zero API keys needed!)
 
 Examples:
+  node scripts/reddit-assistant.mjs watch https://www.reddit.com/r/SideProject/comments/xxxx/title
+  node scripts/reddit-assistant.mjs watch your_reddit_username
   node scripts/reddit-assistant.mjs test
   node scripts/reddit-assistant.mjs inbox
   node scripts/reddit-assistant.mjs scan DIYUK
-  node scripts/reddit-assistant.mjs post UKSmallBusiness "Quoting tool for UK trades" "Built this..."
-  node scripts/reddit-assistant.mjs send bob_builder "Quick question" "Hi Bob, saw your post..."
     `);
+    return;
+  }
+
+  // Public commands that require zero API keys
+  if (command === "watch" || command === "monitor") {
+    await cmdWatch(args[1]);
     return;
   }
 
