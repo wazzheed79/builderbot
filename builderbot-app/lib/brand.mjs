@@ -14,7 +14,7 @@ export const brand = {
   shortName: "Chuffed",
   tagline: "Quotes in under 2 minutes",
   description:
-    "Create and send a professional quote in under two minutes. Free during the beta.",
+    "Turn rough job notes into a professional itemised quote in minutes. Send a link or WhatsApp. Customers accept with no login. Free in beta for UK trades.",
   foundingTitle: "Founding member offer",
   foundingDetail:
     "Free during the beta. The first 100 trades who join keep it free for 12 months.",

@@ -33,6 +33,8 @@ export const metadata: Metadata = {
     template: `%s · ${brand.name}`,
   },
   description: brand.description,
+  applicationName: brand.name,
+  category: "business",
   openGraph: {
     type: "website",
     siteName: brand.name,

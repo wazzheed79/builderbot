@@ -30,21 +30,23 @@ export default function OpenGraphImage() {
           <div
             style={{
               display: "flex",
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: 700,
               letterSpacing: 2,
               textTransform: "uppercase",
               color: "#a84322",
             }}
           >
-            For tradespeople
+            Free in beta for UK trades
           </div>
-          <div style={{ display: "flex", fontSize: 84, fontWeight: 800, lineHeight: 1 }}>
+          <div style={{ display: "flex", fontSize: 76, fontWeight: 800, lineHeight: 1.02 }}>
             {brand.name}
           </div>
-          <div style={{ display: "flex", fontSize: 40, color: "#5c4a38" }}>{brand.tagline}</div>
-          <div style={{ display: "flex", fontSize: 30, color: "#2c2416" }}>
-            Speak the job. Send a quote the customer can accept.
+          <div style={{ display: "flex", fontSize: 36, color: "#2c2416", maxWidth: 820 }}>
+            Rough job notes into a professional itemised quote.
+          </div>
+          <div style={{ display: "flex", fontSize: 28, color: "#5c4a38" }}>
+            Send a link or WhatsApp. They accept with no login.
           </div>
         </div>
       </div>

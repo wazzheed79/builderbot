@@ -82,23 +82,24 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-          <label className="block text-xs font-bold text-slate-700">
+          <label htmlFor="material-cost" className="block text-xs font-bold text-slate-700">
             Trade Materials Net Cost (£)
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-2.5 text-sm text-slate-400 font-semibold">£</span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
             <input
+              id="material-cost"
               type="number"
               value={materialCost}
               onChange={(e) => setMaterialCost(parseFloat(e.target.value) || 0)}
-              className="w-full pl-8 pr-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-bold text-slate-900"
+              className="min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-base font-bold text-slate-900"
             />
           </div>
         </div>
 
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
           <div className="flex justify-between items-center">
-            <label className="block text-xs font-bold text-slate-700">
+            <label htmlFor="material-markup" className="block text-xs font-bold text-slate-700">
               Material Markup (%)
             </label>
             <span className="text-xs font-extrabold text-clay-700">
@@ -106,13 +107,14 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
             </span>
           </div>
           <input
+            id="material-markup"
             type="range"
             min="0"
             max="50"
             step="5"
             value={materialMarkup}
             onChange={(e) => setMaterialMarkup(parseInt(e.target.value))}
-            className="w-full accent-blue-600"
+            className="min-h-11 w-full accent-clay-700"
           />
           <div className="flex justify-between text-[11px] text-slate-500">
             <span>0% (Cost)</span>
@@ -122,42 +124,45 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
         </div>
 
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-          <label className="block text-xs font-bold text-slate-700">
+          <label htmlFor="days-on-site" className="block text-xs font-bold text-slate-700">
             Estimated Days on Site
           </label>
           <input
+            id="days-on-site"
             type="number"
             min="0.5"
             step="0.5"
             value={days}
             onChange={(e) => setDays(parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-bold text-slate-900"
+            className="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-900"
           />
         </div>
 
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-          <label className="block text-xs font-bold text-slate-700">
+          <label htmlFor="day-rate" className="block text-xs font-bold text-slate-700">
             Day Rate per Operative (£)
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-2.5 text-sm text-slate-400 font-semibold">£</span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
             <input
+              id="day-rate"
               type="number"
               value={dayRate}
               onChange={(e) => setDayRate(parseFloat(e.target.value) || 0)}
-              className="w-full pl-8 pr-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-bold text-slate-900"
+              className="min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-base font-bold text-slate-900"
             />
           </div>
         </div>
 
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-          <label className="block text-xs font-bold text-slate-700">
+          <label htmlFor="team-size" className="block text-xs font-bold text-slate-700">
             Team Size (Operatives)
           </label>
           <select
+            id="team-size"
             value={tradespeople}
             onChange={(e) => setTradespeople(parseInt(e.target.value))}
-            className="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-bold text-slate-900"
+            className="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-900"
           >
             <option value={1}>1 Tradesperson (Solo)</option>
             <option value={2}>2 Operatives (Pair / with Mate)</option>
@@ -166,16 +171,17 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
         </div>
 
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-          <label className="block text-xs font-bold text-slate-700">
+          <label htmlFor="disposal-cost" className="block text-xs font-bold text-slate-700">
             Waste Disposal / Skip (£)
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-2.5 text-sm text-slate-400 font-semibold">£</span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
             <input
+              id="disposal-cost"
               type="number"
               value={disposalCost}
               onChange={(e) => setDisposalCost(parseFloat(e.target.value) || 0)}
-              className="w-full pl-8 pr-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-bold text-slate-900"
+              className="min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-base font-bold text-slate-900"
             />
           </div>
         </div>
@@ -183,8 +189,8 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
 
       {/* Live Margin Calculation Summary Card */}
       <div className="bg-clay-50/70 p-5 rounded-xl border border-clay-200 space-y-3">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-blue-900">
-          Margin Breakdown & Cost Analysis
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink">
+          Margin breakdown
         </h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -214,20 +220,20 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
 
           <div>
             <span className="text-slate-500">Net Job Total:</span>
-            <p className="text-lg font-black text-blue-900">
-              £{grossTotal.toFixed(2)}
+            <p className="text-lg font-black tabular-nums text-ink">
+              £{grossTotal.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
-        <div className="pt-3 border-t border-clay-200/80 flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-600">
-            Ready to populate your quote?
+        <div className="flex flex-col gap-3 border-t border-clay-200/80 pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-medium text-slate-700">
+            Ready to add these figures to the quote?
           </span>
           <button
             type="button"
             onClick={handleApply}
-            className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-sm transition active:scale-95"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-clay-700 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-clay-800 active:scale-95 sm:w-auto"
           >
             <span>Apply These Figures to Quote</span>
             <ArrowRight className="w-3.5 h-3.5" />

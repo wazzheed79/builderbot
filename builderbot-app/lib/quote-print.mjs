@@ -109,6 +109,9 @@ function printableLine(item, index) {
     wrapped,
     long: isLongPrintLine(wrapped),
     meta: `${label} · ${safeQty} ${unit} × ${formatGbp(safeRate)}`,
+    qtyLabel: String(safeQty),
+    unit,
+    rateLabel: formatGbp(safeRate),
     lineTotal: formatGbp(roundMoney(safeQty * safeRate)),
     heightMm: lineHeightMm(wrapped),
   };
