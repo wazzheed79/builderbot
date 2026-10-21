@@ -26,6 +26,7 @@ import {
   roundMoney,
   getPricingMemory,
   getQuoteById,
+  deleteQuote,
   recalculateQuoteTotals,
   DEFAULT_BUSINESS_PROFILE,
   type QuoteOption,
@@ -45,12 +46,24 @@ import {
   getWhatsAppFollowUpUrl,
   formatWhatsAppFollowUpMessage,
 } from "@/lib/share";
-import { getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
+import { deleteCloudQuote, getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import type { Quote } from "@/lib/storage";
 import { loadRememberedPrices, rememberLinePrice } from "@/lib/price-memory";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { quoteDraftForSave } from "@/lib/quote-draft.mjs";
+import {
+  clearWorkingDraft,
+  cloudSyncPlan,
+  autosaveRowToRetire,
+  ensureCloudIdentity,
+  readWorkingDraft,
+  recoveryWhenLabel,
+  shouldOfferRecovery,
+  snapshotHasWork,
+  toCloudDraftQuote,
+  writeWorkingDraft,
+} from "@/lib/quote-autosave.mjs";
 import { BUSINESS_NAME_PROMPT, hasBusinessName } from "@/lib/business-name.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
@@ -81,6 +94,27 @@ interface SpeechRecognitionInstance {
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: (() => void) | null;
   onend: (() => void) | null;
+}
+
+function draftFingerprint(snapshot: Record<string, unknown>) {
+  return JSON.stringify({
+    clientName: snapshot.clientName,
+    clientCompany: snapshot.clientCompany,
+    clientAddress: snapshot.clientAddress,
+    clientPhone: snapshot.clientPhone,
+    clientEmail: snapshot.clientEmail,
+    quoteTitle: snapshot.quoteTitle,
+    notesInput: snapshot.notesInput,
+    items: snapshot.items,
+    photos: snapshot.photos,
+    choiceOptions: snapshot.choiceOptions,
+    choiceIndex: snapshot.choiceIndex,
+    vatEnabled: snapshot.vatEnabled,
+    depositPercent: snapshot.depositPercent,
+    selectedCustomerId: snapshot.selectedCustomerId,
+    activeQuoteId: snapshot.activeQuoteId,
+    activeToken: snapshot.activeToken,
+  });
 }
 
 export default function QuotesClient() {
@@ -136,10 +170,18 @@ export default function QuotesClient() {
   const [appliedQuoteParam, setAppliedQuoteParam] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [ratesReadyFor, setRatesReadyFor] = useState("");
+  const [recoveryOffer, setRecoveryOffer] = useState<Record<string, unknown> | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   // Bumped when the tradesperson changes the lines, so a late AI reply cannot replace them.
   const editVersion = useRef(0);
   const requestSerial = useRef(0);
   const lineSerial = useRef(0);
+  const ignoreAutosave = useRef(false);
+  const baselineRef = useRef("");
+  const cloudIdentity = useRef({ id: "", token: "" });
+  const cloudPending = useRef(false);
+  const userRef = useRef(user);
+  const baselinedQuote = useRef("");
   const draftRef = useRef({
     items,
     choiceOptions,
@@ -157,6 +199,8 @@ export default function QuotesClient() {
     selectedCustomerId,
     activeQuoteId,
     activeToken,
+    cloudDraftId: null as string | null,
+    cloudDraftToken: null as string | null,
   });
   const markDraftEdited = () => {
     editVersion.current += 1;
@@ -179,22 +223,32 @@ export default function QuotesClient() {
     }
   }
 
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   if (ready && !homeNotesApplied) {
-    const pending = sessionStorage.getItem(HOME_NOTES_KEY);
+    const stored = readWorkingDraft(window.localStorage);
+    const offer = shouldOfferRecovery(stored, searchParams.get("quote")) ? stored : null;
+    setRecoveryOffer(offer);
+    setDraftReady(true);
     setHomeNotesApplied(true);
-    if (pending) {
-      setNotesInput(pending.slice(0, 2000));
-      setFromHome(true);
+    if (!offer) {
+      const pending = sessionStorage.getItem(HOME_NOTES_KEY);
+      if (pending) {
+        setNotesInput(pending.slice(0, 2000));
+        setFromHome(true);
+      }
     }
   }
 
   useEffect(() => {
-    if (!homeNotesApplied) return;
+    if (!homeNotesApplied || recoveryOffer) return;
     sessionStorage.removeItem(HOME_NOTES_KEY);
-  }, [homeNotesApplied]);
+  }, [homeNotesApplied, recoveryOffer]);
 
   useEffect(() => {
-    draftRef.current = {
+    const snapshot = {
       items,
       choiceOptions,
       choiceIndex,
@@ -211,8 +265,67 @@ export default function QuotesClient() {
       selectedCustomerId,
       activeQuoteId,
       activeToken,
+      cloudDraftId: cloudIdentity.current.id || null,
+      cloudDraftToken: cloudIdentity.current.token || null,
     };
+    draftRef.current = snapshot;
+    if (!draftReady || recoveryOffer) return;
+    if (appliedQuoteParam && baselinedQuote.current !== appliedQuoteParam) {
+      baselinedQuote.current = appliedQuoteParam;
+      baselineRef.current = draftFingerprint(snapshot);
+      return;
+    }
+    if (ignoreAutosave.current) {
+      ignoreAutosave.current = false;
+      baselineRef.current = draftFingerprint(snapshot);
+      return;
+    }
+    if (!snapshotHasWork(snapshot) || draftFingerprint(snapshot) === baselineRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      const saved = writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
+      if (saved?.cloudDraftId) {
+        cloudIdentity.current = {
+          id: String(saved.cloudDraftId),
+          token: String(saved.cloudDraftToken || ""),
+        };
+      }
+      const current = draftRef.current;
+      const existing = current.activeQuoteId ? getQuoteById(current.activeQuoteId) : undefined;
+      const online = navigator.onLine;
+      const plan = cloudSyncPlan({
+        online,
+        signedIn: Boolean(userRef.current),
+        snapshot: current,
+        existingStatus: existing?.status,
+      });
+      if (plan === "wait") {
+        cloudPending.current = true;
+        return;
+      }
+      if (plan !== "sync") return;
+      const withId = ensureCloudIdentity(current);
+      cloudIdentity.current = {
+        id: String(withId.cloudDraftId || ""),
+        token: String(withId.cloudDraftToken || ""),
+      };
+      draftRef.current = {
+        ...current,
+        cloudDraftId: cloudIdentity.current.id || null,
+        cloudDraftToken: cloudIdentity.current.token || null,
+      };
+      writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
+      const quote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+      syncQuoteToCloud(quote as Quote).then((result) => {
+        cloudPending.current = !result.ok;
+      }).catch(() => {
+        cloudPending.current = true;
+      });
+    }, 500);
+
+    return () => window.clearTimeout(timer);
   }, [
+    draftReady,
     items,
     choiceOptions,
     choiceIndex,
@@ -229,7 +342,81 @@ export default function QuotesClient() {
     selectedCustomerId,
     activeQuoteId,
     activeToken,
+    appliedQuoteParam,
+    recoveryOffer,
   ]);
+
+  useEffect(() => {
+    const flushLocal = () => {
+      if (recoveryOffer) return;
+      const snapshot = draftRef.current;
+      if (!snapshotHasWork(snapshot) || draftFingerprint(snapshot) === baselineRef.current) return;
+      writeWorkingDraft(window.localStorage, snapshot, new Date().toISOString());
+    };
+    const retryCloud = () => {
+      if (!cloudPending.current || recoveryOffer || !userRef.current) return;
+      const snapshot = draftRef.current;
+      const existing = snapshot.activeQuoteId ? getQuoteById(snapshot.activeQuoteId) : undefined;
+      if (cloudSyncPlan({ online: true, signedIn: true, snapshot, existingStatus: existing?.status }) !== "sync") {
+        return;
+      }
+      const withId = ensureCloudIdentity(snapshot);
+      cloudIdentity.current = {
+        id: String(withId.cloudDraftId || ""),
+        token: String(withId.cloudDraftToken || ""),
+      };
+      draftRef.current = {
+        ...snapshot,
+        cloudDraftId: cloudIdentity.current.id || null,
+        cloudDraftToken: cloudIdentity.current.token || null,
+      };
+      writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
+      const quote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+      syncQuoteToCloud(quote as Quote).then((result) => {
+        cloudPending.current = !result.ok;
+      }).catch(() => {
+        cloudPending.current = true;
+      });
+    };
+    window.addEventListener("pagehide", flushLocal);
+    window.addEventListener("online", retryCloud);
+    return () => {
+      window.removeEventListener("pagehide", flushLocal);
+      window.removeEventListener("online", retryCloud);
+    };
+  }, [recoveryOffer]);
+
+  useEffect(() => {
+    if (!user || !draftReady || recoveryOffer) return;
+    const snapshot = draftRef.current;
+    if (!snapshotHasWork(snapshot) || draftFingerprint(snapshot) === baselineRef.current) return;
+    const existing = snapshot.activeQuoteId ? getQuoteById(snapshot.activeQuoteId) : undefined;
+    const plan = cloudSyncPlan({
+      online: navigator.onLine,
+      signedIn: true,
+      snapshot,
+      existingStatus: existing?.status,
+    });
+    if (plan === "wait") cloudPending.current = true;
+    if (plan !== "sync") return;
+    const withId = ensureCloudIdentity(snapshot);
+    cloudIdentity.current = {
+      id: String(withId.cloudDraftId || ""),
+      token: String(withId.cloudDraftToken || ""),
+    };
+    draftRef.current = {
+      ...snapshot,
+      cloudDraftId: cloudIdentity.current.id || null,
+      cloudDraftToken: cloudIdentity.current.token || null,
+    };
+    writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
+    const quote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+    syncQuoteToCloud(quote as Quote).then((result) => {
+      cloudPending.current = !result.ok;
+    }).catch(() => {
+      cloudPending.current = true;
+    });
+  }, [user, draftReady, recoveryOffer]);
 
   const quoteParam = searchParams.get("quote");
   if (ready && quoteParam && appliedQuoteParam !== quoteParam) {
@@ -569,6 +756,7 @@ export default function QuotesClient() {
     }
 
     const existing = draft.activeQuoteId ? getQuoteById(draft.activeQuoteId) : undefined;
+    const retireAutosaveId = autosaveRowToRetire(draft.cloudDraftId, draft.activeQuoteId);
     const saved = saveQuote({
       ...(draft.activeQuoteId ? { id: draft.activeQuoteId, token: draft.activeToken ?? undefined } : {}),
       sentAt: existing?.sentAt || (status === "Sent" ? new Date().toISOString() : undefined),
@@ -599,6 +787,13 @@ export default function QuotesClient() {
 
     setActiveQuoteId(saved.id);
     setActiveToken(saved.token);
+    clearWorkingDraft(window.localStorage);
+    cloudIdentity.current = { id: "", token: "" };
+    ignoreAutosave.current = true;
+    if (retireAutosaveId) {
+      deleteQuote(retireAutosaveId);
+      deleteCloudQuote(retireAutosaveId).catch(() => {});
+    }
 
     if (!user) {
       setShareNotice(
@@ -703,6 +898,73 @@ export default function QuotesClient() {
     }
   };
 
+  const applyRecovery = () => {
+    const draft = recoveryOffer;
+    if (!draft) return;
+    cloudIdentity.current = {
+      id: draft.cloudDraftId ? String(draft.cloudDraftId) : "",
+      token: draft.cloudDraftToken ? String(draft.cloudDraftToken) : "",
+    };
+    setSelectedCustomerId(String(draft.selectedCustomerId || ""));
+    setClientName(String(draft.clientName || ""));
+    setClientCompany(String(draft.clientCompany || ""));
+    setClientAddress(String(draft.clientAddress || ""));
+    setClientPhone(String(draft.clientPhone || ""));
+    setClientEmail(String(draft.clientEmail || ""));
+    setQuoteTitle(String(draft.quoteTitle || ""));
+    setNotesInput(String(draft.notesInput || ""));
+    setItems(Array.isArray(draft.items) ? (draft.items as LineItem[]) : []);
+    setPhotos(Array.isArray(draft.photos) ? (draft.photos as string[]) : []);
+    setChoiceOptions(Array.isArray(draft.choiceOptions) ? (draft.choiceOptions as QuoteOption[]) : null);
+    setChoiceIndex(Number(draft.choiceIndex) || 0);
+    setVatEnabled(Boolean(draft.vatEnabled));
+    setDepositPercent(Number(draft.depositPercent) || 0);
+    if (draft.activeQuoteId) {
+      setActiveQuoteId(String(draft.activeQuoteId));
+      setActiveToken(draft.activeToken ? String(draft.activeToken) : null);
+    }
+    ignoreAutosave.current = true;
+    setRecoveryOffer(null);
+    if (userRef.current) {
+      const existing = draft.activeQuoteId ? getQuoteById(String(draft.activeQuoteId)) : undefined;
+      const plan = cloudSyncPlan({
+        online: navigator.onLine,
+        signedIn: true,
+        snapshot: draft,
+        existingStatus: existing?.status,
+      });
+      if (plan === "sync") {
+        const withId = ensureCloudIdentity(draft);
+        const cloudQuote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+        syncQuoteToCloud(cloudQuote as Quote).catch(() => {
+          cloudPending.current = true;
+        });
+      } else if (plan === "wait") {
+        cloudPending.current = true;
+      }
+    }
+  };
+
+  const discardRecovery = () => {
+    const draft = recoveryOffer;
+    clearWorkingDraft(window.localStorage);
+    cloudIdentity.current = { id: "", token: "" };
+    if (draft?.cloudDraftId) {
+      const existing = getQuoteById(String(draft.cloudDraftId));
+      if (!existing || existing.status === "Draft") {
+        if (existing) deleteQuote(existing.id);
+        deleteCloudQuote(String(draft.cloudDraftId)).catch(() => {});
+      }
+    }
+    setRecoveryOffer(null);
+    const pending = sessionStorage.getItem(HOME_NOTES_KEY);
+    if (pending) {
+      setNotesInput(pending.slice(0, 2000));
+      setFromHome(true);
+      sessionStorage.removeItem(HOME_NOTES_KEY);
+    }
+  };
+
   return (
     <div className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-36 lg:pb-12">
       {/* Toast Alert */}
@@ -754,6 +1016,31 @@ export default function QuotesClient() {
           {openQuote && <QuoteFollowUp quote={openQuote} companyName={profile.companyName} />}
         </div>
       </div>
+
+      {recoveryOffer && (
+        <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <p className="text-sm font-semibold text-amber-950 flex-1">
+            You have an unsaved quote
+            {recoveryOffer.clientName ? ` for ${String(recoveryOffer.clientName)}` : ""} from{" "}
+            {recoveryWhenLabel(recoveryOffer.savedAt ? String(recoveryOffer.savedAt) : "")}. Recover it?
+            {recoveryOffer.photosOmitted ? " Photos were too large to keep. Add them again." : ""}
+          </p>
+          <button
+            type="button"
+            onClick={applyRecovery}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-clay-700 px-4 font-bold text-white"
+          >
+            Recover
+          </button>
+          <button
+            type="button"
+            onClick={discardRecovery}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-400 bg-white px-4 font-bold text-amber-950"
+          >
+            Discard
+          </button>
+        </div>
+      )}
 
       {/* 1. Quick Quote Templates Selector Bar */}
       <QuoteTemplatesBar onSelectTemplate={handleSelectTemplate} />

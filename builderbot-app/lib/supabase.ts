@@ -411,13 +411,13 @@ export async function fetchCloudProfile(): Promise<BusinessProfile | null> {
   }
 }
 
-export async function fetchCloudCustomers(): Promise<Customer[]> {
+export async function fetchCloudCustomers(): Promise<Customer[] | null> {
   const sb = getSupabase();
-  if (!sb) return [];
+  if (!sb) return null;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return [];
+    if (!ownerId) return null;
 
     const { data, error } = await sb
       .from("customers")
@@ -425,20 +425,20 @@ export async function fetchCloudCustomers(): Promise<Customer[]> {
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) return null;
     return data.map(mapRowToCustomer);
   } catch {
-    return [];
+    return null;
   }
 }
 
-export async function fetchCloudQuotes(): Promise<Quote[]> {
+export async function fetchCloudQuotes(): Promise<Quote[] | null> {
   const sb = getSupabase();
-  if (!sb) return [];
+  if (!sb) return null;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return [];
+    if (!ownerId) return null;
 
     const { data, error } = await sb
       .from("quotes")
@@ -446,19 +446,19 @@ export async function fetchCloudQuotes(): Promise<Quote[]> {
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) return null;
     return data.map(mapRowToQuote);
   } catch {
-    return [];
+    return null;
   }
 }
 
 export async function pullUserDataFromCloud(): Promise<{
   profile: BusinessProfile | null;
-  customers: Customer[];
-  quotes: Quote[];
-  jobs: Job[];
-  invoices: Invoice[];
+  customers: Customer[] | null;
+  quotes: Quote[] | null;
+  jobs: Job[] | null;
+  invoices: Invoice[] | null;
 } | null> {
   const sb = getSupabase();
   if (!sb) return null;
@@ -563,13 +563,13 @@ export async function deleteCloudJob(id: string): Promise<boolean> {
   }
 }
 
-export async function fetchCloudJobs(): Promise<Job[]> {
+export async function fetchCloudJobs(): Promise<Job[] | null> {
   const sb = getSupabase();
-  if (!sb) return [];
+  if (!sb) return null;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return [];
+    if (!ownerId) return null;
 
     const { data, error } = await sb
       .from("jobs")
@@ -577,10 +577,10 @@ export async function fetchCloudJobs(): Promise<Job[]> {
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) return null;
     return data.map(mapRowToJob);
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -637,13 +637,13 @@ export async function deleteCloudInvoice(id: string): Promise<boolean> {
   }
 }
 
-export async function fetchCloudInvoices(): Promise<Invoice[]> {
+export async function fetchCloudInvoices(): Promise<Invoice[] | null> {
   const sb = getSupabase();
-  if (!sb) return [];
+  if (!sb) return null;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return [];
+    if (!ownerId) return null;
 
     const { data, error } = await sb
       .from("invoices")
@@ -651,10 +651,10 @@ export async function fetchCloudInvoices(): Promise<Invoice[]> {
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !data) return null;
     return data.map(mapRowToInvoice);
   } catch {
-    return [];
+    return null;
   }
 }
 

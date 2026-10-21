@@ -9,6 +9,8 @@ import {
   syncInvoiceToCloud,
   deleteCloudInvoice,
 } from "./supabase";
+import { cloudListsToStore } from "./cloud-hydrate.mjs";
+import { clearWorkingDraft } from "./quote-autosave.mjs";
 
 export interface Customer {
   id: string;
@@ -966,26 +968,27 @@ export function convertQuoteToInvoice(quote: Quote, depositOnly: boolean = false
 // Cloud Hydration & Cache Synchronization
 export function hydrateLocalCache(data: {
   profile?: BusinessProfile | null;
-  customers?: Customer[];
-  quotes?: Quote[];
-  jobs?: Job[];
-  invoices?: Invoice[];
+  customers?: Customer[] | null;
+  quotes?: Quote[] | null;
+  jobs?: Job[] | null;
+  invoices?: Invoice[] | null;
 }): void {
   if (typeof window === "undefined") return;
   if (data.profile) {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
   }
-  if (data.customers !== undefined) {
-    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data.customers));
+  const lists = cloudListsToStore(data);
+  if (lists.customers) {
+    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(lists.customers));
   }
-  if (data.quotes !== undefined) {
-    localStorage.setItem(QUOTES_KEY, JSON.stringify(data.quotes));
+  if (lists.quotes) {
+    localStorage.setItem(QUOTES_KEY, JSON.stringify(lists.quotes));
   }
-  if (data.jobs !== undefined) {
-    localStorage.setItem(JOBS_KEY, JSON.stringify(data.jobs));
+  if (lists.jobs) {
+    localStorage.setItem(JOBS_KEY, JSON.stringify(lists.jobs));
   }
-  if (data.invoices !== undefined) {
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(data.invoices));
+  if (lists.invoices) {
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(lists.invoices));
   }
   localStorage.setItem("builderbot_data_source", "cloud");
   window.dispatchEvent(new Event("builderbot_storage_updated"));
@@ -1009,6 +1012,7 @@ export function clearLocalData(): void {
   localStorage.setItem(JOBS_KEY, JSON.stringify([]));
   localStorage.setItem(INVOICES_KEY, JSON.stringify([]));
   localStorage.removeItem("builderbot_data_source");
+  clearWorkingDraft(localStorage);
   window.dispatchEvent(new Event("builderbot_storage_updated"));
 }
 

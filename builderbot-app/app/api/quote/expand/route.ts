@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getSignedInUserId } from "@/lib/ai-access";
-import { takeAiTurn } from "@/lib/ai-quota";
+import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       const userLimit = await takeAiTurn(userId, "expand");
       if (!userLimit.allowed) {
         return NextResponse.json(
-          { error: "AI limit reached for this hour. You can keep your own notes." },
+          { error: quotaMessage(userLimit, "expand") },
           { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
         );
       }
