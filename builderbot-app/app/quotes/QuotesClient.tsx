@@ -28,6 +28,7 @@ import {
   getPricingMemory,
   getQuoteById,
   deleteQuote,
+  reassignStoredQuoteId,
   convertQuoteToInvoice,
   saveQuoteTemplate,
   deleteQuoteTemplate,
@@ -809,7 +810,7 @@ export default function QuotesClient() {
     const created = !existing;
     const firstSend = status === "Sent" && existing?.status !== "Sent";
     const retireAutosaveId = autosaveRowToRetire(draft.cloudDraftId, draft.activeQuoteId);
-    const saved = saveQuote({
+    let saved = saveQuote({
       ...(draft.activeQuoteId ? { id: draft.activeQuoteId, token: draft.activeToken ?? undefined } : {}),
       sentAt: existing?.sentAt || (status === "Sent" ? new Date().toISOString() : undefined),
       viewCount: existing?.viewCount,
@@ -863,6 +864,13 @@ export default function QuotesClient() {
     if (!cloud.ok) {
       setShareNotice(cloud.error);
       return null;
+    }
+    if (cloud.id && cloud.id !== saved.id) {
+      const renamed = reassignStoredQuoteId(saved.id, cloud.id);
+      if (renamed) {
+        saved = renamed;
+        setActiveQuoteId(saved.id);
+      }
     }
 
     setShareNotice(null);

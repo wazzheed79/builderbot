@@ -7,6 +7,10 @@ import {
   validateStatusTransition,
   generateToken,
   calculateQuoteExpiry,
+  newQuoteId,
+  isSharedSequentialQuoteId,
+  isQuoteIdConflict,
+  reassignQuoteReferences,
 } from "../lib/quote-rules.mjs";
 
 test("Currency Rounding: roundMoney rounds to exactly two decimal places", () => {
@@ -95,4 +99,49 @@ test("Quote Validity: calculateQuoteExpiry computes correct remaining days and e
   );
   assert.equal(expiredCheck.isExpired, true);
   assert.equal(expiredCheck.daysLeft, 0);
+});
+
+test("a new quote id cannot be the shared BB-1041 sequence", () => {
+  const id = newQuoteId(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7]));
+  assert.equal(id, "BB-ABCDEFGH");
+  assert.equal(isSharedSequentialQuoteId(id), false);
+  assert.equal(isSharedSequentialQuoteId("BB-1041"), true);
+  assert.equal(isSharedSequentialQuoteId("bb-1041"), true);
+  assert.equal(isSharedSequentialQuoteId("draft-abc"), false);
+  const another = newQuoteId();
+  assert.match(another, /^BB-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+  assert.equal(isSharedSequentialQuoteId(another), false);
+});
+
+test("a clashing quote id is recognised, and a duplicate link token is not", () => {
+  assert.equal(
+    isQuoteIdConflict({ message: 'duplicate key value violates unique constraint "quotes_pkey"' }),
+    true
+  );
+  assert.equal(
+    isQuoteIdConflict('new row violates row-level security policy for table "quotes"'),
+    true
+  );
+  assert.equal(
+    isQuoteIdConflict({ message: 'duplicate key value violates unique constraint "quotes_token_key"' }),
+    false
+  );
+});
+
+test("renaming a clashing quote keeps its link and the invoice number", () => {
+  const next = reassignQuoteReferences(
+    {
+      quotes: [{ id: "BB-1041", token: "q_keepthislink" }],
+      jobs: [{ quoteId: "BB-1041" }, { quoteId: "BB-2000" }],
+      invoices: [{ quoteId: "BB-1041", number: "INV-0004" }],
+    },
+    "BB-1041",
+    "BB-ABCDEFGH"
+  );
+  assert.equal(next.quotes[0].id, "BB-ABCDEFGH");
+  assert.equal(next.quotes[0].token, "q_keepthislink");
+  assert.equal(next.jobs[0].quoteId, "BB-ABCDEFGH");
+  assert.equal(next.jobs[1].quoteId, "BB-2000");
+  assert.equal(next.invoices[0].quoteId, "BB-ABCDEFGH");
+  assert.equal(next.invoices[0].number, "INV-0004");
 });

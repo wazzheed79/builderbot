@@ -88,8 +88,30 @@ function readPayload(data) {
 }
 
 /**
- * A failed database check blocks the request. Memory is used when this server
- * has no service role key, or when the SQL function has not been installed yet.
+ * True when this key is allowed to call service-role-only SQL.
+ * A publishable or anon key is rejected here so it is never sent to those functions.
+ * The key itself is not returned or logged.
+ * @param {unknown} key
+ */
+export function isServiceRoleKey(key) {
+  const value = String(key || "").trim();
+  if (!value) return false;
+  if (value.startsWith("sb_secret_")) return true;
+  if (value.startsWith("sb_publishable_")) return false;
+  const parts = value.split(".");
+  if (parts.length !== 3 || !parts[1]) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    return payload.role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A failed database check allows the request. A real "not allowed" answer still
+ * blocks it. Memory is used when this server has no service role key, or when
+ * the SQL function has not been installed yet.
  * @param {{
  *   serviceRoleConfigured: boolean,
  *   missingFunction?: boolean,
@@ -97,7 +119,8 @@ function readPayload(data) {
  *   data: unknown,
  *   memoryAllowed?: boolean,
  *   memoryRemaining?: number,
- *   memoryRetryAfterSec?: number
+ *   memoryRetryAfterSec?: number,
+ *   openRemaining?: number
  * }} input
  */
 export function decideRateLimit(input) {
@@ -111,7 +134,16 @@ export function decideRateLimit(input) {
     };
   }
 
-  const payload = input.rpcError ? null : readPayload(input.data);
+  if (input.rpcError) {
+    return {
+      allowed: true,
+      remaining: Math.max(0, Number(input.openRemaining) || 0),
+      retryAfterSec: 0,
+      source: /** @type {"open"} */ ("open"),
+    };
+  }
+
+  const payload = readPayload(input.data);
   if (!payload || typeof payload.allowed !== "boolean") {
     return {
       allowed: false,

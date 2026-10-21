@@ -50,6 +50,7 @@ stateDiagram-v2
 ---
 
 ## 📝 Changelog & Completed Work
+- [x] **AI rate limits and quote numbers**: AI quoting calls the rate-limit and hourly quota checks with the service-role client. If that check itself fails, the quote is allowed and the fault is logged, while a real “limit reached” answer still stops it. New quotes get their own reference instead of the shared BB-1041 sequence. An old number that already belongs to another account is given a new reference on save. Existing quotes, customer links, and invoices stay on their current ids. No database migration.
 - [x] **Sentry errors and PostHog counts**: Error reports go to Sentry only when `NEXT_PUBLIC_SENTRY_DSN` is set, with a low trace sample and personal details stripped out. PostHog starts only after Accept, stays off without its key and host, and does not record customer quote or invoice pages. The privacy notice names both.
 - [x] **Invoices, saved templates, and the old domain**: A sent or accepted quote can become an invoice (INV-0001 onwards) with the chosen price, VAT, and payment details from Settings. Invoices can be edited, shared, printed, and marked paid. A quote’s lines can be saved as a private template. Requests to tradematequotes.co.uk permanently redirect to the same path on www.chuffedquotes.co.uk. Apply `builderbot-app/supabase/migrations/20261021140000_invoices_templates_public_link.sql` before that code is merged.
 - [x] **Clearer landing, phone quote editor, and customer quote**: Signed-out visitors get a one-line explanation, three steps, a short feature list, a free-beta sign-up, and a FAQ. The quote editor’s phone layout keeps large tap targets, a sticky save action, and totals that stay on the screen. The customer quote and its printout use a clearer letterhead, labelled line prices, and the same accept flow.
@@ -119,3 +120,6 @@ stateDiagram-v2
 - [ ] Trade Supplier Material Cost Integrations (Screwfix, Toolstation pricing lookups)
 - [ ] WhatsApp & SMS automated quote delivery and reminder follow-ups
 - [ ] Revenue analytics & tax summaries
+
+## Ideas & Future Improvements
+- [ ] Show a short per-account quote number on the paperwork (BB-1042 for that tradesperson) while the stored id stays unique across accounts.
