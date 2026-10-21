@@ -37,6 +37,7 @@ import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { useTodayIso } from "@/components/invoices/useTodayIso";
 import { canCreateInvoiceFromQuote, displayInvoiceStatus } from "@/lib/invoice-rules.mjs";
+import { captureEvent } from "@/lib/analytics";
 import {
   useClientReady,
   useCustomerList,
@@ -178,7 +179,9 @@ export default function CustomerProfileClient({
 
   const handleConvertQuoteToInvoice = (quote: Quote) => {
     try {
+      const alreadyInvoiced = allInvoices.some((invoice) => invoice.quoteId === quote.id);
       const inv = convertQuoteToInvoice(quote, false);
+      if (!alreadyInvoiced) captureEvent("invoice_created");
       router.push(`/invoices/${inv.id}`);
     } catch (error) {
       setActionNotice(error instanceof Error ? error.message : "Could not create the invoice.");
@@ -187,6 +190,7 @@ export default function CustomerProfileClient({
   };
 
   const handleMarkInvoicePaid = (inv: Invoice) => {
+    if (inv.status === "Paid") return;
     saveInvoice({
       ...inv,
       status: "Paid",
@@ -194,6 +198,7 @@ export default function CustomerProfileClient({
       balanceDue: 0,
       paidAt: new Date().toISOString(),
     });
+    captureEvent("invoice_marked_paid");
     setActionNotice(`Invoice ${inv.number || inv.id} marked as paid.`);
     setTimeout(() => setActionNotice(null), 3500);
   };

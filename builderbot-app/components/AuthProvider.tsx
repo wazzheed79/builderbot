@@ -8,6 +8,7 @@ import {
   pullUserDataFromCloud,
 } from "@/lib/supabase";
 import { hydrateLocalCache, clearLocalData } from "@/lib/storage";
+import { setAnalyticsUser } from "@/lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -63,6 +64,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [configured]);
 
   const syncedUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    setAnalyticsUser(
+      user?.id
+        ? {
+            id: user.id,
+            createdAt: user.created_at,
+            lastSignInAt: user.last_sign_in_at,
+          }
+        : null
+    );
+  }, [user]);
 
   useEffect(() => {
     if (!configured) return;

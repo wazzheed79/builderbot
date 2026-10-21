@@ -17,6 +17,7 @@ import {
   type LineItem,
 } from "@/lib/storage";
 import { useClientReady, useInvoiceList, useSiteOrigin } from "@/lib/live-store";
+import { captureEvent } from "@/lib/analytics";
 
 export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }) {
   const ready = useClientReady();
@@ -174,12 +175,13 @@ export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }
           {draft.status !== "Paid" && (
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
                 persist(
                   { ...draft, status: "Paid", depositPaid: draft.total, balanceDue: 0, paidAt: new Date().toISOString() },
                   "Marked as paid."
-                )
-              }
+                );
+                captureEvent("invoice_marked_paid");
+              }}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-900"
             >
               <Check className="h-4 w-4" />

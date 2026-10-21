@@ -31,6 +31,8 @@ import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 import { getWhatsAppShareUrl } from "@/lib/share";
 import { getAuthHeaders } from "@/lib/supabase";
 import { brand } from "@/lib/brand.mjs";
+import { captureEvent } from "@/lib/analytics";
+import { CONSENT_EVENT } from "@/lib/analytics-rules.mjs";
 import { displayBusinessName } from "@/lib/business-name.mjs";
 import { bankInstruction, formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
 import {
@@ -161,6 +163,27 @@ export default function CustomerQuoteClient({
         credentials: "same-origin",
       });
     });
+  }, [loadedQuote, storedQuote]);
+
+  useEffect(() => {
+    if (!loadedQuote || storedQuote) return;
+    const key = `chuffed-analytics-view:${loadedQuote.id}`;
+    const track = () => {
+      try {
+        if (sessionStorage.getItem(key) === "1") return;
+      } catch {
+        // Keep going. A blocked store just means this view may be counted again.
+      }
+      if (!captureEvent("quote_viewed")) return;
+      try {
+        sessionStorage.setItem(key, "1");
+      } catch {
+        // The count was sent. A repeat on this phone is acceptable.
+      }
+    };
+    track();
+    window.addEventListener(CONSENT_EVENT, track);
+    return () => window.removeEventListener(CONSENT_EVENT, track);
   }, [loadedQuote, storedQuote]);
 
   if (!ready || (!loadedQuote && !cloudSettled)) {
@@ -295,6 +318,7 @@ export default function CustomerQuoteClient({
             setDecisionError("This quote cannot be accepted. Drafts and expired quotes stay unsigned.");
             return;
           }
+          captureEvent("quote_accepted", { had_options: offeringChoice });
           setQuoteOverride(signed);
           setShowSignModal(false);
           return;
@@ -313,6 +337,7 @@ export default function CustomerQuoteClient({
         chosenOption?.id
       );
       rememberLocalDecision(signed);
+      captureEvent("quote_accepted", { had_options: offeringChoice });
       setQuoteOverride(signed);
       setDecisionError(null);
       setShowSignModal(false);

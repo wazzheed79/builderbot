@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { legacyRedirects } from "./lib/domain-redirect.mjs";
 
 const nextConfig: NextConfig = {
@@ -34,4 +35,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const sentryOrg = process.env.SENTRY_ORG;
+const sentryProject = process.env.SENTRY_PROJECT;
+const uploadSourceMaps = Boolean(sentryAuthToken && sentryOrg && sentryProject);
+
+export default withSentryConfig(nextConfig, {
+  ...(sentryOrg ? { org: sentryOrg } : {}),
+  ...(sentryProject ? { project: sentryProject } : {}),
+  ...(sentryAuthToken ? { authToken: sentryAuthToken } : {}),
+  silent: true,
+  telemetry: false,
+  sourcemaps: {
+    disable: uploadSourceMaps ? false : true,
+  },
+  webpack: {
+    automaticVercelMonitors: false,
+  },
+  errorHandler(error) {
+    console.warn(`Sentry source map upload skipped: ${error.message}`);
+  },
+});
