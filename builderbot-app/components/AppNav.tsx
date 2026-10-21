@@ -6,6 +6,7 @@ import {
   Wrench,
   LayoutDashboard,
   FileText,
+  Receipt,
   Users,
   PlusCircle,
   Settings,
@@ -25,12 +26,13 @@ export default function AppNav() {
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Quotes", href: "/quotes", icon: FileText },
+    { name: "Invoices", href: "/invoices", icon: Receipt },
     { name: "Customers", href: "/customers", icon: Users },
     { name: "Pricing", href: "/pricing", icon: CreditCard },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
-  if (pathname.startsWith("/q/")) {
+  if (pathname.startsWith("/q/") || pathname.startsWith("/i/")) {
     return null;
   }
 
@@ -62,7 +64,7 @@ export default function AppNav() {
           <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}
@@ -138,10 +140,10 @@ export default function AppNav() {
 
       {/* Mobile Bottom Navigation Bar (High-Contrast, 48px+ touch targets for van/site work) */}
       <nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 w-full max-w-[100vw] overflow-x-clip bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
-        <div className="grid w-full min-w-0 grid-cols-5 gap-0.5 items-center">
+        <div className="grid w-full min-w-0 grid-cols-6 gap-0.5 items-center">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

@@ -99,17 +99,25 @@ CREATE TABLE IF NOT EXISTS public.jobs (
 );
 
 -- 5. Invoices Table (Owner scoped - billing & cashflow)
+-- Overdue is derived from due_date and is not stored.
+-- Public reads go through get_public_invoice, not this table.
 CREATE TABLE IF NOT EXISTS public.invoices (
   id TEXT PRIMARY KEY,
+  number TEXT,
+  token TEXT UNIQUE,
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   quote_id TEXT REFERENCES public.quotes(id) ON DELETE SET NULL,
   job_id TEXT REFERENCES public.jobs(id) ON DELETE SET NULL,
-  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  customer_id TEXT REFERENCES public.customers(id) ON DELETE SET NULL,
+  option_id TEXT,
+  option_label TEXT,
   title TEXT NOT NULL,
+  notes TEXT,
   client_name TEXT NOT NULL,
+  client_company TEXT,
   client_address TEXT NOT NULL,
-  client_email TEXT,
   client_phone TEXT,
+  client_email TEXT,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   subtotal NUMERIC NOT NULL CHECK (subtotal >= 0),
   vat_enabled BOOLEAN DEFAULT true,
@@ -117,9 +125,40 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   total NUMERIC NOT NULL CHECK (total >= 0),
   deposit_paid NUMERIC DEFAULT 0 CHECK (deposit_paid >= 0),
   balance_due NUMERIC NOT NULL CHECK (balance_due >= 0),
-  status TEXT NOT NULL DEFAULT 'Issued' CHECK (status IN ('Draft', 'Issued', 'Partially Paid', 'Paid', 'Overdue')),
+  status TEXT NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Sent', 'Paid')),
+  issue_date DATE,
   due_date TIMESTAMP WITH TIME ZONE,
   paid_at TIMESTAMP WITH TIME ZONE,
+  company_name TEXT,
+  trading_name TEXT,
+  owner_name TEXT,
+  business_phone TEXT,
+  business_email TEXT,
+  business_address TEXT,
+  vat_number TEXT,
+  bank_name TEXT,
+  bank_sort_code TEXT,
+  bank_account_number TEXT,
+  logo_url TEXT,
+  accreditations JSONB DEFAULT '[]'::jsonb,
+  terms_and_conditions TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_owner_number
+  ON public.invoices (owner_id, number)
+  WHERE number IS NOT NULL;
+
+-- 5b. Quote templates (private to the tradesperson)
+CREATE TABLE IF NOT EXISTS public.quote_templates (
+  id TEXT PRIMARY KEY,
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  vat_enabled BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -133,6 +172,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_owner_id ON public.jobs(owner_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_customer_id ON public.jobs(customer_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_owner_id ON public.invoices(owner_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_customer_id ON public.invoices(customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_token ON public.invoices(token);
+CREATE INDEX IF NOT EXISTS idx_quote_templates_owner_id ON public.quote_templates(owner_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_customer_id ON public.quotes(customer_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_quote_id ON public.jobs(quote_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_quote_id ON public.invoices(quote_id);
@@ -147,6 +188,7 @@ ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quote_templates ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: Authenticated users can only read and mutate their own profile
 CREATE POLICY "Profiles are private to owner"
@@ -182,6 +224,15 @@ CREATE POLICY "Invoices are private to owner"
   TO authenticated
   USING ((select auth.uid()) = owner_id)
   WITH CHECK ((select auth.uid()) = owner_id);
+
+-- Quote templates: Authenticated users can only access their own templates
+CREATE POLICY "Quote templates are private to owner"
+  ON public.quote_templates FOR ALL
+  TO authenticated
+  USING ((select auth.uid()) = owner_id)
+  WITH CHECK ((select auth.uid()) = owner_id);
+
+REVOKE ALL ON TABLE public.quote_templates FROM anon;
 
 -- ==============================================================================
 -- SECURE PUBLIC FUNCTIONS (Called exclusively via server-side service role)
@@ -402,6 +453,84 @@ GRANT EXECUTE ON FUNCTION public.get_public_quote(TEXT) TO anon, authenticated, 
 
 REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+
+-- One public invoice by unguessable token. Bank details are whatever was copied
+-- onto the invoice. Blank details stay blank.
+CREATE OR REPLACE FUNCTION public.get_public_invoice(lookup_token TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_invoice RECORD;
+  v_status TEXT;
+  v_today DATE;
+BEGIN
+  IF lookup_token IS NULL OR lookup_token !~ '^i_[A-Za-z0-9]{14,}$' THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT * INTO v_invoice FROM public.invoices WHERE token = lookup_token;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  v_today := (timezone('Europe/London', now()))::date;
+  v_status := CASE
+    WHEN v_invoice.status = 'Paid' THEN 'Paid'
+    WHEN v_invoice.status = 'Draft' THEN 'Draft'
+    WHEN v_invoice.due_date IS NOT NULL
+      AND (v_invoice.due_date AT TIME ZONE 'Europe/London')::date < v_today THEN 'Overdue'
+    ELSE 'Sent'
+  END;
+
+  RETURN jsonb_build_object(
+    'invoice', jsonb_build_object(
+      'id', v_invoice.id,
+      'number', COALESCE(v_invoice.number, v_invoice.id),
+      'token', v_invoice.token,
+      'title', v_invoice.title,
+      'notes', v_invoice.notes,
+      'optionLabel', v_invoice.option_label,
+      'clientName', v_invoice.client_name,
+      'clientCompany', v_invoice.client_company,
+      'clientAddress', v_invoice.client_address,
+      'clientPhone', v_invoice.client_phone,
+      'clientEmail', v_invoice.client_email,
+      'items', v_invoice.items,
+      'subtotal', v_invoice.subtotal,
+      'vatEnabled', v_invoice.vat_enabled,
+      'vat', v_invoice.vat,
+      'total', v_invoice.total,
+      'balanceDue', CASE WHEN v_status = 'Paid' THEN 0 ELSE v_invoice.balance_due END,
+      'status', v_status,
+      'issueDate', v_invoice.issue_date,
+      'dueDate', v_invoice.due_date,
+      'paidAt', v_invoice.paid_at,
+      'createdAt', v_invoice.created_at
+    ),
+    'contractor', jsonb_build_object(
+      'companyName', v_invoice.company_name,
+      'tradingName', v_invoice.trading_name,
+      'ownerName', v_invoice.owner_name,
+      'phone', v_invoice.business_phone,
+      'email', v_invoice.business_email,
+      'address', v_invoice.business_address,
+      'vatNumber', v_invoice.vat_number,
+      'logoUrl', v_invoice.logo_url,
+      'accreditations', COALESCE(v_invoice.accreditations, '[]'::jsonb),
+      'termsAndConditions', v_invoice.terms_and_conditions,
+      'bankName', NULLIF(btrim(COALESCE(v_invoice.bank_name, '')), ''),
+      'bankSortCode', NULLIF(btrim(COALESCE(v_invoice.bank_sort_code, '')), ''),
+      'bankAccountNumber', NULLIF(btrim(COALESCE(v_invoice.bank_account_number, '')), '')
+    )
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_public_invoice(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_public_invoice(TEXT) TO anon, authenticated, service_role;
 
 -- Signed-in AI quota. No policies: only the service role can call the function.
 CREATE TABLE IF NOT EXISTS public.ai_usage (

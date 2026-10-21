@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
   FileText,
@@ -19,6 +19,7 @@ import {
   Save,
   MessageCircle,
   Camera,
+  Receipt,
 } from "lucide-react";
 import {
   LineItem,
@@ -27,11 +28,16 @@ import {
   getPricingMemory,
   getQuoteById,
   deleteQuote,
+  convertQuoteToInvoice,
+  saveQuoteTemplate,
+  deleteQuoteTemplate,
+  templateFromQuote,
   recalculateQuoteTotals,
   DEFAULT_BUSINESS_PROFILE,
   type QuoteOption,
 } from "@/lib/storage";
-import { useBusinessProfile, useClientReady, useCustomerList, useQuoteList } from "@/lib/live-store";
+import { useBusinessProfile, useClientReady, useCustomerList, useInvoiceList, useQuoteList, useSavedQuoteTemplates } from "@/lib/live-store";
+import { canCreateInvoiceFromQuote } from "@/lib/invoice-rules.mjs";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
 import QuoteTemplatesBar, {
   QuoteTemplate,
@@ -125,12 +131,15 @@ function draftFingerprint(snapshot: Record<string, unknown>) {
 }
 
 export default function QuotesClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const customerIdParam = searchParams.get("customerId");
 
   const { user, isConfigured } = useAuth();
   const customers = useCustomerList();
   const savedQuotes = useQuoteList();
+  const savedTemplates = useSavedQuoteTemplates();
+  const invoices = useInvoiceList();
   const profile = useBusinessProfile();
   const ready = useClientReady();
 
@@ -142,6 +151,7 @@ export default function QuotesClient() {
   const [activeToken, setActiveToken] = useState<string | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [templateName, setTemplateName] = useState("");
 
   // Client Details
   const [clientName, setClientName] = useState("");
@@ -581,10 +591,25 @@ export default function QuotesClient() {
     markDraftEdited();
     setQuoteTitle(template.title);
     setNotesInput(template.notes);
-    setItems(template.items.map((item) => ({ ...item })));
+    setItems(template.items.map((item) => ({ ...item, id: `${item.id}-${Date.now()}` })));
+    if (typeof template.vatEnabled === "boolean") setVatEnabled(template.vatEnabled);
     setChoiceOptions(null);
     setChoiceIndex(0);
-    triggerToast(`Loaded "${template.name}" template!`);
+    triggerToast(`Loaded "${template.name}" template.`);
+  };
+
+  const handleSaveTemplate = () => {
+    const result = templateFromQuote(
+      { title: quoteTitle, notes: notesInput, items, vatEnabled },
+      templateName
+    );
+    if (!result.ok) {
+      triggerToast(result.error);
+      return;
+    }
+    saveQuoteTemplate(result.template);
+    setTemplateName("");
+    triggerToast(`Saved “${result.template.name}” for next time.`);
   };
 
   // Load Sample Quote
@@ -713,6 +738,20 @@ export default function QuotesClient() {
   };
 
   const openQuote = activeQuoteId ? savedQuotes.find((quote) => quote.id === activeQuoteId) : undefined;
+  const quoteInvoice = openQuote ? invoices.find((invoice) => invoice.quoteId === openQuote.id) : undefined;
+
+  const handleCreateInvoice = () => {
+    if (!openQuote || !canCreateInvoiceFromQuote(openQuote.status)) {
+      triggerToast("Send the quote first, then create the invoice.");
+      return;
+    }
+    try {
+      const invoice = quoteInvoice ?? convertQuoteToInvoice(openQuote, false);
+      router.push(`/invoices/${invoice.id}`);
+    } catch (error) {
+      triggerToast(error instanceof Error ? error.message : "Could not create the invoice.");
+    }
+  };
 
   const showChoice = (index: number) => {
     setChoiceOptions((current) => {
@@ -1050,7 +1089,19 @@ export default function QuotesClient() {
       )}
 
       {/* 1. Quick Quote Templates Selector Bar */}
-      <QuoteTemplatesBar onSelectTemplate={handleSelectTemplate} />
+      <QuoteTemplatesBar
+        onSelectTemplate={handleSelectTemplate}
+        savedTemplates={savedTemplates.map((template) => ({
+          id: template.id,
+          name: template.name,
+          category: "Yours",
+          title: template.title,
+          notes: template.notes,
+          items: template.items,
+          vatEnabled: template.vatEnabled,
+        }))}
+        onDeleteSaved={deleteQuoteTemplate}
+      />
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start min-w-0">
         {/* Left Column: Input, Voice & Editor (7 cols) */}
@@ -1438,6 +1489,17 @@ export default function QuotesClient() {
                   <span>{activeQuoteId ? "Update & Issue Quote" : "Save & Issue Quote to Client"}</span>
                 </button>
 
+                {openQuote && canCreateInvoiceFromQuote(openQuote.status) && (
+                  <button
+                    type="button"
+                    onClick={handleCreateInvoice}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-clay-700 px-4 py-3 font-bold text-white"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    <span>{quoteInvoice ? `Open invoice ${quoteInvoice.number}` : "Create invoice"}</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={shareOnWhatsApp}
@@ -1469,6 +1531,28 @@ export default function QuotesClient() {
                     <MessageCircle className="w-3.5 h-3.5 text-clay-700" />
                     <span>Send a polite follow-up (WhatsApp)</span>
                   </button>
+                </div>
+
+                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                  <label htmlFor="template-name" className="text-xs font-bold uppercase tracking-wider text-stone-500">
+                    Save these lines as a template
+                  </label>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      id="template-name"
+                      value={templateName}
+                      onChange={(event) => setTemplateName(event.target.value)}
+                      placeholder="Template name, e.g. Boiler swap"
+                      className="min-h-12 flex-1 rounded-xl border border-stone-300 bg-white px-3"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveTemplate}
+                      className="inline-flex min-h-12 items-center justify-center rounded-xl border border-clay-200 bg-white px-4 text-sm font-bold text-clay-800"
+                    >
+                      Save template
+                    </button>
+                  </div>
                 </div>
 
                 {shareNotice && shareNotice !== BUSINESS_NAME_PROMPT && (

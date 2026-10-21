@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           quotes: cloudData.quotes,
           jobs: cloudData.jobs,
           invoices: cloudData.invoices,
+          templates: cloudData.templates,
         });
       }
     } catch (err) {

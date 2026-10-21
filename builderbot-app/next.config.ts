@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
+import { legacyRedirects } from "./lib/domain-redirect.mjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  async redirects() {
+    return legacyRedirects();
+  },
   async rewrites() {
     return [{ source: "/manifest.json", destination: "/api/pwa-manifest" }];
   },

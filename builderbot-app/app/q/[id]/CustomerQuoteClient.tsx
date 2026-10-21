@@ -16,7 +16,6 @@ import {
   Loader2,
   Clock,
   Share2,
-  Receipt,
   Camera,
   MessageSquare,
 } from "lucide-react";
@@ -25,8 +24,6 @@ import {
   saveQuote,
   updateQuoteStatus,
   Quote,
-  Invoice,
-  convertQuoteToInvoice,
   BusinessProfile,
   calculateQuoteExpiry,
 } from "@/lib/storage";
@@ -39,7 +36,6 @@ import { bankInstruction, formatGbp, preparePrintableQuote } from "@/lib/quote-p
 import {
   useBusinessProfile,
   useClientReady,
-  useInvoiceList,
   useQuoteList,
   useSiteOrigin,
 } from "@/lib/live-store";
@@ -85,7 +81,6 @@ export default function CustomerQuoteClient({
   const siteOrigin = useSiteOrigin();
   const ready = useClientReady();
   const quotes = useQuoteList();
-  const invoices = useInvoiceList();
   const profile = useBusinessProfile();
   const storedQuote = quotes.find((q) => {
     const lower = quoteId.toLowerCase();
@@ -103,7 +98,6 @@ export default function CustomerQuoteClient({
   const [declineReason, setDeclineReason] = useState("");
   const [selectedModalPhoto, setSelectedModalPhoto] = useState<string | null>(null);
   const [serverContractor, setServerContractor] = useState<Partial<BusinessProfile> | null>(null);
-  const [invoiceOverride, setInvoiceOverride] = useState<Invoice | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [decisionPending, setDecisionPending] = useState(false);
   const [pickedOptionId, setPickedOptionId] = useState<string | null>(null);
@@ -120,14 +114,6 @@ export default function CustomerQuoteClient({
   const shownTotal = chosenOption?.total ?? loadedQuote?.total ?? 0;
   const shownDeposit = chosenOption?.deposit ?? loadedQuote?.deposit ?? 0;
   const status = viewStatus(loadedQuote, remoteExpired);
-  const createdInvoice =
-    invoiceOverride ??
-    (loadedQuote ? invoices.find((invoice) => invoice.quoteId === loadedQuote.id) ?? null : null);
-
-  const handleCreateInvoice = () => {
-    if (!loadedQuote) return;
-    setInvoiceOverride(convertQuoteToInvoice(loadedQuote, false));
-  };
 
   // Fetch from server / Supabase for external client devices
   useEffect(() => {
@@ -926,30 +912,13 @@ export default function CustomerQuoteClient({
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <span>Accepted & signed by {loadedQuote.acceptedSignatureName || signatureName}.</span>
                   </span>
-                  <div className="flex items-center gap-2">
-                    {createdInvoice ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-xs px-2.5 py-1 bg-white border border-emerald-300 rounded-lg text-emerald-800 font-bold">
-                        <Receipt className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{createdInvoice.id}</span>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleCreateInvoice}
-                        className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition"
-                      >
-                        <Receipt className="w-3.5 h-3.5" />
-                        <span>Convert to Tax Invoice</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
-                      className="underline text-emerald-900 hover:text-emerald-700 ml-1"
-                    >
-                      Print Receipt
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="underline text-emerald-900 hover:text-emerald-700"
+                  >
+                    Print Receipt
+                  </button>
                 </div>
               ) : status === "expired" ? (
                 <div className="w-full bg-amber-50 border border-amber-200 p-4 rounded-xl text-center text-xs text-amber-800 font-semibold">
