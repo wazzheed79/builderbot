@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { todayIso } from "@/lib/invoice-rules.mjs";
+
+function subscribe() {
+  return () => {};
+}
 
 /** London's date, filled in after the page loads so the build stays stable. */
 export function useTodayIso() {
-  const [today, setToday] = useState("");
-  useEffect(() => {
-    setToday(todayIso());
-  }, []);
-  return today;
+  return useSyncExternalStore(subscribe, () => todayIso(), () => "");
 }
