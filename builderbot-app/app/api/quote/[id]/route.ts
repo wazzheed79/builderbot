@@ -70,7 +70,7 @@ export async function POST(
 
     // Rate Limiting Check (10 decision attempts per minute per IP)
     const clientIp = getClientIp(request);
-    const rateCheck = checkRateLimit(`quote-decision:${clientIp}`, 10, 60000);
+    const rateCheck = await checkRateLimit(`quote-decision:${clientIp}`, 10, 60000);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait a moment before trying again." },

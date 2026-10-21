@@ -13,7 +13,7 @@ const FeedbackSchema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const limit = checkRateLimit(`feedback:${ip}`, 5, 60 * 60 * 1000);
+  const limit = await checkRateLimit(`feedback:${ip}`, 5, 60 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Please wait a while before sending more feedback." },

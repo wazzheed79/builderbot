@@ -57,15 +57,17 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-ink">When a customer opens a quote</h2>
           <p className="mt-2">
-            We record that they viewed the quote, and whether they accepted or declined. If they
-            type their name to accept, that name is saved with the quote.
+            We record that they viewed the quote, and whether they accepted or declined. Opening
+            the same quote again on the same phone within a day counts as one view. If they type
+            their name to accept, that name is saved with the quote.
           </p>
         </section>
         <section>
           <h2 className="text-lg font-bold text-ink">Cookies</h2>
           <p className="mt-2">
             There is no advertising tracker. Sign-in keeps a session so you stay signed in on
-            that phone.
+            that phone. A customer quote page stores a cookie on that phone so a repeat open the
+            same day is not counted again.
           </p>
         </section>
         <section>

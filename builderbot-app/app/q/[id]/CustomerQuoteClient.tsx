@@ -162,10 +162,18 @@ export default function CustomerQuoteClient({
     if (!loadedQuote || storedQuote) return;
     if (loadedQuote.status !== "Sent" && loadedQuote.status !== "Viewed") return;
     const key = `chuffed-view:${loadedQuote.token}`;
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
+    try {
+      if (sessionStorage.getItem(key) === "1") return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // A private browser can block storage. The server cookie still ignores a repeat open.
+    }
     void getAuthHeaders().then((headers) => {
-      void fetch(`/api/quote/${loadedQuote.token}/view`, { method: "POST", headers });
+      void fetch(`/api/quote/${loadedQuote.token}/view`, {
+        method: "POST",
+        headers,
+        credentials: "same-origin",
+      });
     });
   }, [loadedQuote, storedQuote]);
 

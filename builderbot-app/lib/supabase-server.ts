@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { BusinessProfile, Quote } from "./storage";
 import { isPublicQuoteToken } from "./public-quote.mjs";
+import { hashVisitorId, QUOTE_VIEW_WINDOW_SECONDS } from "./quote-view.mjs";
 import { displayBusinessName, hasBusinessName } from "./business-name.mjs";
 import { isSupabaseConfigured, mapRowToQuote } from "./supabase";
 
@@ -170,14 +171,56 @@ export async function quoteOwnerId(token: string): Promise<string | null> {
   return String(data.owner_id);
 }
 
-export async function recordCustomerQuoteView(token: string): Promise<{ viewCount: number } | null> {
-  const sb = getServerSupabase();
+function isMissingViewFunction(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = String(error.code || "");
+  const message = String(error.message || "");
+  if (code === "PGRST202" || code === "42883") return true;
+  return /record_public_quote_view/i.test(message) && /does not exist|could not find|schema cache/i.test(message);
+}
+
+export async function recordCustomerQuoteView(
+  token: string,
+  visitorId: string
+): Promise<{ viewCount: number; counted: boolean } | null> {
+  const sb = getServiceRoleSupabase();
   if (!sb || !isPublicQuoteToken(token)) return null;
-  const { data, error } = await sb.rpc("record_public_quote_view", { lookup_token: token });
-  if (error || !data || typeof data !== "object") return null;
+  const visitor = hashVisitorId(visitorId);
+  if (!visitor) return null;
+
+  let result = await sb.rpc("record_public_quote_view", {
+    lookup_token: token,
+    p_visitor: visitor,
+    p_window_seconds: QUOTE_VIEW_WINDOW_SECONDS,
+  });
+
+  // Until the dedupe migration is applied, the previous one-argument function
+  // is still there. Use it so opens are not lost, then switch once the new
+  // function exists.
+  if (result.error && isMissingViewFunction(result.error)) {
+    console.error(
+      "Quote view dedupe is not installed yet. Counting this open with the previous function."
+    );
+    result = await sb.rpc("record_public_quote_view", { lookup_token: token });
+  }
+
+  let data: unknown = result.data;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      data = null;
+    }
+  }
+  if (result.error || !data || typeof data !== "object") {
+    if (result.error) console.error("Quote view was not recorded", result.error.message);
+    return null;
+  }
   const row = data as { counted?: boolean; view_count?: number };
-  if (!row.counted) return null;
-  return { viewCount: Number(row.view_count) || 0 };
+  return {
+    counted: row.counted === true,
+    viewCount: Number(row.view_count) || 0,
+  };
 }
 
 export async function fetchPublicQuoteByToken(token: string): Promise<{

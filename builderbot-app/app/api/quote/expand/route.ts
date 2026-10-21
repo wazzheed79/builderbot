@@ -5,6 +5,7 @@ import { getSignedInUserId } from "@/lib/ai-access";
 import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
+import { sanitizeExpandedScope } from "@/lib/quote-ai.mjs";
 
 const ExpandRequestSchema = z.object({
   notes: z
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Rate Limiting Check (15 requests/min per IP)
     const clientIp = getClientIp(request);
-    const rateCheck = checkRateLimit(`ai-expand:${clientIp}`, 15, 60000);
+    const rateCheck = await checkRateLimit(`ai-expand:${clientIp}`, 15, 60000);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Too many AI requests. Please wait a moment before trying again." },
@@ -115,21 +116,18 @@ export async function POST(request: NextRequest) {
         });
 
         const parsed = parseGeminiJson(responseText);
-
-        const cleanTitle = String(parsed.title || initialTitle || "Trade Works Specification")
-          .trim()
-          .slice(0, 150);
-        const cleanScope = String(parsed.scopeOfWork || notes)
-          .trim()
-          .slice(0, 3000);
-
-        const result: ExpandResponse = {
-          title: cleanTitle,
-          scopeOfWork: cleanScope,
-          aiPowered: true,
-        };
-
-        return NextResponse.json(result);
+        const cleaned = sanitizeExpandedScope(parsed, { notes, title: initialTitle });
+        // A reply with no usable scope keeps the tradesperson's own notes.
+        if (!cleaned.ok) {
+          console.error("Gemini scope did not match the expected shape. Keeping the original notes.", cleaned.reason);
+        } else {
+          const result: ExpandResponse = {
+            title: cleaned.title,
+            scopeOfWork: cleaned.scopeOfWork,
+            aiPowered: true,
+          };
+          return NextResponse.json(result);
+        }
       } catch (error) {
         if (!shouldUseRoughEstimate(error)) throw error;
         console.error("Gemini scope expansion failed. Keeping the original notes.", error);
