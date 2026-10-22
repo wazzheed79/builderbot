@@ -4,6 +4,7 @@ import { brand, configuredSiteUrl } from "@/lib/brand.mjs";
 import FoundingOffer from "@/components/FoundingOffer";
 import HomeCtas from "@/components/HomeCtas";
 import HomeVoice from "@/components/HomeVoice";
+import VanWalkthroughModal from "@/components/VanWalkthroughModal";
 import {
   Wrench,
   ArrowRight,
@@ -179,6 +180,9 @@ export default function Home() {
               Your customer picks Standard, Better, or Premium and accepts in 1 tap on their phone.
             </p>
             <HomeCtas />
+            <div className="mt-4">
+              <VanWalkthroughModal />
+            </div>
             <ul className="mt-5 flex flex-col gap-2 text-sm font-medium text-stone-700">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
@@ -312,12 +316,17 @@ export default function Home() {
 
       <section className="border-t border-stone-200 bg-white px-4 py-16 sm:px-6 lg:px-8" aria-labelledby="how-heading">
         <div className="mx-auto max-w-6xl">
-          <h2 id="how-heading" className="text-3xl font-black tracking-tight text-ink">
-            How it works
-          </h2>
-          <p className="mt-2 max-w-2xl text-base text-stone-700">
-            Three steps, from notes on site to a quote the customer can accept.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <h2 id="how-heading" className="text-3xl font-black tracking-tight text-ink">
+                How it works
+              </h2>
+              <p className="mt-2 max-w-2xl text-base text-stone-700">
+                Three steps, from notes on site to a quote the customer can accept.
+              </p>
+            </div>
+            <VanWalkthroughModal variant="compact" buttonText="Watch 45s Van Walkthrough ▶" />
+          </div>
           <ol className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
             {steps.map((step, index) => (
               <li key={step.title} className="rounded-2xl border border-stone-200 bg-paper p-6">
@@ -432,6 +441,9 @@ export default function Home() {
             <span>— {brand.tagline}</span>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium" aria-label="Footer">
+            <Link href="/walkthrough" className="inline-flex min-h-11 items-center hover:text-clay-800">
+              45s Van Demo
+            </Link>
             <Link href="/pricing" className="inline-flex min-h-11 items-center hover:text-clay-800">
               Free beta
             </Link>
