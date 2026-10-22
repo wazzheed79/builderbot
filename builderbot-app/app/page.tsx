@@ -167,15 +167,16 @@ export default function Home() {
       <section className="bg-gradient-to-b from-paper via-white to-paper px-4 pb-16 pt-8 sm:px-6 lg:px-8 lg:pb-20 lg:pt-14">
         <div className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
           <div className="min-w-0">
-            <p className="inline-flex items-center rounded-full border border-clay-200 bg-clay-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-clay-800">
+            <p className="inline-flex items-center gap-2 rounded-full border border-clay-200 bg-clay-50 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-clay-800 shadow-2xs">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               Free in beta for UK trades
             </p>
             <h1 className="mt-4 text-4xl font-black leading-[1.12] tracking-tight text-ink sm:text-5xl">
-              Rough job notes, into a professional itemised quote, in minutes.
+              Quote from the van in 30 seconds. <span className="text-clay-700">Never lose another Sunday to paperwork.</span>
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-stone-700">
-              Send it by a link or WhatsApp. Your customer can pick Standard, Better, or Premium,
-              then accept on their phone. They do not need to log in.
+              Speak or type rough notes on site. Send an itemised breakdown straight to WhatsApp.
+              Your customer picks Standard, Better, or Premium and accepts in 1 tap on their phone.
             </p>
             <HomeCtas />
             <ul className="mt-5 flex flex-col gap-2 text-sm font-medium text-stone-700">
@@ -185,15 +186,15 @@ export default function Home() {
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
-                No card needed
+                No card needed — 100% free in beta
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
-                You check every price before it is sent
+                You check and adjust every price before sending
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
-                Your customer does not need an account
+                Your customer accepts in 1 tap (no app or login for them)
               </li>
             </ul>
             <HomeVoice />
@@ -276,6 +277,15 @@ export default function Home() {
                     <p className="text-3xl font-black tabular-nums text-ink">£1,020.00</p>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-900">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">✓</span>
+                    <span className="font-semibold">Ready to send directly via WhatsApp</span>
+                  </div>
+                  <span className="font-bold text-emerald-800 uppercase tracking-wider text-[10px] bg-emerald-100/80 px-2 py-0.5 rounded">1-Tap Sign-Off</span>
+                </div>
+
                 <p className="text-xs leading-relaxed text-stone-600">
                   This sample is one price. On a real quote you can also offer Standard, Better, and Premium,
                   and the customer picks one. Sarah Jenkins and Premier Trade Services are not real.
