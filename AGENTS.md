@@ -1,13 +1,13 @@
 # Chuffed Quotes — Agent Instructions & Collaboration Hub
 
-> **Note for AI Agents**: This document tracks project context, architecture, completed milestones, conventions, active roadmap, and feature ideas. Whenever you make significant changes, update the **Changelog & Completed Work** section, check off completed roadmap items, and append new ideas to the **Ideas & Future Improvements** section before pushing.
+> **Note for AI Agents**: This document tracks project context, architecture, completed milestones, conventions, active roadmap, and feature ideas. When a change alters behaviour, setup, or the roadmap, update `CHANGELOG.md` and the **Progress / Changelog** section of `README.md` in the same commit and pull request. Also check off completed roadmap items here, and append new ideas to **Ideas & Future Improvements**. The rule is repeated in `GEMINI.md` and `.agents/rules/keep-docs-updated.md` so Google Antigravity sees it. Do not add a hook or Action that commits those files to `main` by itself, and do not add new secrets to do it.
 
 ---
 
 ## 📌 Project Overview
 - **Name:** Chuffed Quotes (short form Chuffed). Change it only in `builderbot-app/lib/brand.mjs`. The GitHub repo folder is still called builderbot.
 - **Mission:** Create and send a professional, itemized quote in under two minutes for tradespeople (builders, plumbers, electricians, roofers, landscapers).
-- **The Killer Differentiator:** **"Speak your quote and let AI build it."** A tradesperson taps a single button in their van, dictates the job in plain English, and AI expands, prices, and formats a client-ready quote with deposit collection.
+- **The main idea:** A tradesperson talks or types the job in plain English. AI drafts an itemised quote. They check the prices, send a link, and the customer signs on their phone. Card deposits are switched off during the beta.
 - **Primary Repository:** `https://github.com/wazzheed79/builderbot.git`
 - **Application Directory:** `builderbot-app/`
 
@@ -22,8 +22,8 @@
 - **State & Data Store:** `lib/storage.ts` (Client repository for Customers, Quotes, and Dashboard KPIs)
 - **Backend / Database:** Supabase (Auth, Postgres, Storage)
 - **AI Engine:** Google Gemini (structured JSON quotes). The model id lives in `builderbot-app/lib/gemini.mjs`, defaults to `gemini-3.5-flash`, and can be overridden with `GEMINI_MODEL`.
-- **Payments:** Stripe (invoicing & deposit collection)
-- **Deployment:** Vercel
+- **Payments:** Stripe code is present. Card payments and deposits are switched off in the free beta. Leave the Stripe keys blank. Invoices exist without taking a card.
+- **Deployment:** Vercel. Live site: https://www.chuffedquotes.co.uk
 
 ---
 
@@ -43,13 +43,17 @@ stateDiagram-v2
 
 ## 🚦 Agent Conventions & Guidelines
 1. **Mobile-First Van Experience**: Tradespeople use this in their vans with work gloves or dirty hands. Large tap targets (min 44px), voice-ready, zero unnecessary forms.
-2. **Review-First Verification Policy**: Do not auto-push to GitHub without explicit user review. All changes must be tested, linted, verified, and presented to the user for confirmation before committing and pushing.
+2. **Review-First Verification Policy**: Do not auto-push to GitHub without explicit user review. All changes must be tested, linted, verified, and presented to the user for confirmation before committing and pushing. The owner merges to `main`. Do not add automation that commits docs or code to `main` by itself.
 3. **Deterministic Prerender Compatibility**: In Next.js 16 Partial Prerendering, wrap dynamic hook consumers (`usePathname()`, `useSearchParams()`, `params`) in `<Suspense>` and avoid calling non-deterministic APIs (`Math.random()`, `new Date()`) directly in JSX during static builds.
 4. **Data Sync**: When adding new fields to `Customer` or `Quote`, update `lib/storage.ts` and sync across the Customer Directory, Quote Builder, Customer Acceptance view, and Dashboard.
 
 ---
 
 ## 📝 Changelog & Completed Work
+
+The dated record of what shipped is `CHANGELOG.md`, with a shorter copy in `README.md`. This list is the working memory for agents. Add a line here when you ship something, and add the same fact to those two files.
+
+- [x] **README, changelog, and agent docs rule**: Root `README.md` and `CHANGELOG.md` describe the product as it is. Later changes update both in the same pull request. Antigravity reads `GEMINI.md` and `.agents/rules/keep-docs-updated.md`.
 - [x] **AI rate limits and quote numbers**: AI quoting calls the rate-limit and hourly quota checks with the service-role client. If that check itself fails, the quote is allowed and the fault is logged, while a real “limit reached” answer still stops it. New quotes get their own reference instead of the shared BB-1041 sequence. An old number that already belongs to another account is given a new reference on save. Existing quotes, customer links, and invoices stay on their current ids. No database migration.
 - [x] **Sentry errors and PostHog counts**: Error reports go to Sentry only when `NEXT_PUBLIC_SENTRY_DSN` is set, with a low trace sample and personal details stripped out. PostHog starts only after Accept, stays off without its key and host, and does not record customer quote or invoice pages. The privacy notice names both.
 - [x] **Invoices, saved templates, and the old domain**: A sent or accepted quote can become an invoice (INV-0001 onwards) with the chosen price, VAT, and payment details from Settings. Invoices can be edited, shared, printed, and marked paid. A quote’s lines can be saved as a private template. Requests to tradematequotes.co.uk permanently redirect to the same path on www.chuffedquotes.co.uk. Apply `builderbot-app/supabase/migrations/20261021140000_invoices_templates_public_link.sql` before that code is merged.
@@ -107,19 +111,23 @@ stateDiagram-v2
 ### Phase 2: Trade Intelligence & Speed
 - [x] **Supabase Database Cloud Architecture** (Multi-device public tokens, schemas, and live API route)
 - [x] **Real Gemini API Endpoints** (Official `@google/genai` SDK parsing voice and notes into structured JSON)
-- [ ] **Customer Profile Detail Page** (Deep dive into customer's lifetime quotes, notes, and photos)
+- [x] **Customer Profile Detail Page** (`app/customers/[id]` — quotes, jobs, and invoices for that customer)
 
 ### Phase 3: Conversions & Pipeline
 - [ ] **Stripe Deposit Collection** (Collect 20% or custom deposit directly upon customer signing)
 - [ ] **Job Pipeline Kanban Dashboard** (Lead → Quote Sent → Accepted → In Progress → Completed → Paid)
-- [ ] **Site Photo Attachments** (Before/after and site condition photos stored with quotes)
+- [x] **Site Photo Attachments** (photos on a quote, compressed in the browser, and optional photos sent with an AI draft)
 - [ ] **Calendar & Scheduling Integration** (Project start dates, completion milestones)
 
 ### Phase 4: Full Automation & Scale
-- [ ] Native Mobile App (PWA or React Native)
+- [ ] Native Mobile App (home-screen PWA install already works; a store app is still to do)
 - [ ] Trade Supplier Material Cost Integrations (Screwfix, Toolstation pricing lookups)
 - [ ] WhatsApp & SMS automated quote delivery and reminder follow-ups
 - [ ] Revenue analytics & tax summaries
 
 ## Ideas & Future Improvements
 - [ ] Show a short per-account quote number on the paperwork (BB-1042 for that tradesperson) while the stored id stays unique across accounts.
+- [ ] Turn on Supabase leaked-password protection. It is off, and the login page still offers a password. Dashboard setting only.
+- [ ] Set `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` on Vercel so source maps upload. The token stays out of git.
+- [ ] Fix React hydration warning #418 on `/quotes`. The quote summary renders `new Date()` during render.
+- [ ] Rename the quote-builder toggle from “Good, Better, Best” to “Standard, Better, Premium” so it matches the option labels.
