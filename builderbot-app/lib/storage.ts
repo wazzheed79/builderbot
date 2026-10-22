@@ -444,7 +444,7 @@ const DEFAULT_QUOTES: Quote[] = [
     clientEmail: "david.m@millerprop.co.uk",
     title: "Full Consumer Unit Upgrade & 8 Downlights",
     notes:
-      "Supply and fit 10-way dual RCD consumer unit, replace 8 kitchen downlights with fire-rated LEDs, full circuit testing and issue EICR certificate.",
+      "Supply and fit 10-way dual RCD consumer unit, replace 8 kitchen downlights with fire-rated LEDs, full circuit testing and issue an Electrical Installation Certificate (EIC).",
     items: [
       {
         id: "1",
@@ -465,7 +465,7 @@ const DEFAULT_QUOTES: Quote[] = [
       {
         id: "3",
         type: "labor",
-        description: "Certified electrical installation, circuit testing & EICR certification",
+        description: "Consumer unit replacement, circuit testing and an Electrical Installation Certificate (EIC)",
         quantity: 8,
         unit: "hrs",
         rate: 60.0,

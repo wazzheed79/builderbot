@@ -3,10 +3,6 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import { legacyRedirects } from "./lib/domain-redirect.mjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    agentUpgrade: "security",
-  },
   async redirects() {
     return legacyRedirects();
   },

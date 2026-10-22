@@ -13,6 +13,7 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 ## Key features
 
 - Talk or type the job. The quote builder and the home page use the phone’s speech recognition where the browser allows it.
+- A short van demo on the home page and at `/walkthrough`. Five recorded clips play in order, about half a minute together. Sound starts when you tap, and it stops after the last clip. The pictures are sample data, not a real customer or business.
 - Anyone can try a quote with no account at `/try`. They type notes, or tap a decorating, plumbing, or electrics example, and see Standard, Better, and Premium plus a preview of the customer page. The business name on that preview is “Your Business Name”. It is not saved, and it cannot be sent or emailed. After they create a free account, that quote is waiting in the quote builder.
 - Signed-in users can ask Google Gemini to turn notes (and optional site photos) into line items and a scope. The reply is checked before it is used. A failed, empty, or unusable reply falls back to a labelled rough estimate. The try-it page uses the same check. A guest is limited to five builds a day from one network address. The signed-in hourly cap is unchanged.
 - Every quantity and rate can be edited. Similar lines can reuse a price the tradesperson has used before.
@@ -162,6 +163,7 @@ Dates are the dates on the commits. The same history, in [Keep a Changelog](http
 ### 22 October 2026
 
 - Visitors can try a quote with no account. The home page links to `/try`. A guest gets Standard, Better, and Premium and a customer-page preview under “Your Business Name”. Nothing is saved or sent. Five builds a day are allowed from one network address, using the existing Supabase rate limit. After sign-up, the quote is waiting in the builder. No database migration.
+- The home page and `/walkthrough` show a short van demo with recorded narration. It describes speaking the job, checking a priced quote, sending a WhatsApp link, the customer typing their name, and making an invoice. The home page says this takes a couple of minutes. The “quotes stay in this browser” banner is not shown on the demo page.
 
 ### 21 October 2026
 

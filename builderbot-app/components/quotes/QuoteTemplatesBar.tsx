@@ -236,11 +236,11 @@ export const DEFAULT_QUOTE_TEMPLATES: QuoteTemplate[] = [
     ],
   },
   {
-    name: "Consumer Unit & EICR",
+    name: "Consumer Unit & EIC",
     category: "Electrical",
     title: "18th Edition Consumer Unit Upgrade & Electrical Testing",
     notes:
-      "Decommission existing fuseboard. Supply and install 10-way metal dual RCD/RCBO consumer unit with Type 2 Surge Protection Device (SPD). Complete full testing of all domestic circuits with Electrical Installation Certificate (EICR) and Part P Building Regulations notification.",
+      "Decommission existing fuseboard. Supply and install 10-way metal dual RCD/RCBO consumer unit with Type 2 Surge Protection Device (SPD). Complete full testing of all domestic circuits, issue an Electrical Installation Certificate (EIC), and complete the Part P Building Regulations notification.",
     items: [
       {
         id: "t6-1",
@@ -261,7 +261,7 @@ export const DEFAULT_QUOTE_TEMPLATES: QuoteTemplate[] = [
       {
         id: "t6-3",
         type: "labor",
-        description: "Certified electrical board replacement, circuit termination & earthing upgrades",
+        description: "Consumer unit replacement, circuit termination and earthing upgrades",
         quantity: 8,
         unit: "hrs",
         rate: 55.0,
@@ -269,7 +269,7 @@ export const DEFAULT_QUOTE_TEMPLATES: QuoteTemplate[] = [
       {
         id: "t6-4",
         type: "service",
-        description: "Full circuit test, EICR completion schedule & Part P NICEIC notification",
+        description: "Full circuit test, Electrical Installation Certificate (EIC) and Part P notification",
         quantity: 1,
         unit: "cert",
         rate: 140.0,

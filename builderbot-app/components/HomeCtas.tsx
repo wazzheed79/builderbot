@@ -7,7 +7,13 @@ import { useAuth } from "./AuthProvider";
  * Signed-out visitors get a no-account try-out first, then a free-account
  * link. Someone already signed in goes to the quote builder.
  */
-export default function HomeCtas({ tone = "paper" }: { tone?: "paper" | "ink" }) {
+export default function HomeCtas({
+  tone = "paper",
+  className = "mt-6",
+}: {
+  tone?: "paper" | "ink";
+  className?: string;
+}) {
   const { user, loading } = useAuth();
   const onInk = tone === "ink";
   const signedIn = !loading && Boolean(user);
@@ -20,7 +26,7 @@ export default function HomeCtas({ tone = "paper" }: { tone?: "paper" | "ink" })
     : "border border-stone-300 bg-white text-ink hover:bg-paper";
 
   return (
-    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+    <div className={`flex flex-col gap-3 sm:flex-row ${className}`}>
       {signedIn ? (
         <>
           <Link

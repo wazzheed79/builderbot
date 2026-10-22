@@ -8,9 +8,24 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Added
 
+- A short van demo on the home page and at `/walkthrough`. It plays five recorded clips in `builderbot-app/public/audio/walkthrough/` (`step-1.mp3` to `step-5.mp3`). Together they last about half a minute. Sound starts when you tap, moves on when each clip ends, and stops after the last step. Closing the popup stops the sound. If the sound is muted or cannot play, the steps still move on with a timer. The file names stay the same so a later recording can replace a clip.
 - A root README, this changelog, and standing instructions so later changes update both. Google Antigravity reads `GEMINI.md` and `.agents/rules/keep-docs-updated.md` as well as `AGENTS.md`.
 - A try-it page at `/try` for visitors with no account. They can type job notes or tap a decorating, plumbing, or electrics example, then see an itemised quote with Standard, Better, and Premium and a preview of the customer page. The preview uses the placeholder business name “Your Business Name” and never shows bank details. The quote is not saved, emailed, or given a public link. Guests are limited to five builds a day from one network address, through the existing Supabase rate limit (the check still allows the request if the check itself fails). Notes are capped at 800 characters and the AI reply uses the same checks as a signed-in quote. After they create an account, the quote is waiting in the quote builder. The signed-in quote route is unchanged. No database migration.
 - PostHog events `demo_started`, `demo_quote_generated`, and `demo_signup_clicked`, only after the visitor accepts the cookie banner. Job notes are not sent.
+
+### Changed
+
+- The home page headline says a quote from the van takes a couple of minutes.
+- The demo words match what the app does. The customer types their name to accept. Prices on the demo are an example, not a live merchant price list. The demo no longer says the notes were transcribed on the device, that a signature is IP verified, that you are notified at once, or that both people are sent a contract. It does not say that UK trades already use this flow.
+- Sample bank details on the demo are sort code 00-00-00 and account 12345678, labelled as sample. The demo says the names and prices are not a real business.
+- The fuse-board example and the consumer-unit template say EIC (the certificate for new electrical work) instead of EICR.
+- Buttons on the demo, including close, mute, play, previous, next, Try free, and Back to Chuffed Quotes, are at least 44 pixels tall. The popup is labelled for screen readers, moves focus to Close, puts focus back when it closes, and stops the page behind it from scrolling. Animations stay still when the device asks for less motion.
+- Next.js is pinned to 16.4.2. The config no longer repeats `experimental.agentUpgrade: "security"`, which Next.js 16.4.2 already uses when the line is left out.
+
+### Fixed
+
+- The “this browser only” banner no longer appears on `/walkthrough`. `/walkthrough` is included in the sitemap.
+- The demo page no longer fails lint on an apostrophe in “driver’s seat” or on unused imports.
 
 ## [2026-10-21]
 

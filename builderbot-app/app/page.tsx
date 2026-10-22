@@ -129,7 +129,7 @@ const previewLines = [
     total: "£165.00",
   },
   {
-    description: "Certified Plumbing Labour & System Power Flush",
+    description: "Plumbing labour and a system power flush",
     qty: "8 hrs",
     rate: "£55.00",
     total: "£440.00",
@@ -165,22 +165,22 @@ export default function Home() {
     <div className="flex min-h-screen flex-col">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <section className="bg-gradient-to-b from-paper via-white to-paper px-4 pb-16 pt-8 sm:px-6 lg:px-8 lg:pb-20 lg:pt-14">
+      <section className="bg-gradient-to-b from-paper via-white to-paper px-4 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pb-20 lg:pt-14">
         <div className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
           <div className="min-w-0">
             <p className="inline-flex items-center gap-2 rounded-full border border-clay-200 bg-clay-50 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-clay-800 shadow-2xs">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
               Free in beta for UK trades
             </p>
-            <h1 className="mt-4 text-4xl font-black leading-[1.12] tracking-tight text-ink sm:text-5xl">
-              Quote from the van in 30 seconds. <span className="text-clay-700">Never lose another Sunday to paperwork.</span>
+            <h1 className="mt-3 text-[1.65rem] font-black leading-[1.15] tracking-tight text-ink sm:mt-4 sm:text-5xl sm:leading-[1.12]">
+              Quote from the van in a couple of minutes. <span className="text-clay-700">Never lose another Sunday to paperwork.</span>
             </h1>
-            <p className="mt-4 text-lg leading-relaxed text-stone-700">
-              Speak or type rough notes on site. Send an itemised breakdown straight to WhatsApp.
-              Your customer picks Standard, Better, or Premium and accepts in 1 tap on their phone.
+            <p className="mt-3 text-base leading-snug text-stone-700 sm:mt-4 sm:text-lg sm:leading-relaxed">
+              Speak or type rough notes on site. Check the prices, then send the quote on WhatsApp.
+              Your customer picks Standard, Better, or Premium and types their name to accept.
             </p>
-            <HomeCtas />
-            <div className="mt-4">
+            <HomeCtas className="mt-3 sm:mt-6" />
+            <div className="mt-3 sm:mt-4">
               <VanWalkthroughModal />
             </div>
             <ul className="mt-5 flex flex-col gap-2 text-sm font-medium text-stone-700">
@@ -198,7 +198,7 @@ export default function Home() {
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
-                Your customer accepts in 1 tap (no app or login for them)
+                Your customer types their name to accept (no app or login for them)
               </li>
             </ul>
             <HomeVoice />
@@ -287,7 +287,7 @@ export default function Home() {
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">✓</span>
                     <span className="font-semibold">Ready to send directly via WhatsApp</span>
                   </div>
-                  <span className="font-bold text-emerald-800 uppercase tracking-wider text-[10px] bg-emerald-100/80 px-2 py-0.5 rounded">1-Tap Sign-Off</span>
+                  <span className="font-bold text-emerald-800 uppercase tracking-wider text-[10px] bg-emerald-100/80 px-2 py-0.5 rounded">They type their name</span>
                 </div>
 
                 <p className="text-xs leading-relaxed text-stone-600">
@@ -325,7 +325,7 @@ export default function Home() {
                 Three steps, from notes on site to a quote the customer can accept.
               </p>
             </div>
-            <VanWalkthroughModal variant="compact" buttonText="Watch 45s Van Walkthrough ▶" />
+            <VanWalkthroughModal variant="compact" buttonText="Quick van demo" />
           </div>
           <ol className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
             {steps.map((step, index) => (
@@ -442,7 +442,7 @@ export default function Home() {
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium" aria-label="Footer">
             <Link href="/walkthrough" className="inline-flex min-h-11 items-center hover:text-clay-800">
-              45s Van Demo
+              Van demo
             </Link>
             <Link href="/pricing" className="inline-flex min-h-11 items-center hover:text-clay-800">
               Free beta
