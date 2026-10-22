@@ -177,7 +177,7 @@ export default function TryClient() {
   };
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+    <div className={`mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-6 sm:py-12 ${quote ? "pb-28" : ""}`}>
       <p className="inline-flex items-center rounded-full border border-clay-200 bg-clay-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-clay-800">
         Free try-out. No account.
       </p>
@@ -279,6 +279,17 @@ export default function TryClient() {
                 The try-out cannot email anyone or make a customer link. That starts after you save the quote in your account.
               </p>
             )}
+          </div>
+          <div className="fixed inset-x-0 bottom-20 z-40 border-t border-white/10 bg-ink px-4 py-3 shadow-lg lg:bottom-0">
+            <Link
+              href={signedIn ? "/quotes" : "/login?next=/quotes"}
+              onClick={() => {
+                if (!signedIn) captureEvent("demo_signup_clicked");
+              }}
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white px-4 text-base font-extrabold text-ink"
+            >
+              {signedIn ? "Open it in the quote builder" : "Create a free account"}
+            </Link>
           </div>
         </div>
       )}
