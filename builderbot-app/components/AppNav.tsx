@@ -124,12 +124,21 @@ export default function AppNav() {
             )}
 
             <Link
-              href="/quotes"
+              href={user ? "/quotes" : "/try"}
               className="inline-flex items-center gap-1.5 sm:gap-2 bg-clay-700 hover:bg-clay-800 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition active:scale-[0.98] shrink-0"
             >
               <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Create Quote</span>
-              <span className="sm:hidden">New</span>
+              {user ? (
+                <>
+                  <span className="hidden sm:inline">Create Quote</span>
+                  <span className="sm:hidden">New</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Try it free</span>
+                  <span className="sm:hidden">Try</span>
+                </>
+              )}
             </Link>
           </div>
         </div>

@@ -40,6 +40,12 @@ import {
 import { useBusinessProfile, useClientReady, useCustomerList, useInvoiceList, useQuoteList, useSavedQuoteTemplates } from "@/lib/live-store";
 import { canCreateInvoiceFromQuote } from "@/lib/invoice-rules.mjs";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
+import {
+  builderCanTakeGuestDemo,
+  clearGuestDemoQuote,
+  guestDemoToBuilderFields,
+  readGuestDemoQuote,
+} from "@/lib/guest-demo.mjs";
 import QuoteTemplatesBar, {
   QuoteTemplate,
   DEFAULT_QUOTE_TEMPLATES,
@@ -191,6 +197,8 @@ export default function QuotesClient() {
   const [ratesReadyFor, setRatesReadyFor] = useState("");
   const [recoveryOffer, setRecoveryOffer] = useState<Record<string, unknown> | null>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const [guestDemoApplied, setGuestDemoApplied] = useState(false);
+  const [guestCarryNote, setGuestCarryNote] = useState(false);
   // Bumped when the tradesperson changes the lines, so a late AI reply cannot replace them.
   const editVersion = useRef(0);
   const requestSerial = useRef(0);
@@ -265,6 +273,11 @@ export default function QuotesClient() {
     if (!homeNotesApplied || recoveryOffer) return;
     sessionStorage.removeItem(HOME_NOTES_KEY);
   }, [homeNotesApplied, recoveryOffer]);
+
+  useEffect(() => {
+    if (!guestCarryNote) return;
+    clearGuestDemoQuote(window.localStorage);
+  }, [guestCarryNote]);
 
   useEffect(() => {
     const snapshot = {
@@ -471,6 +484,35 @@ export default function QuotesClient() {
     setRatesReadyFor(rateStamp);
     setVatEnabled(profile.vatRegistered ?? true);
     setDepositPercent(profile.defaultDepositPercent ?? 20);
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    user &&
+    draftReady &&
+    ratesReadyFor &&
+    !guestDemoApplied &&
+    !recoveryOffer &&
+    !quoteParam
+  ) {
+    const pending = readGuestDemoQuote(window.localStorage);
+    const canTake = builderCanTakeGuestDemo({ items, activeQuoteId, clientName });
+    if (!pending || !canTake) {
+      setGuestDemoApplied(true);
+    } else {
+      const fields = guestDemoToBuilderFields(pending);
+      setGuestDemoApplied(true);
+      setQuoteTitle(fields.quoteTitle);
+      setNotesInput(fields.notesInput);
+      setItems(fields.items as LineItem[]);
+      setChoiceOptions((fields.choiceOptions as QuoteOption[] | null) ?? null);
+      setChoiceIndex(0);
+      setVatEnabled(fields.vatEnabled);
+      setDepositPercent(fields.depositPercent);
+      setIsAiDraft(fields.aiPowered);
+      setEstimateOnly(fields.estimateOnly);
+      setGuestCarryNote(true);
+    }
   }
 
   // Handle Customer Selection Dropdown
@@ -1078,6 +1120,21 @@ export default function QuotesClient() {
           {openQuote && <QuoteFollowUp quote={openQuote} companyName={profile.companyName} />}
         </div>
       </div>
+
+      {guestCarryNote && (
+        <div className="mt-4 rounded-2xl border border-clay-200 bg-clay-50 p-4">
+          <p className="text-sm font-semibold text-ink">
+            Your try-it quote is in the builder. Add your business name, then save it and send the link.
+          </p>
+          <button
+            type="button"
+            onClick={() => setGuestCarryNote(false)}
+            className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-clay-700 px-4 font-bold text-white"
+          >
+            OK
+          </button>
+        </div>
+      )}
 
       {recoveryOffer && (
         <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col gap-3 sm:flex-row sm:items-center">

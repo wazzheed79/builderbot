@@ -13,7 +13,8 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 ## Key features
 
 - Talk or type the job. The quote builder and the home page use the phone’s speech recognition where the browser allows it.
-- Signed-in users can ask Google Gemini to turn notes (and optional site photos) into line items and a scope. The reply is checked before it is used. A failed, empty, or unusable reply falls back to a labelled rough estimate.
+- Anyone can try a quote with no account at `/try`. They type notes, or tap a decorating, plumbing, or electrics example, and see Standard, Better, and Premium plus a preview of the customer page. The business name on that preview is “Your Business Name”. It is not saved, and it cannot be sent or emailed. After they create a free account, that quote is waiting in the quote builder.
+- Signed-in users can ask Google Gemini to turn notes (and optional site photos) into line items and a scope. The reply is checked before it is used. A failed, empty, or unusable reply falls back to a labelled rough estimate. The try-it page uses the same check. A guest is limited to five builds a day from one network address. The signed-in hourly cap is unchanged.
 - Every quantity and rate can be edited. Similar lines can reuse a price the tradesperson has used before.
 - One total, or three choices labelled Standard, Better, and Premium. The customer picks one.
 - Customers, a business profile (name, logo, terms, bank details), and a dashboard of quotes sent, won value, and win rate.
@@ -29,7 +30,7 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 
 ## How it works
 
-1. **Describe the job.** On the home page or in the quote builder, talk or type a few rough notes.
+1. **Describe the job.** On the home page, the try-it page, or in the quote builder, talk or type a few rough notes. The try-it page needs no account.
 2. **Check the prices.** The app builds an itemised list. Change any line. Send one price, or Standard, Better, and Premium.
 3. **Save and send.** Sign in, save the quote, then share the link or a WhatsApp message. Until it is saved online, the quote stays in that browser.
 4. **The customer decides.** They open the link, read the quote, choose an option if one was offered, and accept or decline. They do not need an account.
@@ -151,12 +152,16 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 ## Monitoring, analytics, and privacy
 
 - **Sentry** receives an error report only when `NEXT_PUBLIC_SENTRY_DSN` is set. Tracing is sampled at 10%. Names, email addresses, phone numbers, addresses, and quote wording are removed before the report is sent. Sentry does not record the screen. Source-map upload runs only when `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` are all set. Otherwise the upload is skipped and production stack traces stay minified.
-- **PostHog** starts only after the visitor taps Accept on the cookie banner. It stays off when the key or the host is missing. Customer quote pages (`/q/…`) and customer invoice pages (`/i/…`) are not recorded. A signed-in account is counted by id. The intended host is the EU one (`https://eu.i.posthog.com`).
+- **PostHog** starts only after the visitor taps Accept on the cookie banner. It stays off when the key or the host is missing. Customer quote pages (`/q/…`) and customer invoice pages (`/i/…`) are not recorded. A signed-in account is counted by id. The try-it page can count that a demo started, a quote was built, or sign-up was tapped. It does not send the job notes. The intended host is the EU one (`https://eu.i.posthog.com`).
 - The public notice is at `/privacy` on the live site. It names the owner, what is stored, sign-in email, Gemini, Sentry, and PostHog. It is a plain-language beta notice, not legal advice.
 
 ## Progress / Changelog
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
+
+### 22 October 2026
+
+- Visitors can try a quote with no account. The home page links to `/try`. A guest gets Standard, Better, and Premium and a customer-page preview under “Your Business Name”. Nothing is saved or sent. Five builds a day are allowed from one network address, using the existing Supabase rate limit. After sign-up, the quote is waiting in the builder. No database migration.
 
 ### 21 October 2026
 

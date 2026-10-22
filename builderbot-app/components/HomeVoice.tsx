@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff } from "lucide-react";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
+import { useAuth } from "./AuthProvider";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -33,6 +34,7 @@ interface SpeechRecognitionInstance {
 
 export default function HomeVoice() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [notes, setNotes] = useState("");
   const [recording, setRecording] = useState(false);
@@ -96,7 +98,11 @@ export default function HomeVoice() {
       return;
     }
     sessionStorage.setItem(HOME_NOTES_KEY, text.slice(0, 2000));
-    router.push("/quotes");
+    if (loading) {
+      setHint("One moment…");
+      return;
+    }
+    router.push(user ? "/quotes" : "/try");
   };
 
   return (
@@ -105,7 +111,7 @@ export default function HomeVoice() {
         Talk, or type the job
       </label>
       <p className="mt-1 text-sm leading-relaxed text-stone-600">
-        Tap the button and describe the job, or type a few notes.
+        Tap the button and describe the job, or type a few notes. With no account, this opens a free try-out.
       </p>
       <button
         type="button"

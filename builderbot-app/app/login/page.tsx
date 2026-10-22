@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { brand } from "@/lib/brand.mjs";
+import { pathAfterAuth, readGuestDemoQuote } from "@/lib/guest-demo.mjs";
 import {
   Wrench,
   Mail,
@@ -29,6 +30,23 @@ export default function LoginPage() {
   const [codeSent, setCodeSent] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [accountNote, setAccountNote] = useState(false);
+  const guestWaiting =
+    useSyncExternalStore(
+      () => () => {},
+      () => {
+        try {
+          return readGuestDemoQuote(window.localStorage) ? "1" : "0";
+        } catch {
+          return "0";
+        }
+      },
+      () => "0"
+    ) === "1";
+
+  const continueAfterAuth = () => {
+    const requested = new URLSearchParams(window.location.search).get("next");
+    router.push(pathAfterAuth(requested, window.localStorage));
+  };
 
   // If already logged in, show redirect CTA
   if (user) {
@@ -44,10 +62,10 @@ export default function LoginPage() {
           </p>
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push(guestWaiting ? "/quotes" : "/dashboard")}
               className="w-full bg-clay-700 hover:bg-clay-800 text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm transition"
             >
-              Go to Trade Dashboard
+              {guestWaiting ? "Open your try-it quote" : "Go to Trade Dashboard"}
             </button>
             <button
               onClick={() => router.push("/quotes")}
@@ -89,7 +107,7 @@ export default function LoginPage() {
     if (error) {
       setErrorMsg(error);
     } else {
-      router.push("/dashboard");
+      continueAfterAuth();
     }
   };
 
@@ -112,7 +130,7 @@ export default function LoginPage() {
       if (error) {
         setErrorMsg(error);
       } else {
-        router.push("/dashboard");
+        continueAfterAuth();
       }
     } else {
       const { error } = await signUp(email, password);

@@ -14,6 +14,9 @@ const EVENT_PROPERTIES = {
   invoice_created: [],
   invoice_marked_paid: [],
   template_saved: [],
+  demo_started: [],
+  demo_quote_generated: ["ai_used"],
+  demo_signup_clicked: [],
 };
 
 export function normalizeConsent(value) {

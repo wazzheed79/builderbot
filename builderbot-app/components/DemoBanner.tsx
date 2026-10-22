@@ -27,7 +27,8 @@ export default function DemoBanner() {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/privacy" ||
-    pathname === "/terms"
+    pathname === "/terms" ||
+    pathname === "/try"
   ) {
     return null;
   }
