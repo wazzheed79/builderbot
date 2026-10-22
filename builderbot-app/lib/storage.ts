@@ -13,6 +13,7 @@ import {
 } from "./supabase";
 import { cloudListsToStore } from "./cloud-hydrate.mjs";
 import { clearWorkingDraft } from "./quote-autosave.mjs";
+import { GUEST_DEMO_STORAGE_KEY } from "./guest-demo.mjs";
 
 export interface Customer {
   id: string;
@@ -1095,6 +1096,7 @@ export function clearLocalData(): void {
   localStorage.setItem(TEMPLATES_KEY, JSON.stringify([]));
   localStorage.removeItem("builderbot_data_source");
   clearWorkingDraft(localStorage);
+  localStorage.removeItem(GUEST_DEMO_STORAGE_KEY);
   window.dispatchEvent(new Event("builderbot_storage_updated"));
 }
 

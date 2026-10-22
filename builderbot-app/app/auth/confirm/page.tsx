@@ -7,6 +7,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { AlertCircle } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { friendlyLinkError, readConfirmRequest } from "@/lib/auth-callback";
+import { pathAfterAuth } from "@/lib/guest-demo.mjs";
 
 export default function AuthConfirmPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function AuthConfirmPage() {
       setMessage(friendlyLinkError(error?.message, error?.code));
       return;
     }
-    router.replace(parsed.next);
+    router.replace(pathAfterAuth(parsed.next, window.localStorage));
   };
 
   const failed = Boolean(message);

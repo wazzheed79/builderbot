@@ -28,12 +28,20 @@ export default function PricingPage() {
           <li>Send a customer a link. They can read it and sign if the quote was sent and has not expired.</li>
           <li>Keep your own bank details hidden until the customer has accepted.</li>
         </ul>
-        <Link
-          href="/quotes"
-          className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-clay-700 px-5 font-bold text-white hover:bg-clay-800"
-        >
-          Create a quote
-        </Link>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/try"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-clay-700 px-5 font-bold text-white hover:bg-clay-800"
+          >
+            Try it free – no sign-up
+          </Link>
+          <Link
+            href="/quotes"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-stone-300 bg-white px-5 font-bold text-ink hover:bg-paper"
+          >
+            Create a quote
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 rounded-2xl border border-dashed border-stone-300 bg-paper p-6">

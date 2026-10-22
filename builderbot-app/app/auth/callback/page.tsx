@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { getSupabase } from "@/lib/supabase";
 import { readAuthCallback } from "@/lib/auth-callback";
+import { pathAfterAuth } from "@/lib/guest-demo.mjs";
 import { AlertCircle } from "lucide-react";
 
 type FinishResult = { ok: true } | { ok: false; message: string };
@@ -66,7 +67,7 @@ export default function AuthCallbackPage() {
     void finishSignIn(search, hash).then((result) => {
       if (cancelled) return;
       if (result.ok) {
-        router.replace("/dashboard");
+        router.replace(pathAfterAuth("/dashboard", window.localStorage));
         return;
       }
       setMessage(result.message);

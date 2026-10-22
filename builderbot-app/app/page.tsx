@@ -81,6 +81,10 @@ const features = [
 
 const faqs = [
   {
+    q: "Can I try it without signing up?",
+    a: "Yes. Tap Try it free. Type a job, or use a decorating, plumbing, or electrics example. You see Standard, Better, and Premium, and a preview of the customer page under the name Your Business Name. It is not saved, and you cannot send it, until you create a free account.",
+  },
+  {
     q: "What does Chuffed Quotes do?",
     a: "It turns rough notes about a job into an itemised quote you can edit, then a link your customer can open.",
   },
@@ -175,6 +179,10 @@ export default function Home() {
             </p>
             <HomeCtas />
             <ul className="mt-5 flex flex-col gap-2 text-sm font-medium text-stone-700">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
+                Try a quote with no account
+              </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
                 No card needed
@@ -369,8 +377,8 @@ export default function Home() {
             Free in beta for UK trades
           </h2>
           <p className="mt-3 text-base leading-relaxed text-paper/90">
-            Create an account when you want quotes saved online and a link you can send. You can
-            also try a quote in this browser first. No card.
+            Try a quote with no account. Create a free account when you want it saved, with your
+            business name on it, and a link your customer can sign. No card.
           </p>
           <div className="mt-6">
             <FoundingOffer />

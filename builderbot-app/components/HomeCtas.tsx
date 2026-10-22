@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 
 /**
- * Signed-out visitors get a free-account link. Someone already signed in
- * goes to the quote builder. Auth itself is unchanged.
+ * Signed-out visitors get a no-account try-out first, then a free-account
+ * link. Someone already signed in goes to the quote builder.
  */
 export default function HomeCtas({ tone = "paper" }: { tone?: "paper" | "ink" }) {
   const { user, loading } = useAuth();
@@ -39,16 +39,16 @@ export default function HomeCtas({ tone = "paper" }: { tone?: "paper" | "ink" })
       ) : (
         <>
           <Link
-            href="/login"
+            href="/try"
             className={`inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay-800 ${primary}`}
           >
-            Create a free account
+            Try it free – no sign-up
           </Link>
           <Link
-            href="/quotes"
+            href="/login"
             className={`inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay-800 ${secondary}`}
           >
-            Try a quote first
+            Create a free account
           </Link>
         </>
       )}

@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         Back to {brand.name}
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Privacy notice</h1>
-      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 21 October 2026</p>
+      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 22 October 2026</p>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
         A plain-language notice for the free beta. It is not legal advice.
       </p>
@@ -51,7 +51,10 @@ export default function PrivacyPage() {
           <p className="mt-2">
             If you ask for an AI draft, the notes you typed or spoke, and any photos you attach
             for that draft, are sent to Google Gemini. You check the prices before a customer
-            sees them.
+            sees them. The try-it page, which needs no account, sends only the notes you type
+            there. That try-out is not saved as a quote and cannot be sent. A few tries a day
+            are counted against the network address, stored as a hash, so the helper cannot be
+            used without limit. Photos are not sent from the try-it page.
           </p>
         </section>
         <section>
@@ -85,7 +88,8 @@ export default function PrivacyPage() {
           <p className="mt-2">
             If you tap Accept, PostHog counts how the app is used. That includes a new account, a
             quote being created, sent, opened, or accepted, an invoice being created or marked
-            paid, and a template being saved. A signed-in tradesperson is recognised by an account
+            paid, a template being saved, and whether someone started a try-it quote, built one,
+            or tapped to sign up. The words of the job are not included. A signed-in tradesperson is recognised by an account
             id only, not by their email. Customer names, phone numbers, addresses, and quote
             wording are not included. A customer quote page and a customer invoice page are not
             recorded. On the tradesperson’s own pages, anything typed into a box is hidden.
