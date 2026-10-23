@@ -43,7 +43,7 @@ const DEMO_JOBS = [
     icon: "⚡",
     label: "Fuse Board Swap",
     trade: "Electrical",
-    text: "Replace old fuse box with 10-way dual RCD metal consumer unit with surge protection (SPD). Test all existing circuits, issue EICR certificate. 1 day labour.",
+    text: "Replace old fuse box with 10-way dual RCD metal consumer unit with surge protection (SPD). Test all existing circuits and issue an Electrical Installation Certificate (EIC). 1 day labour.",
   },
   {
     icon: "🪚",

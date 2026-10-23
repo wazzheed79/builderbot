@@ -227,3 +227,22 @@ select {
   }
 }
 
+@keyframes cq-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cq-fade-in {
+  animation: cq-fade-in 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-fade-in {
+    animation: none;
+  }
+}
+

@@ -7,7 +7,7 @@ function siteUrl() {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = siteUrl();
-  const paths = ["/", "/try", "/pricing", "/login", "/feedback", "/privacy", "/terms"];
+  const paths = ["/", "/try", "/walkthrough", "/pricing", "/login", "/feedback", "/privacy", "/terms"];
   return paths.map((path) => ({
     url: `${site}${path === "/" ? "" : path}`,
     changeFrequency: path === "/" ? "weekly" : "monthly",

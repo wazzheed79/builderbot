@@ -1,55 +1,70 @@
 /**
- * 45-Second Van Walkthrough Scenes & Narration Data
- * Used by VanWalkthrough component and automated test suite.
+ * Van demo scenes and narration.
+ * The spoken lines match public/audio/walkthrough/step-1.mp3 … step-5.mp3.
+ * Keep those filenames. All five clips are the finished narration, in one voice.
  */
 
 export const WALKTHROUGH_SCENES = [
   {
     id: 0,
     stepNumber: 1,
-    title: "Speak Your Job Notes from the Van",
+    title: "Speak your job notes from the van",
     shortTitle: "Speak",
-    badge: "00:00 - The Van Cab",
+    badge: "Step 1",
     narration:
-      "Sit in your van cab after looking at the job. Tap the mic and describe the work in plain English. No typing needed.",
+      "Sat in your van after looking at the job? Just tap the mic and describe the work in plain English. No typing needed.",
   },
   {
     id: 1,
     stepNumber: 2,
-    title: "30-Second UK Rate & Materials Breakdown",
+    title: "A priced quote, with three options",
     shortTitle: "Pricing",
-    badge: "00:10 - Instant Estimate",
+    badge: "Step 2",
     narration:
-      "In seconds, Chuffed Quotes calculates current UK merchant materials and trade labour, giving you Standard, Better, and Premium packages.",
+      "In seconds, Chuffed Quotes turns that into a priced quote, with materials and labour, and gives you Standard, Better and Premium options.",
   },
   {
     id: 2,
     stepNumber: 3,
-    title: "Instant WhatsApp Delivery",
-    shortTitle: "WhatsApp",
-    badge: "00:20 - Customer Send",
+    title: "Send the quote link on WhatsApp",
+    shortTitle: "Send",
+    badge: "Step 3",
     narration:
-      "Send the interactive quote link straight to your customer's WhatsApp before you pull out of the driveway.",
+      "Then send the quote link straight to your customer on WhatsApp, before you've even pulled off the drive.",
   },
   {
     id: 3,
     stepNumber: 4,
-    title: "Customer Accepts & Signs in 1 Tap",
+    title: "They pick an option and type their name",
     shortTitle: "Sign",
-    badge: "00:30 - Customer Action",
+    badge: "Step 4",
     narration:
-      "Your customer reviews the price options, taps Accept on their phone, and signs with their finger. You get notified immediately.",
+      "Your customer picks an option, taps Accept on their phone, and types their name to sign.",
   },
   {
     id: 4,
     stepNumber: 5,
-    title: "1-Click Invoice Conversion",
+    title: "Turn the accepted quote into an invoice",
     shortTitle: "Invoice",
-    badge: "00:40 - Getting Paid",
+    badge: "Step 5",
     narration:
-      "When the job is finished, convert the accepted quote straight into a professional invoice with your bank payment details.",
+      "And when the job's done, turn the accepted quote into a proper invoice in one tap.",
   },
 ];
 
-export const WALKTHROUGH_TOTAL_DURATION_SEC = 45;
-export const WALKTHROUGH_STEP_DURATION_MS = 8000;
+/** Public URLs. The file names are part of the demo and should stay stable. */
+export const WALKTHROUGH_CLIP_SRC = [
+  "/audio/walkthrough/step-1.mp3",
+  "/audio/walkthrough/step-2.mp3",
+  "/audio/walkthrough/step-3.mp3",
+  "/audio/walkthrough/step-4.mp3",
+  "/audio/walkthrough/step-5.mp3",
+];
+
+/**
+ * Length of each finished clip, in milliseconds (6.888, 8.760, 5.520, 5.160, 5.424).
+ * Used only when the browser cannot read the file duration.
+ * Each value matches that clip, so a muted step is not cut short.
+ * Together the clips last about 32 seconds.
+ */
+export const WALKTHROUGH_CLIP_FALLBACK_MS = [6888, 8760, 5520, 5160, 5424];
