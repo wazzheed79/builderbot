@@ -990,6 +990,23 @@ export default function CustomerQuoteClient({
             </div>
           </div>
         </div>
+
+        {/* Viral Brand Badge: No-print so it stays off official paper, but visible on mobile/web */}
+        <div className="no-print mt-6 mb-12 text-center">
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-stone-600 shadow-2xs hover:border-clay-400 hover:text-clay-800 transition"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay-700 text-white font-black text-[10px]">
+              CQ
+            </span>
+            <span>Created with <strong className="font-bold text-ink">{brand.name}</strong></span>
+            <span className="text-stone-300">·</span>
+            <span className="text-clay-700 hover:underline">Free for UK trades →</span>
+          </Link>
+        </div>
       </div>
 
       {status === "pending" && (
