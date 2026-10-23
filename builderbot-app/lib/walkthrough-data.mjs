@@ -1,8 +1,7 @@
 /**
  * Van demo scenes and narration.
  * The spoken lines match public/audio/walkthrough/step-1.mp3 … step-5.mp3.
- * Keep those filenames. Steps 3 and 4 may be replaced with new recordings
- * of the same lines without a code change.
+ * Keep those filenames. All five clips are the finished narration, in one voice.
  */
 
 export const WALKTHROUGH_SCENES = [
@@ -63,8 +62,9 @@ export const WALKTHROUGH_CLIP_SRC = [
 ];
 
 /**
- * Length of the provisional clips, in milliseconds.
+ * Length of each finished clip, in milliseconds (6.888, 8.760, 5.520, 5.160, 5.424).
  * Used only when the browser cannot read the file duration.
- * The five clips together are about 31 seconds.
+ * Each value matches that clip, so a muted step is not cut short.
+ * Together the clips last about 32 seconds.
  */
-export const WALKTHROUGH_CLIP_FALLBACK_MS = [6888, 8832, 5184, 4920, 5424];
+export const WALKTHROUGH_CLIP_FALLBACK_MS = [6888, 8760, 5520, 5160, 5424];

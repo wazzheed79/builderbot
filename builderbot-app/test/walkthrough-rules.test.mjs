@@ -33,6 +33,8 @@ test("walkthrough scenes match the recorded lines and stay in order", () => {
     assert.doesNotMatch(scene.narration, /finger|notified immediately|merchant/i);
   });
 
+  assert.deepEqual(WALKTHROUGH_CLIP_FALLBACK_MS, [6888, 8760, 5520, 5160, 5424]);
+
   const totalMs = WALKTHROUGH_CLIP_FALLBACK_MS.reduce((sum, ms) => sum + ms, 0);
   assert.ok(totalMs > 25000 && totalMs < 40000, `clips total ${totalMs}ms`);
 });
