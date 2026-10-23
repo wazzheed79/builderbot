@@ -45,6 +45,51 @@ export default function WalkthroughPage() {
 
         <VanWalkthrough standalone />
 
+        {/* 3 Real World Trade Scenarios */}
+        <div className="mt-8 space-y-4">
+          <div className="text-center sm:text-left">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2 justify-center sm:justify-start">
+              <span>🛠️</span>
+              <span>Where Chuffed Quotes Saves Your Bacon</span>
+            </h2>
+            <p className="text-xs text-slate-400">
+              Three common on-site situations UK trades face every week:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 space-y-2">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+                Scenario 1: Friday 5 PM in the Van
+              </span>
+              <p className="text-xs font-semibold text-white">The &ldquo;Can you email me a quote tonight?&rdquo; customer</p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Instead of driving home to a cold dinner and spending 2 hours on a laptop, tap the mic from your driver&apos;s seat. Dictate the job notes, send the WhatsApp quote, and enjoy your Sunday.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 space-y-2">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide">
+                Scenario 2: The Price Haggler
+              </span>
+              <p className="text-xs font-semibold text-white">How 3 packages stop discount demands</p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                When you give one price, clients haggle. When you give Standard, Better, and Premium packages, they compare options instead of shopping around. Most pick the middle package.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 space-y-2">
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wide">
+                Scenario 3: &ldquo;While you&apos;re here...&rdquo;
+              </span>
+              <p className="text-xs font-semibold text-white">Locking in extras without arguments</p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Client asks for extra tiling or replacement valves while you&apos;re on site? Quote it in 15 seconds and get their digital sign-off on their phone before you start the work.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 pt-4 text-left sm:grid-cols-3">
           <div className="space-y-1.5 rounded-2xl border border-slate-800 bg-slate-900 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-amber-400">1. Talk or type</p>
