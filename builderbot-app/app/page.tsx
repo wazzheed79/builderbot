@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { brand, configuredSiteUrl } from "@/lib/brand.mjs";
+import { OWN_PRICES_LINE } from "@/lib/price-memory.mjs";
 import FoundingOffer from "@/components/FoundingOffer";
 import HomeCtas from "@/components/HomeCtas";
 import HomeVoice from "@/components/HomeVoice";
@@ -39,7 +40,7 @@ const steps = [
   },
   {
     title: "Check the prices",
-    body: "You get an itemised list. Change any line. Send one price, or Standard, Better, and Premium.",
+    body: "You get an itemised list. Your saved day rate and prices are used when you have set them. Change any line. Send one price, or Standard, Better, and Premium.",
   },
   {
     title: "Send the link",
@@ -55,8 +56,8 @@ const features = [
   },
   {
     icon: ListChecks,
-    title: "Prices you can edit",
-    body: "Every quantity and rate can be changed. A rough estimate is labelled as one.",
+    title: "Your prices",
+    body: `${OWN_PRICES_LINE} You still check every line. A rough estimate is labelled as one.`,
   },
   {
     icon: MessageCircle,
@@ -104,6 +105,10 @@ const faqs = [
   {
     q: "Do I have to keep the suggested prices?",
     a: "No. Change any line before the customer sees it. If a build is only a rough estimate, the quote says so.",
+  },
+  {
+    q: "Will it use my prices?",
+    a: `${OWN_PRICES_LINE} Save them in Settings after you sign in. You still check every line before you send it. The try-it page does not save a price list.`,
   },
   {
     q: "Is it free?",
@@ -191,6 +196,10 @@ export default function Home() {
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
                 No card needed — 100% free in beta
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
+                <span>{OWN_PRICES_LINE}</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />

@@ -1321,6 +1321,13 @@ export default function QuotesClient() {
             </div>
           </div>
 
+          <div className="text-sm leading-relaxed text-stone-600">
+            <Link href="/settings/prices" className="inline-flex min-h-11 items-center font-bold text-clay-800 underline">
+              My price list
+            </Link>
+            <p>Your day rate in Settings is used as well. You still check every line before you send the quote.</p>
+          </div>
+
           {/* Job Site & Inspection Photos Uploader */}
           <SitePhotosUploader photos={photos} onChange={setPhotos} />
           <p className="text-xs text-stone-600">

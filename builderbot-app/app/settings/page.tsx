@@ -647,6 +647,16 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <Link
+            href="/settings/prices"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-700 px-4 text-base font-bold text-white"
+          >
+            My price list
+          </Link>
+          <p className="text-sm leading-relaxed text-slate-600">
+            Add the materials and jobs you price often. New quotes use those prices, and the AI fills in the quantities. You still check every line.
+          </p>
+
           <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/60 rounded-xl flex items-center justify-between text-xs text-indigo-900">
             <span>
               💡 <strong>Your usual rates:</strong> New quotes and the margin calculator use your £{pricingMemory.laborHourlyRate}/hr rate and {pricingMemory.preferredMarkupPercent}% markup.

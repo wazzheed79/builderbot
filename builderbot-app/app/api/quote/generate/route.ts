@@ -3,7 +3,7 @@ import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { sanitizeGeneratedQuote } from "@/lib/quote-ai.mjs";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
-import { applyRememberedPrices } from "@/lib/price-memory.mjs";
+import { applyRememberedPrices, rememberedPricesPrompt } from "@/lib/price-memory.mjs";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
 import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
@@ -124,13 +124,11 @@ export async function POST(request: NextRequest) {
         : pricingMemory?.laborDayRate
           ? `£${pricingMemory.laborDayRate}/day`
           : "standard UK rates";
-      const rememberedPrices =
-        remembered.length > 0
-          ? remembered
-              .slice(0, 12)
-              .map((row) => `${row.description || row.key} £${row.rate} per ${row.unit}`)
-              .join("; ")
-          : "";
+      const rememberedPrices = rememberedPricesPrompt(remembered);
+      if (rememberedPrices) {
+        systemInstruction +=
+          " When the tradesperson's own prices are listed, use those rates and units for matching work and choose the quantities.";
+      }
 
       // Extract up to 3 site photos for multimodal AI visual assessment
       const imageParts = (photos || [])
@@ -166,9 +164,7 @@ export async function POST(request: NextRequest) {
                   text:
                     `Target Trade Category: ${trade || "General Building & Renovation"}\n` +
                     `Contractor labour rate: ${customLabor}. Material markup about ${pricingMemory?.preferredMarkupPercent || 20}%.\n` +
-                    (rememberedPrices
-                      ? `Use these remembered prices when the line is the same sort of work: ${rememberedPrices}\n`
-                      : "") +
+                    (rememberedPrices ? `${rememberedPrices}\n` : "") +
                     "Itemize the following job notes into UK trade line items:",
                 },
                 { text: notes },

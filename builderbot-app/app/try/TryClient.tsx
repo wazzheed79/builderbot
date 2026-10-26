@@ -14,6 +14,7 @@ import {
   writeGuestDemoQuote,
 } from "@/lib/guest-demo.mjs";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
+import { OWN_PRICES_LINE, TRY_PRICES_NOTE } from "@/lib/price-memory.mjs";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -188,6 +189,8 @@ export default function TryClient() {
         Type the job, or tap an example. You get an itemised quote with Standard, Better, and
         Premium, and a preview of the page your customer would open. Nothing is saved or sent.
       </p>
+      <p className="mt-3 text-base leading-relaxed text-stone-700">{OWN_PRICES_LINE}</p>
+      <p className="mt-2 text-sm leading-relaxed text-stone-600">{TRY_PRICES_NOTE}</p>
 
       <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {GUEST_EXAMPLES.map((example) => (
