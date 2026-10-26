@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -18,6 +19,7 @@ import {
 import { useAuth } from "./AuthProvider";
 import DemoBanner from "./DemoBanner";
 import { brand } from "@/lib/brand.mjs";
+import { isGuestPublicPath } from "@/lib/public-pages.mjs";
 
 export default function AppNav() {
   const pathname = usePathname();
@@ -32,7 +34,20 @@ export default function AppNav() {
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
-  if (pathname.startsWith("/q/") || pathname.startsWith("/i/")) {
+  const customerPage = pathname.startsWith("/q/") || pathname.startsWith("/i/");
+  const showMobileTabs = !customerPage && (Boolean(user) || !isGuestPublicPath(pathname));
+
+  useEffect(() => {
+    // Customer quote pages keep the space they already had. Public pages for
+    // a signed-out visitor do not, because the tab bar is not on screen.
+    const reserve = customerPage || showMobileTabs;
+    document.body.classList.toggle("pb-24", reserve);
+    return () => {
+      document.body.classList.add("pb-24");
+    };
+  }, [customerPage, showMobileTabs]);
+
+  if (customerPage) {
     return null;
   }
 
@@ -147,7 +162,9 @@ export default function AppNav() {
       {/* Cross-App Demo Mode Banner */}
       <DemoBanner />
 
-      {/* Mobile Bottom Navigation Bar (High-Contrast, 48px+ touch targets for van/site work) */}
+      {/* Mobile Bottom Navigation Bar (High-Contrast, 48px+ touch targets for van/site work).
+          Signed-out visitors on public pages do not get this bar: every tab asks them to sign in. */}
+      {showMobileTabs && (
       <nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 w-full max-w-[100vw] overflow-x-clip bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+6px)]">
         <div className="grid w-full min-w-0 grid-cols-6 gap-0.5 items-center">
           {navItems.map((item) => {
@@ -173,6 +190,7 @@ export default function AppNav() {
           })}
         </div>
       </nav>
+      )}
     </>
   );
 }

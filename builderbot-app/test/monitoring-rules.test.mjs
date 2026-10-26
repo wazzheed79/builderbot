@@ -106,3 +106,80 @@ test("PostHog consent, public pages and signup stay free of personal fields", ()
   assert.doesNotMatch(captured.$current_url, /phone=/);
   assert.equal(captured.ai_used, false);
 });
+
+test("PostHog page views and demo events keep token, and secrets are still removed", () => {
+  const token = "phc_07911123456abcdef";
+  const pageview = sanitizeCapturedProperties({
+    token,
+    distinct_id: "anon-1",
+    $session_id: "session-1",
+    $window_id: "window-1",
+    $config_defaults: "2026-01-30",
+    $lib: "web",
+    $pathname: "/try",
+    $current_url: "https://www.chuffedquotes.co.uk/q/secret-token?email=sarah@example.com",
+    $email: "sarah@example.com",
+    $ip: "203.0.113.8",
+    email: "sarah@example.com",
+    notes: "Paint the hall in BS8 4EJ",
+    password: "hunter2",
+    access_token: "user-secret",
+    phone: "07911 123456",
+    clientName: "Sarah Jenkins",
+    ai_used: true,
+  });
+
+  assert.equal(pageview.token, token);
+  assert.equal(pageview.distinct_id, "anon-1");
+  assert.equal(pageview.$session_id, "session-1");
+  assert.equal(pageview.$window_id, "window-1");
+  assert.equal(pageview.$config_defaults, "2026-01-30");
+  assert.equal(pageview.$lib, "web");
+  assert.equal(pageview.$pathname, "/try");
+  assert.equal(pageview.ai_used, true);
+  assert.match(pageview.$current_url, /\/q\/\[id\]/);
+  assert.doesNotMatch(pageview.$current_url, /secret-token|sarah@/);
+  assert.equal(pageview.email, undefined);
+  assert.equal(pageview.$email, undefined);
+  assert.equal(pageview.$ip, undefined);
+  assert.equal(pageview.notes, undefined);
+  assert.equal(pageview.password, undefined);
+  assert.equal(pageview.access_token, undefined);
+  assert.equal(pageview.phone, undefined);
+  assert.equal(pageview.clientName, undefined);
+
+  const demo = sanitizeCapturedProperties({
+    token,
+    $lib: "web",
+    used_example: false,
+    reason: "daily_limit",
+    notes: "Kitchen tap is leaking",
+    signature: "Sarah Jenkins",
+  });
+  assert.equal(demo.token, token);
+  assert.equal(demo.$lib, "web");
+  assert.equal(demo.used_example, false);
+  assert.equal(demo.reason, "daily_limit");
+  assert.equal(demo.notes, undefined);
+  assert.equal(demo.signature, undefined);
+
+  assert.deepEqual(sanitizeEventProperties("demo_build_clicked", { used_example: true, notes: "Paint the hall" }), {
+    used_example: true,
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_quote_generated", { ai_used: true, used_example: false, notes: "Paint" }), {
+    ai_used: true,
+    used_example: false,
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_build_failed", { reason: "empty_input", used_example: false }), {
+    reason: "empty_input",
+    used_example: false,
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_build_failed", { reason: "daily_limit" }), {
+    reason: "daily_limit",
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_build_failed", { reason: "ai_error" }), {
+    reason: "ai_error",
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_build_failed", { reason: "Paint the hall and the stairs" }), {});
+  assert.deepEqual(sanitizeEventProperties("demo_signup_clicked", { email: "a@b.co" }), {});
+});

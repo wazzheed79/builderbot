@@ -88,8 +88,9 @@ export default function PrivacyPage() {
           <p className="mt-2">
             If you tap Accept, PostHog counts how the app is used. That includes a new account, a
             quote being created, sent, opened, or accepted, an invoice being created or marked
-            paid, a template being saved, and whether someone started a try-it quote, built one,
-            or tapped to sign up. The words of the job are not included. A signed-in tradesperson is recognised by an account
+            paid, a template being saved, and on the try-it page whether it was opened, Build was
+            tapped, a quote was shown, a build could not be made, or sign-up was tapped. The words
+            of the job are not included. A signed-in tradesperson is recognised by an account
             id only, not by their email. Customer names, phone numbers, addresses, and quote
             wording are not included. A customer quote page and a customer invoice page are not
             recorded. On the tradesperson’s own pages, anything typed into a box is hidden.
