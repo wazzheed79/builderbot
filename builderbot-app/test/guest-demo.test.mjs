@@ -168,9 +168,17 @@ test("sign-in opens the quote builder only when a try-it quote is waiting", () =
 
 test("try-it analytics events are allowed and cannot carry the job notes", () => {
   assert.deepEqual(sanitizeEventProperties("demo_started", { notes: "Paint the hall" }), {});
-  assert.deepEqual(sanitizeEventProperties("demo_quote_generated", { ai_used: true, notes: "Paint the hall" }), {
-    ai_used: true,
+  assert.deepEqual(sanitizeEventProperties("demo_build_clicked", { used_example: true, notes: "Paint the hall" }), {
+    used_example: true,
   });
+  assert.deepEqual(sanitizeEventProperties("demo_quote_generated", { ai_used: true, used_example: false, notes: "Paint the hall" }), {
+    ai_used: true,
+    used_example: false,
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_build_failed", { reason: "empty_input", notes: "Paint the hall" }), {
+    reason: "empty_input",
+  });
+  assert.deepEqual(sanitizeEventProperties("demo_build_failed", { reason: "the kitchen tap notes" }), {});
   assert.deepEqual(sanitizeEventProperties("demo_signup_clicked", { email: "a@b.co" }), {});
   assert.equal(sanitizeEventProperties("demo_quote_generated", { ai_used: "yes" }).ai_used, undefined);
 });

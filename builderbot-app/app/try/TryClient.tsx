@@ -141,12 +141,14 @@ export default function TryClient() {
     }
   };
 
-  const buildQuote = async (text: string) => {
+  const buildQuote = async (text: string, usedExample: boolean) => {
     const notesText = text.trim().slice(0, GUEST_NOTES_MAX);
     setNotes(notesText);
     setError("");
+    captureEvent("demo_build_clicked", { used_example: usedExample });
     if (notesText.length < 3) {
       setError("Type a few words about the job.");
+      captureEvent("demo_build_failed", { reason: "empty_input", used_example: usedExample });
       return;
     }
     setBusy(true);
@@ -158,6 +160,10 @@ export default function TryClient() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !isPreviewQuote(data)) {
+        captureEvent("demo_build_failed", {
+          reason: response.status === 429 ? "daily_limit" : "ai_error",
+          used_example: usedExample,
+        });
         setError(
           (data && typeof data.error === "string" && data.error) ||
             "Could not build that quote. Please try again."
@@ -166,11 +172,15 @@ export default function TryClient() {
       }
       setQuote(data);
       writeGuestDemoQuote(window.localStorage, data, new Date().toISOString());
-      captureEvent("demo_quote_generated", { ai_used: data.aiPowered === true });
+      captureEvent("demo_quote_generated", {
+        ai_used: data.aiPowered === true,
+        used_example: usedExample,
+      });
       window.setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 50);
     } catch {
+      captureEvent("demo_build_failed", { reason: "ai_error", used_example: usedExample });
       setError("Could not reach the quote helper. Check the signal and try again.");
     } finally {
       setBusy(false);
@@ -178,45 +188,39 @@ export default function TryClient() {
   };
 
   return (
-    <div className={`mx-auto w-full min-w-0 max-w-3xl px-4 py-8 sm:px-6 sm:py-12 ${quote ? "pb-28" : ""}`}>
-      <p className="inline-flex items-center rounded-full border border-clay-200 bg-clay-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-clay-800">
-        Free try-out. No account.
-      </p>
-      <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-ink sm:text-4xl">
+    <div className={`mx-auto w-full min-w-0 max-w-3xl px-4 pt-3 sm:px-6 sm:pt-12 ${quote ? "pb-28 lg:pb-12" : "pb-8 sm:pb-12"}`}>
+      <h1 className="text-xl font-black leading-tight tracking-tight text-ink sm:text-4xl">
         Try a quote before you sign up
       </h1>
-      <p className="mt-3 text-base leading-relaxed text-stone-700">
-        Type the job, or tap an example. You get an itemised quote with Standard, Better, and
-        Premium, and a preview of the page your customer would open. Nothing is saved or sent.
+      <p className="mt-1 text-sm leading-snug text-stone-700 sm:mt-3 sm:text-base sm:leading-relaxed">
+        Type the job, or tap an example. Nothing is saved or sent.
       </p>
-      <p className="mt-3 text-base leading-relaxed text-stone-700">{OWN_PRICES_LINE}</p>
-      <p className="mt-2 text-sm leading-relaxed text-stone-600">{TRY_PRICES_NOTE}</p>
 
-      <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {GUEST_EXAMPLES.map((example) => (
           <button
             key={example.id}
             type="button"
             disabled={busy}
-            onClick={() => void buildQuote(example.notes)}
-            className="min-h-12 rounded-xl border border-stone-300 bg-white px-3 text-base font-bold text-ink hover:bg-paper disabled:opacity-60"
+            onClick={() => void buildQuote(example.notes, true)}
+            className="min-h-12 rounded-xl border border-stone-300 bg-white px-2 text-sm font-bold text-ink hover:bg-paper disabled:opacity-60 sm:px-3 sm:text-base"
           >
             {example.label}
           </button>
         ))}
       </div>
 
-      <label htmlFor="try-notes" className="mt-6 block text-sm font-black text-ink">
+      <label htmlFor="try-notes" className="mt-3 block text-sm font-black text-ink">
         Job notes
       </label>
       <textarea
         id="try-notes"
         value={notes}
         onChange={(event) => setNotes(event.target.value.slice(0, GUEST_NOTES_MAX))}
-        rows={5}
+        rows={4}
         maxLength={GUEST_NOTES_MAX}
         placeholder="Kitchen tap is leaking. Replace the tap and check the pipe. About an hour on site."
-        className="mt-2 w-full min-w-0 rounded-xl border border-stone-300 bg-white px-3 py-3 text-base text-ink"
+        className="mt-1 w-full min-w-0 rounded-xl border border-stone-300 bg-white px-3 py-3 text-base text-ink"
       />
       <p className="mt-1 text-xs text-stone-500">{notes.length}/{GUEST_NOTES_MAX}</p>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr]">
@@ -233,7 +237,7 @@ export default function TryClient() {
         <button
           type="button"
           disabled={busy}
-          onClick={() => void buildQuote(notes)}
+          onClick={() => void buildQuote(notes, false)}
           className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-clay-700 px-4 text-base font-extrabold text-white hover:bg-clay-800 disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Sparkles className="h-5 w-5" aria-hidden="true" />}
@@ -246,9 +250,18 @@ export default function TryClient() {
           {error}
         </p>
       )}
-      <p className="mt-3 text-sm text-stone-600">
-        A few free tries a day from this phone. Prices are a suggestion. You check them before anyone else sees them.
-      </p>
+      <div className="mt-4 space-y-2 text-sm leading-snug text-stone-600">
+        <p>
+          You get an itemised quote with Standard, Better, and Premium, and a preview of the page
+          your customer would open.
+        </p>
+        <p className="text-stone-700">{OWN_PRICES_LINE}</p>
+        <p>{TRY_PRICES_NOTE}</p>
+        <p>
+          A few free tries a day from this phone. Prices are a suggestion. You check them before
+          anyone else sees them.
+        </p>
+      </div>
 
       {quote && (
         <div ref={resultRef} className="mt-8 space-y-4">
@@ -283,7 +296,11 @@ export default function TryClient() {
               </p>
             )}
           </div>
-          <div className="fixed inset-x-0 bottom-20 z-40 border-t border-white/10 bg-ink px-4 py-3 shadow-lg lg:bottom-0">
+          <div
+            className={`fixed inset-x-0 z-40 border-t border-white/10 bg-ink px-4 py-3 shadow-lg ${
+              signedIn ? "bottom-20 lg:bottom-0" : "bottom-0"
+            }`}
+          >
             <Link
               href={signedIn ? "/quotes" : "/login?next=/quotes"}
               onClick={() => {

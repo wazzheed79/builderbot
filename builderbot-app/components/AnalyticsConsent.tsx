@@ -47,27 +47,25 @@ export default function AnalyticsConsentBanner() {
   };
 
   return (
-    <div className="no-print border-b border-stone-200 bg-white px-4 py-3">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm leading-snug text-stone-700">
+    <div className="no-print border-b border-stone-200 bg-white px-3 py-2 sm:px-4 sm:py-3">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-2 sm:gap-3">
+        <p className="min-w-0 flex-1 text-xs leading-snug text-stone-700 sm:text-sm">
           Optional usage counts help improve {brand.name}. No advertising, and nothing is sent until you accept.
         </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => choose("declined")}
-            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-bold text-ink sm:flex-none"
-          >
-            Decline
-          </button>
-          <button
-            type="button"
-            onClick={() => choose("accepted")}
-            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-clay-700 px-4 text-sm font-bold text-white sm:flex-none"
-          >
-            Accept
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => choose("declined")}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white px-3 text-sm font-bold text-ink sm:min-h-12 sm:px-4"
+        >
+          Decline
+        </button>
+        <button
+          type="button"
+          onClick={() => choose("accepted")}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-clay-700 px-3 text-sm font-bold text-white sm:min-h-12 sm:px-4"
+        >
+          Accept
+        </button>
       </div>
     </div>
   );

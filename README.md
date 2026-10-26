@@ -153,7 +153,7 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 ## Monitoring, analytics, and privacy
 
 - **Sentry** receives an error report only when `NEXT_PUBLIC_SENTRY_DSN` is set. Tracing is sampled at 10%. Names, email addresses, phone numbers, addresses, and quote wording are removed before the report is sent. Sentry does not record the screen. Source-map upload runs only when `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` are all set. Otherwise the upload is skipped and production stack traces stay minified.
-- **PostHog** starts only after the visitor taps Accept on the cookie banner. It stays off when the key or the host is missing. Customer quote pages (`/q/…`) and customer invoice pages (`/i/…`) are not recorded. A signed-in account is counted by id. The try-it page can count that a demo started, a quote was built, or sign-up was tapped. It does not send the job notes. The intended host is the EU one (`https://eu.i.posthog.com`).
+- **PostHog** starts only after the visitor taps Accept on the cookie banner. It stays off when the key or the host is missing. Customer quote pages (`/q/…`) and customer invoice pages (`/i/…`) are not recorded. A signed-in account is counted by id. The try-it page can count that the page was opened, that Build was tapped (and whether an example was used), that a quote was shown, that a build failed because the notes were empty, the daily limit was hit, or the helper failed, and that sign-up was tapped. It does not send the job notes. The intended host is the EU one (`https://eu.i.posthog.com`).
 - The public notice is at `/privacy` on the live site. It names the owner, what is stored, sign-in email, Gemini, Sentry, and PostHog. It is a plain-language beta notice, not legal advice.
 
 ## Progress / Changelog
@@ -162,6 +162,9 @@ Dates are the dates on the commits. The same history, in [Keep a Changelog](http
 
 ### 26 October 2026
 
+- Usage counts can reach PostHog again. The privacy check was removing PostHog’s own project key, so every event was dropped. Job notes, names, emails, phones, and other secrets are still removed.
+- The try-it page counts Build tapped, a quote shown, and a failed build (empty notes, the daily limit, or an error), as well as the page open and the sign-up tap. Nothing is counted before Accept, and the job notes are not sent.
+- On a phone, a signed-out visitor no longer sees the Dashboard, Quotes, Invoices, Customers, Pricing, and Settings bar on the public pages. Signed-in people still do. The try-it page leads with the example buttons and the job notes. The cookie banner is a shorter row, with Accept and Decline still side by side.
 - A signed-in tradesperson can keep a price list in Settings: name, unit (each, per metre, per m², per hour, and similar), and a price in pounds. New quotes use those prices, and prices already typed on a quote, from the existing `price_memory` table. The AI is asked to fill in the quantities. The try-it page does not save or send a price list. No database migration.
 
 ### 23 October 2026

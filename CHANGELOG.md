@@ -8,6 +8,7 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Added
 
+- Try-it counts for the steps after the page opens: `demo_build_clicked` (with whether an example button was used), `demo_quote_generated` when the quote is shown, and `demo_build_failed` with a reason of `empty_input`, `daily_limit`, or `ai_error`. `demo_started` still means the try-it page was opened, and `demo_signup_clicked` still means sign-up was tapped. These fire only after Accept. The job notes are not sent.
 - **My price list**, at `/settings/prices`, for a signed-in tradesperson. They can add, edit, and delete their own items (name, unit such as each, per metre, per m², or per hour, and a price in pounds) before they type them on a quote. The list uses the existing `price_memory` table, so prices already remembered from a quote show there too, and row security still limits each row to its owner. New quotes send those prices to the AI and then apply them to matching lines. The AI is asked to fill in the quantities. Day rate, hourly rate, and material markup stay on the Settings page. The try-it page does not save or send a price list. No database migration.
 - A short van demo on the home page and at `/walkthrough`. It plays five recorded clips in `builderbot-app/public/audio/walkthrough/` (`step-1.mp3` to `step-5.mp3`), all in the same voice. Together they last about 32 seconds (about 6.9, 8.8, 5.5, 5.2, and 5.4 seconds). Sound starts when you tap, moves on when each clip ends, and stops after the last step. Closing the popup stops the sound. If the sound is muted or cannot play, each step still waits for that clip’s length, so the words are not cut off.
 - A root README, this changelog, and standing instructions so later changes update both. Google Antigravity reads `GEMINI.md` and `.agents/rules/keep-docs-updated.md` as well as `AGENTS.md`.
@@ -16,6 +17,8 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Changed
 
+- On a phone, the try-it page shows a one-line introduction, the example buttons, and the job notes on the first screen. The longer explanation, including “Set your day rate and prices once, and every quote uses them…” and the note that the preview uses example prices, sits below the build button.
+- The cookie banner is one shorter row on a phone. Accept and Decline stay side by side, and both are still at least 44 pixels tall.
 - The home page and the try-it page say that a saved day rate and price list are used on later quotes, and that the AI fills in the quantities and the paperwork. The try-it page also says that this preview uses example prices and does not save a price list.
 - The home page headline says a quote from the van takes a couple of minutes.
 - The demo words match what the app does. The customer types their name to accept. Prices on the demo are an example, not a live merchant price list. The demo no longer says the notes were transcribed on the device, that a signature is IP verified, that you are notified at once, or that both people are sent a contract. It does not say that UK trades already use this flow.
@@ -26,6 +29,8 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Fixed
 
+- PostHog events were dropped before they were sent. The privacy check treated PostHog’s own `token` (the project key) as a secret, and the skip for PostHog’s `$` fields ran only after the `$` had already been removed, so it never matched. The project key and PostHog’s own fields are kept. Names, emails, phones, job notes, passwords, and other token-like fields are still removed. Quote and invoice links in addresses are still shortened.
+- Signed-out visitors on the public pages (home, try-it, pricing, sign-in, and the legal pages) no longer see the logged-in bottom tab bar. That bar was covering the job notes, and each tab asked them to sign in. Signed-in people still get the bar. The quote builder and the other signed-in pages are unchanged.
 - The “this browser only” banner no longer appears on `/walkthrough`. `/walkthrough` is included in the sitemap.
 - The demo page no longer fails lint on an apostrophe in “driver’s seat” or on unused imports.
 
