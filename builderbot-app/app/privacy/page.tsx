@@ -33,10 +33,10 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-ink">What is stored</h2>
           <p className="mt-2">
-            You can save customers, quotes, prices, site photos, and your business details. Until
-            you sign in, that stays in this browser. After you sign in, it is stored in Supabase,
-            in the EU (London) region, so you can open it on another phone. The website is hosted
-            on Vercel.
+            You can save customers, quotes, prices, a price list, site photos, and your business details. Until
+            you sign in, quotes stay in this browser. A price list is kept only on your account after you sign in.
+            Signed-in data is stored in Supabase, in the EU (London) region, so you can open it on another phone.
+            The website is hosted on Vercel.
           </p>
         </section>
         <section>
@@ -49,10 +49,10 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-ink">AI quote drafts</h2>
           <p className="mt-2">
-            If you ask for an AI draft, the notes you typed or spoke, and any photos you attach
-            for that draft, are sent to Google Gemini. You check the prices before a customer
+            If you ask for an AI draft, the notes you typed or spoke, any photos you attach
+            for that draft, and the prices you have saved are sent to Google Gemini. You check the prices before a customer
             sees them. The try-it page, which needs no account, sends only the notes you type
-            there. That try-out is not saved as a quote and cannot be sent. A few tries a day
+            there. It does not send a price list. That try-out is not saved as a quote and cannot be sent. A few tries a day
             are counted against the network address, stored as a hash, so the helper cannot be
             used without limit. Photos are not sent from the try-it page.
           </p>
