@@ -63,10 +63,18 @@ export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }
   };
 
   const updateItem = (id: string, field: keyof LineItem, value: string | number) => {
-    setDraft({
-      ...draft,
-      items: draft.items.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+    const items = draft.items.map((item) => {
+      if (item.id !== id || item[field] === value) return item;
+      const clearsSource = field === "rate" || field === "description" || field === "unit";
+      return {
+        ...item,
+        [field]: value,
+        usualPrice: clearsSource ? false : item.usualPrice,
+        rateSource: clearsSource ? undefined : item.rateSource,
+      };
     });
+    if (items.every((item, index) => item === draft.items[index])) return;
+    setDraft({ ...draft, items });
   };
 
   const shareUrl = getWhatsAppInvoiceShareUrl({
@@ -245,6 +253,12 @@ export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }
             items={draft.items}
             isAiDraft={false}
             onAcknowledgeAiDraft={() => {}}
+            onAddPrice={(line) =>
+              setDraft({
+                ...draft,
+                items: [...draft.items, { ...line, id: `line-${Date.now()}` }],
+              })
+            }
             onAddItem={(type) =>
               setDraft({
                 ...draft,

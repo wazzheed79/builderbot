@@ -62,7 +62,8 @@ import {
 import { deleteCloudQuote, getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import type { Quote } from "@/lib/storage";
-import { loadRememberedPrices, rememberLinePrice } from "@/lib/price-memory";
+import { loadPriceList, rememberLinePrice } from "@/lib/price-memory";
+import { pricingMemoryForQuote } from "@/lib/price-memory.mjs";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { quoteDraftForSave } from "@/lib/quote-draft.mjs";
 import {
@@ -688,6 +689,11 @@ export default function QuotesClient() {
     setIsGenerating(true);
 
     try {
+      const loadedPrices = user ? await loadPriceList() : { ok: true as const, items: [] };
+      if (!loadedPrices.ok) {
+        triggerToast("Could not load your price list, so this quote uses suggested prices. Try again in a moment.");
+      }
+      const rememberedRows = loadedPrices.ok ? loadedPrices.items : [];
       const res = await fetch("/api/quote/generate", {
         method: "POST",
         headers: await getAuthHeaders(),
@@ -695,7 +701,7 @@ export default function QuotesClient() {
           notes: notesInput.trim(),
           trade: profile.trade,
           photos: photos && photos.length > 0 ? photos : undefined,
-          pricingMemory: { ...getPricingMemory(), remembered: await loadRememberedPrices() },
+          pricingMemory: pricingMemoryForQuote(getPricingMemory(), rememberedRows),
         }),
       });
 
@@ -713,6 +719,8 @@ export default function QuotesClient() {
               quantity: number;
               unit: string;
               rate: number;
+              usualPrice?: boolean;
+              rateSource?: "list" | "settings";
             },
             idx: number
           ) => ({
@@ -722,7 +730,8 @@ export default function QuotesClient() {
             quantity: it.quantity,
             unit: it.unit,
             rate: it.rate,
-            usualPrice: Boolean((it as { usualPrice?: boolean }).usualPrice),
+            usualPrice: Boolean(it.usualPrice),
+            rateSource: it.rateSource === "settings" || it.rateSource === "list" ? it.rateSource : undefined,
           })
         );
 
@@ -735,9 +744,14 @@ export default function QuotesClient() {
         if (data.scopeOfWork) setNotesInput(data.scopeOfWork);
         if (data.suggestedDepositPercent) setDepositPercent(data.suggestedDepositPercent);
 
+        const fromList = mappedItems.filter((item) => item.usualPrice).length;
         triggerToast(
           data.aiPowered
-            ? "Suggested prices are in. Change anything that does not look right before you send it."
+            ? fromList > 0
+              ? fromList === 1
+                ? "1 line is from your price list. Check the quantities before you send it."
+                : `${fromList} lines are from your price list. Check the quantities before you send it.`
+              : "Suggested prices are in. Change anything that does not look right before you send it."
             : data.notice ||
                 "Rough estimate. Change every price before you send it."
         );
@@ -761,16 +775,23 @@ export default function QuotesClient() {
       quantity: 1,
       unit: type === "labor" ? "hrs" : "unit",
       rate: type === "labor" ? memory.laborHourlyRate || 50 : 25,
+      rateSource: type === "labor" ? "settings" : undefined,
     };
     setItems((current) => [...current, newItem]);
   };
 
   const handleUpdateItem = (id: string, field: keyof LineItem, value: string | number) => {
-    markDraftEdited();
     setItems((current) =>
       current.map((item) => {
-        if (item.id !== id) return item;
-        const next = { ...item, [field]: value, usualPrice: field === "rate" ? false : item.usualPrice };
+        if (item.id !== id || item[field] === value) return item;
+        markDraftEdited();
+        const clearsSource = field === "rate" || field === "description" || field === "unit";
+        const next = {
+          ...item,
+          [field]: value,
+          usualPrice: clearsSource ? false : item.usualPrice,
+          rateSource: clearsSource ? undefined : item.rateSource,
+        };
         if (field === "rate" && user) rememberLinePrice(next);
         return next;
       })
@@ -1325,7 +1346,10 @@ export default function QuotesClient() {
             <Link href="/settings/prices" className="inline-flex min-h-11 items-center font-bold text-clay-800 underline">
               My price list
             </Link>
-            <p>Your day rate in Settings is used as well. You still check every line before you send the quote.</p>
+            <p>
+              Build the quote uses a matching saved price, and your day rate or hourly rate from Settings.
+              Or tap Add from my price list on the lines below. You still check every line before you send the quote.
+            </p>
           </div>
 
           {/* Job Site & Inspection Photos Uploader */}
@@ -1468,6 +1492,11 @@ export default function QuotesClient() {
               <LineItemEditor
                 items={items}
                 onAddItem={handleAddItem}
+                onAddPrice={(line) => {
+                  markDraftEdited();
+                  setItems((current) => [...current, { ...line, id: `line-${++lineSerial.current}` }]);
+                  triggerToast(`Added ${line.description} from your price list.`);
+                }}
                 onUpdateItem={handleUpdateItem}
                 onDeleteItem={handleDeleteItem}
                 isAiDraft={isAiDraft}

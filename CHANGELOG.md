@@ -29,6 +29,9 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Fixed
 
+- A saved price list now reaches the quote. Build the quote uses a matching saved price (for example a new boiler on a combi boiler job) and the day rate or hourly rate from Settings, instead of leaving an AI guess in place. Each matching line is labelled “From your price list”, and a labour line that used Settings is labelled “Your rate from Settings”. On the quote, Add from my price list opens the saved prices so one can be tapped on as a line. No database migration.
+- Price, quantity, and rate boxes can be cleared while typing. A lone 0 no longer sticks, so typing 50 replaces it instead of turning into 050 or 500. An empty box becomes 0 when you leave it. The phone keypad is still the number keypad.
+
 - PostHog events were dropped before they were sent. The privacy check treated PostHog’s own `token` (the project key) as a secret, and the skip for PostHog’s `$` fields ran only after the `$` had already been removed, so it never matched. The project key and PostHog’s own fields are kept. Names, emails, phones, job notes, passwords, and other token-like fields are still removed. Quote and invoice links in addresses are still shortened.
 - Signed-out visitors on the public pages (home, try-it, pricing, sign-in, and the legal pages) no longer see the logged-in bottom tab bar. That bar was covering the job notes, and each tab asked them to sign in. Signed-in people still get the bar. The quote builder and the other signed-in pages are unchanged.
 - The “this browser only” banner no longer appears on `/walkthrough`. `/walkthrough` is included in the sitemap.

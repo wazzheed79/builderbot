@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import NumberField from "@/components/NumberField";
 import {
   canonicalUnit,
   OWN_PRICES_LINE,
+  PRICE_LIST_MAX_RATE,
   PRICE_UNITS,
   unitLabel,
 } from "@/lib/price-memory.mjs";
@@ -155,14 +157,14 @@ export default function PriceListClient() {
     setEditingKey("");
   };
 
-  const onSave = async () => {
+  const onSave = async (typedRate = rate) => {
     setNotice("");
     setListError("");
     if (!signedIn) return;
     setBusy(true);
     const result = await savePriceListEntry(
       items,
-      { description, unit, rate, itemType: items.find((row) => row.key === editingKey)?.itemType },
+      { description, unit, rate: typedRate, itemType: items.find((row) => row.key === editingKey)?.itemType },
       editingKey
     );
     setBusy(false);
@@ -281,7 +283,8 @@ export default function PriceListClient() {
           className="mt-6 rounded-2xl border border-stone-200 bg-white p-4 sm:p-6"
           onSubmit={(event) => {
             event.preventDefault();
-            void onSave();
+            const typed = String(new FormData(event.currentTarget).get("rate") ?? rate);
+            void onSave(typed);
           }}
         >
           <h2 className="text-lg font-black text-ink">{editingKey ? "Edit price" : "Add a price"}</h2>
@@ -315,16 +318,17 @@ export default function PriceListClient() {
             </label>
             <label className="block text-sm font-bold text-ink" htmlFor="price-rate">
               Price (£)
-              <input
+              <NumberField
                 id="price-rate"
-                value={rate}
-                onChange={(event) => setRate(event.target.value)}
-                inputMode="decimal"
-                min="0"
-                step="0.01"
+                name="rate"
                 required
+                min={0}
+                max={PRICE_LIST_MAX_RATE}
+                emptyAs={null}
                 placeholder="4.50"
-                className="mt-1 w-full min-h-11 rounded-xl border border-stone-300 px-3 text-base text-ink"
+                value={rate.trim() === "" || Number.isNaN(Number(rate)) ? null : Number(rate)}
+                onValue={(next) => setRate(next === null ? "" : String(next))}
+                className="mt-1 w-full min-h-12 rounded-xl border border-stone-300 px-3 text-base text-ink"
               />
             </label>
           </div>
@@ -389,7 +393,7 @@ export default function PriceListClient() {
             ))}
           </ul>
           <p className="mt-4 text-sm leading-relaxed text-stone-600">
-            You can save 80 prices. The latest 40 are named in an AI draft. Every saved price can still replace a matching line.
+            You can save 80 prices. Build the quote uses a matching price, and on a quote you can tap Add from my price list. The latest 40 are also named for the AI.
           </p>
         </section>
       ) : null}

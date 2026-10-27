@@ -34,6 +34,8 @@ export interface LineItem {
   unit: string;
   rate: number;
   usualPrice?: boolean;
+  /** list: a saved price. settings: the day rate or hourly rate from Settings. */
+  rateSource?: "list" | "settings";
 }
 
 export interface QuoteOption {

@@ -252,6 +252,8 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
         quantity: item.quantity,
         unit: item.unit,
         rate: item.rate,
+        ...(item.usualPrice ? { usualPrice: true } : {}),
+        ...(item.rateSource === "list" || item.rateSource === "settings" ? { rateSource: item.rateSource } : {}),
       })),
       options: quote.options && quote.options.length > 1 ? quote.options : null,
       selected_option_id: quote.selectedOptionId || null,

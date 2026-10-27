@@ -24,6 +24,8 @@ function copyLine(item, index) {
     quantity: Math.max(0, Number(row.quantity) || 0),
     unit: clean(row.unit) || "unit",
     rate: Math.max(0, Number(row.rate) || 0),
+    ...(row.usualPrice ? { usualPrice: true } : {}),
+    ...(row.rateSource === "list" || row.rateSource === "settings" ? { rateSource: row.rateSource } : {}),
   };
 }
 

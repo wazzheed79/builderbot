@@ -17,6 +17,8 @@ export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent
     quantity: item.quantity,
     unit: item.unit,
     rate: item.rate,
+    ...(item.usualPrice ? { usualPrice: true } : {}),
+    ...(item.rateSource === "list" || item.rateSource === "settings" ? { rateSource: item.rateSource } : {}),
   }));
   const subtotal = base.reduce((sum, item) => sum + item.quantity * item.rate, 0);
   const betterExtra = roundMoney(Math.max(25, subtotal * 0.15));
