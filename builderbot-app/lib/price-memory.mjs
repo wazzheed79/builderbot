@@ -305,6 +305,15 @@ export function applyQuotePrices(items = [], memories = [], pricingMemory) {
 }
 
 /**
+ * Quote lines for the prices the tradesperson ticked or tapped.
+ * @param {unknown} rows
+ */
+export function linesFromPriceList(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => lineFromPriceList(row)).filter(Boolean);
+}
+
+/**
  * One quote line from a saved price. Quantity starts at 1 so the tradesperson can change it.
  * @param {unknown} row
  */

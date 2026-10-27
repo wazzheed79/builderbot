@@ -25,13 +25,13 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 - A sent or accepted quote can become an invoice (`INV-0001` onwards for that account). Invoices can be edited, shared, printed, and marked paid.
 - Quote lines can be saved as a private template. Five built-in trade templates are also available (kitchen, bathroom, roof, driveway, boiler).
 - A materials and labour margin calculator.
-- Drafts are kept in the browser and offered back after a refresh. Signed-in drafts also upload when the connection returns.
+- Drafts are kept in the browser and offered back after a refresh. Signed-in drafts also upload when the connection returns. Discard quote, or Delete on a draft in the list, throws that quote away so it is not offered back.
 - Quotes are not sent until a real business name is saved. Accepted quotes show bank details only when the tradesperson has saved them.
 - Sign-in by email link (opened on `/auth/confirm` when the person taps) or by email and password. The email also has a code of 6 to 10 digits, which can be typed on the sign-in page.
 
 ## How it works
 
-1. **Describe the job.** On the home page, the try-it page, or in the quote builder, talk or type a few rough notes. The try-it page needs no account.
+1. **Describe the job.** On a new quote, the first box is “What is the job?”. Talk or type a few rough notes, such as “New boiler fit”. The home page and the try-it page work the same way. The try-it page needs no account.
 2. **Check the prices.** The app builds an itemised list. A matching price from My price list is used, and labour uses the day rate or hourly rate from Settings. A line that used a saved price says so. You can also tap Add from my price list. Change any line. Send one price, or Standard, Better, and Premium.
 3. **Save and send.** Sign in, save the quote, then share the link or a WhatsApp message. Until it is saved online, the quote stays in that browser.
 4. **The customer decides.** They open the link, read the quote, choose an option if one was offered, and accept or decline. They do not need an account.
@@ -162,6 +162,7 @@ Dates are the dates on the commits. The same history, in [Keep a Changelog](http
 
 ### 27 October 2026
 
+- A new quote starts with “What is the job?”. Add from my price list adds saved prices onto that quote. Discard quote throws the quote away, and a draft can be deleted from the list as well.
 - The sign-in email’s code can be typed in. The page accepts 6 to 10 digits, which is what Supabase sends (this project sends 8), and it says the email has a button and a code. Opening the link in Edge on Android stays in that tab. The guest banner and the cookie banner are not on the tap-to-sign-in page.
 - Saved prices reach the quote. Build the quote uses a matching price from My price list, and the day rate or hourly rate from Settings. A matching line says “From your price list”. On the quote, Add from my price list adds a saved price as a line. Price and quantity boxes can be cleared, so a 0 does not stick to the next number you type.
 
