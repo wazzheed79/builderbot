@@ -29,6 +29,8 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Fixed
 
+- The sign-in email has a button and a code. Supabase allows 6 to 10 digits, and this project sends 8. The sign-in page said the email had no code and only accepted 6 digits, so the code could not be used. The page now says the email has a button and a code, and “Got a code? Type it here” accepts 6 to 10 digits. Typing the code signs you in.
+- Opening that email link in Edge on Android asked the site to open the Edge app. The tap-to-sign-in page was marked as an installable app (`display: standalone` and `mobile-web-app-capable`), so Edge treated the link as a request to leave the tab. That page is now an ordinary browser page, and the home-screen app no longer claims https links, so sign-in stays in the same tab. The “this browser only” banner and the cookie banner are not shown on the tap-to-sign-in page or the signing-in page.
 - A saved price list now reaches the quote. Build the quote uses a matching saved price (for example a new boiler on a combi boiler job) and the day rate or hourly rate from Settings, instead of leaving an AI guess in place. Each matching line is labelled “From your price list”, and a labour line that used Settings is labelled “Your rate from Settings”. On the quote, Add from my price list opens the saved prices so one can be tapped on as a line. No database migration.
 - Price, quantity, and rate boxes can be cleared while typing. A lone 0 no longer sticks, so typing 50 replaces it instead of turning into 050 or 500. An empty box becomes 0 when you leave it. The phone keypad is still the number keypad.
 

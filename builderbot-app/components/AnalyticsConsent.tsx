@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { brand } from "@/lib/brand.mjs";
+import { isSignInHandoffPath } from "@/lib/public-pages.mjs";
 import { CONSENT_EVENT } from "@/lib/analytics-rules.mjs";
 import {
   analyticsConfigured,
@@ -40,7 +41,7 @@ export default function AnalyticsConsentBanner() {
     syncSessionRecording(pathname);
   }, [pathname]);
 
-  if (!configured || !mounted || choice) return null;
+  if (!configured || !mounted || choice || isSignInHandoffPath(pathname)) return null;
 
   const choose = (next: AnalyticsConsent) => {
     rememberConsent(next);

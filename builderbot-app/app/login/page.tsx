@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { brand } from "@/lib/brand.mjs";
 import { pathAfterAuth, readGuestDemoQuote } from "@/lib/guest-demo.mjs";
+import { EMAIL_CODE_MAX_LENGTH, EMAIL_CODE_MIN_LENGTH } from "@/lib/email-code.mjs";
 import {
   Wrench,
   Mail,
@@ -255,8 +256,8 @@ export default function LoginPage() {
               <div className="text-center">
                 <h3 className="text-lg font-bold text-slate-900 mb-1">Check your inbox</h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  Tap the link in the email we sent to <strong className="text-slate-900">{email}</strong>.
-                  That link signs you in on this phone. The email does not include a code.
+                  We sent an email to <strong className="text-slate-900">{email}</strong>. It has a button
+                  and a code. The button signs you in on this phone.
                 </p>
               </div>
               {showCode ? (
@@ -269,18 +270,21 @@ export default function LoginPage() {
                       id="email-code"
                       inputMode="numeric"
                       autoComplete="one-time-code"
-                      pattern="[0-9]*"
-                      maxLength={6}
+                      pattern="[0-9]{6,10}"
+                      minLength={EMAIL_CODE_MIN_LENGTH}
+                      maxLength={EMAIL_CODE_MAX_LENGTH}
                       required
                       value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="123456"
-                      className="block w-full px-3 py-3 border border-slate-300 rounded-xl text-center tracking-[0.4em] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clay-700 focus:border-transparent"
+                      onChange={(e) =>
+                        setCode(e.target.value.replace(/\D/g, "").slice(0, EMAIL_CODE_MAX_LENGTH))
+                      }
+                      placeholder="12345678"
+                      className="block w-full min-h-12 px-3 py-3 border border-slate-300 rounded-xl text-center text-lg tracking-[0.2em] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-clay-700 focus:border-transparent"
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || code.length !== 6}
+                    disabled={loading || code.length < EMAIL_CODE_MIN_LENGTH}
                     className="w-full min-h-11 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-clay-700 hover:bg-clay-800 transition disabled:opacity-50"
                   >
                     {loading ? "Checking the code..." : "Sign in"}
@@ -292,7 +296,7 @@ export default function LoginPage() {
                   onClick={() => setShowCode(true)}
                   className="mx-auto block min-h-11 px-2 text-sm font-semibold text-clay-800 underline"
                 >
-                  Got a 6-digit code instead?
+                  Got a code? Type it here
                 </button>
               )}
               <button
@@ -328,7 +332,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <p className="text-sm text-slate-500 mt-1.5">
-                  We email you a link. Tap it on this phone and you are signed in.
+                  We email you a button and a code. Tap the button on this phone, or type the code here.
                 </p>
               </div>
 
