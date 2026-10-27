@@ -35,6 +35,7 @@ import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl } from "@/lib/share";
 import { hasBusinessName } from "@/lib/business-name.mjs";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
+import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
 import { useTodayIso } from "@/components/invoices/useTodayIso";
 import { canCreateInvoiceFromQuote, displayInvoiceStatus } from "@/lib/invoice-rules.mjs";
 import { captureEvent } from "@/lib/analytics";
@@ -606,6 +607,7 @@ export default function CustomerProfileClient({
                               <span>Review</span>
                               <ArrowUpRight className="w-3.5 h-3.5" />
                             </Link>
+                            {q.status === "Draft" ? <DeleteDraftQuote id={q.id} name={q.title} /> : null}
                           </td>
                         </tr>
                       ))}

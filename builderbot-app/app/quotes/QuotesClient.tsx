@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Camera,
   Receipt,
+  ListPlus,
 } from "lucide-react";
 import {
   LineItem,
@@ -52,6 +53,8 @@ import QuoteTemplatesBar, {
 } from "@/components/quotes/QuoteTemplatesBar";
 import MarginCalculator from "@/components/quotes/MarginCalculator";
 import LineItemEditor from "@/components/quotes/LineItemEditor";
+import PriceListPicker from "@/components/quotes/PriceListPicker";
+import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
 import SitePhotosUploader from "@/components/quotes/SitePhotosUploader";
 import {
   getWhatsAppShareUrl,
@@ -78,6 +81,7 @@ import {
   toCloudDraftQuote,
   writeWorkingDraft,
 } from "@/lib/quote-autosave.mjs";
+import { discardQuotePlan } from "@/lib/quote-discard.mjs";
 import { BUSINESS_NAME_PROMPT, hasBusinessName } from "@/lib/business-name.mjs";
 import { captureEvent } from "@/lib/analytics";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
@@ -200,6 +204,8 @@ export default function QuotesClient() {
   const [draftReady, setDraftReady] = useState(false);
   const [guestDemoApplied, setGuestDemoApplied] = useState(false);
   const [guestCarryNote, setGuestCarryNote] = useState(false);
+  const [pricePickerOpen, setPricePickerOpen] = useState(false);
+  const [discardAsk, setDiscardAsk] = useState(false);
   // Bumped when the tradesperson changes the lines, so a late AI reply cannot replace them.
   const editVersion = useRef(0);
   const requestSerial = useRef(0);
@@ -1070,24 +1076,71 @@ export default function QuotesClient() {
     }
   };
 
-  const discardRecovery = () => {
-    const draft = recoveryOffer;
-    clearWorkingDraft(window.localStorage);
+  const performDiscard = () => {
+    const pending = recoveryOffer;
+    const snapshot = pending || draftRef.current;
+    const activeId = snapshot.activeQuoteId ? String(snapshot.activeQuoteId) : "";
+    const existing = activeId ? getQuoteById(activeId) : undefined;
+    const plan = discardQuotePlan({
+      activeQuoteId: activeId,
+      activeStatus: existing?.status || "",
+      cloudDraftId: snapshot.cloudDraftId || cloudIdentity.current.id,
+    });
+    ignoreAutosave.current = true;
+    cloudPending.current = false;
     cloudIdentity.current = { id: "", token: "" };
-    if (draft?.cloudDraftId) {
-      const existing = getQuoteById(String(draft.cloudDraftId));
-      if (!existing || existing.status === "Draft") {
-        if (existing) deleteQuote(existing.id);
-        deleteCloudQuote(String(draft.cloudDraftId)).catch(() => {});
-      }
-    }
+    const blank = {
+      items: [] as LineItem[],
+      choiceOptions: null as QuoteOption[] | null,
+      choiceIndex: 0,
+      vatEnabled,
+      depositPercent,
+      clientName: "",
+      clientCompany: "",
+      clientAddress: "",
+      clientPhone: "",
+      clientEmail: "",
+      quoteTitle: "",
+      notesInput: "",
+      photos: [] as string[],
+      selectedCustomerId: "",
+      activeQuoteId: null as string | null,
+      activeToken: null as string | null,
+      cloudDraftId: null as string | null,
+      cloudDraftToken: null as string | null,
+    };
+    draftRef.current = blank;
+    baselineRef.current = draftFingerprint(blank);
+    clearWorkingDraft(window.localStorage);
+    sessionStorage.removeItem(HOME_NOTES_KEY);
+    for (const id of plan.deleteIds) deleteQuote(id);
+    setSelectedCustomerId("");
+    setClientName("");
+    setClientCompany("");
+    setClientAddress("");
+    setClientPhone("");
+    setClientEmail("");
+    setQuoteTitle("");
+    setNotesInput("");
+    setItems([]);
+    setPhotos([]);
+    setChoiceOptions(null);
+    setChoiceIndex(0);
+    setActiveQuoteId(null);
+    setActiveToken(null);
+    setIsAiDraft(false);
+    setEstimateOnly(false);
+    setFromHome(false);
+    setGuestCarryNote(false);
+    setShareNotice(null);
+    setPricePickerOpen(false);
     setRecoveryOffer(null);
-    const pending = sessionStorage.getItem(HOME_NOTES_KEY);
-    if (pending) {
-      setNotesInput(pending.slice(0, 2000));
-      setFromHome(true);
-      sessionStorage.removeItem(HOME_NOTES_KEY);
-    }
+    setDiscardAsk(false);
+    triggerToast("Quote discarded.");
+  };
+
+  const discardRecovery = () => {
+    performDiscard();
   };
 
   return (
@@ -1105,10 +1158,10 @@ export default function QuotesClient() {
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             <FileText className="h-7 w-7 shrink-0 text-clay-700" />
-            <span>Quote Builder</span>
+            <span>{activeQuoteId ? "Quote" : "New quote"}</span>
           </h1>
           <p className="text-slate-600 text-sm mt-1">
-            Pick a customer, build line items with day rates or templates, and save active quotes.
+            Type the job first. Then build the quote, or add prices you have already saved.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
@@ -1182,6 +1235,192 @@ export default function QuotesClient() {
         </div>
       )}
 
+      <div id="job-notes-section" className="mt-6 bg-white p-5 sm:p-6 rounded-2xl border-2 border-clay-700 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+          <label htmlFor="job-notes" className="flex items-center gap-2 text-lg font-black text-slate-900">
+            <Sparkles className="h-5 w-5 text-clay-700" />
+            <span>What is the job?</span>
+          </label>
+          <button
+            type="button"
+            onClick={handleToggleVoice}
+            className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 min-h-12 rounded-xl text-sm font-extrabold transition-all shadow-md active:scale-95 ${
+              isRecording
+                ? "bg-red-600 hover:bg-red-700 text-white ring-4 ring-red-400/50 shadow-red-500/25 animate-pulse"
+                : "bg-clay-700 hover:bg-clay-800 text-white"
+            }`}
+            title="Speak your quote from your van"
+          >
+            {isRecording ? (
+              <>
+                <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
+                <MicOff className="w-4 h-4" />
+                <span>Listening... (Tap to Finish)</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4 text-amber-300" />
+                <span>Tap and talk</span>
+              </>
+            )}
+          </button>
+        </div>
+        <p className="mb-3 text-sm text-stone-600">Type it in your own words. For example, new boiler fit.</p>
+        {fromHome && (
+          <p className="mb-3 rounded-xl border border-clay-200 bg-clay-50 px-3 py-2 text-sm text-ink">
+            Your notes are in the box. Tap Build the quote.
+          </p>
+        )}
+        <textarea
+          id="job-notes"
+          rows={4}
+          value={notesInput}
+          onChange={(e) => setNotesInput(e.target.value)}
+          placeholder="New boiler fit"
+          className="w-full min-w-0 min-h-28 p-3.5 text-base font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-clay-600 focus:border-transparent shadow-2xs text-slate-900"
+        />
+        {isRecording && (
+          <div className="mt-2.5 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-xs text-red-900 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping shrink-0" />
+              <span className="font-bold">Van Mic Active: Speak job scope, materials or days needed.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setNotesInput("");
+                triggerToast("Dictation cleared.");
+              }}
+              className="text-[11px] font-bold text-red-700 underline hover:text-red-900 shrink-0"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        <div className="mt-3 flex flex-col gap-2 border-t border-clay-100/80 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleExpandDescription}
+              disabled={isExpanding || !notesInput.trim()}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-bold text-amber-950 transition hover:bg-amber-100 disabled:opacity-50 sm:w-auto"
+            >
+              <Sparkles className="h-4 w-4 text-amber-700" />
+              <span>{isExpanding ? "Polishing..." : "Expand to professional scope"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotesInput("")}
+              className="inline-flex min-h-11 items-center justify-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
+            >
+              <RotateCcw className="h-4 w-4" /> Clear notes
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {photos.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                <Camera className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>
+                  {photos.length} photo{photos.length > 1 ? "s" : ""} included
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleGenerateAI}
+              disabled={isGenerating || !notesInput.trim()}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-clay-700 px-4 py-2 text-base font-bold text-white shadow-md transition hover:bg-clay-800 active:scale-[0.98] disabled:opacity-50 sm:w-auto"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>{isGenerating ? "Building your quote…" : "Build the quote"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => setPricePickerOpen((open) => !open)}
+          aria-expanded={pricePickerOpen}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-clay-700 px-3.5 text-base font-bold text-white shadow-sm"
+        >
+          <ListPlus className="h-5 w-5" aria-hidden="true" />
+          Add from my price list
+        </button>
+        <p className="mt-2 text-sm leading-relaxed text-stone-600">
+          Adds a saved price onto this quote. It does not open the page where you edit the list.
+        </p>
+        {pricePickerOpen ? (
+          <PriceListPicker
+            onClose={() => setPricePickerOpen(false)}
+            onAddLines={(lines) => {
+              markDraftEdited();
+              setItems((current) => [
+                ...current,
+                ...lines.map((line) => ({ ...line, id: `line-${++lineSerial.current}` })),
+              ]);
+              setActiveTab("items");
+              triggerToast(
+                lines.length === 1
+                  ? `Added ${lines[0].description} from your price list.`
+                  : `Added ${lines.length} prices from your price list.`
+              );
+            }}
+          />
+        ) : null}
+      </div>
+
+      {(recoveryOffer ||
+        snapshotHasWork({ notesInput, quoteTitle, clientName, items, photos }) ||
+        openQuote?.status === "Draft") && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setDiscardAsk(true)}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-base font-bold text-red-800"
+          >
+            Discard quote
+          </button>
+        </div>
+      )}
+
+      {discardAsk ? (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discard-quote-title"
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+          >
+            <h2 id="discard-quote-title" className="text-xl font-black text-ink">
+              Discard this quote?
+            </h2>
+            <p className="mt-2 text-base leading-relaxed text-stone-700">
+              {openQuote && openQuote.status !== "Draft"
+                ? "The quote you already sent stays in your list. Anything you have not saved is thrown away, and it will not ask to recover it next time you sign in."
+                : "This deletes the quote you have started. It will not ask you to recover it when you sign in again."}
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={performDiscard}
+                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-red-700 px-4 text-base font-bold text-white"
+              >
+                Discard quote
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiscardAsk(false)}
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-stone-300 bg-white px-4 text-base font-bold text-ink"
+              >
+                Keep quote
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* 1. Quick Quote Templates Selector Bar */}
       <QuoteTemplatesBar
         onSelectTemplate={handleSelectTemplate}
@@ -1205,7 +1444,7 @@ export default function QuotesClient() {
             <div className="flex items-center justify-between">
               <label htmlFor="customer-record" className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <User className="h-4 w-4 text-clay-700" />
-                <span>Link to Customer Record</span>
+                <span>Customer, if you already have them</span>
               </label>
               <Link
                 href="/customers"
@@ -1228,128 +1467,6 @@ export default function QuotesClient() {
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* Voice & Text Prompt Box */}
-          <div className="bg-gradient-to-br from-paper/70 via-white to-slate-50 p-5 sm:p-6 rounded-2xl border-2 border-clay-200/90 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
-              <label htmlFor="job-notes" className="flex items-center gap-2 text-sm font-black text-slate-900">
-                <Sparkles className="h-4 w-4 text-clay-700" />
-                <span>Job Notes & Van Voice Dictation</span>
-              </label>
-
-              {/* Voice Quoting Button (High-contrast, large touch area) */}
-              <button
-                type="button"
-                onClick={handleToggleVoice}
-                className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 min-h-12 rounded-xl text-sm font-extrabold transition-all shadow-md active:scale-95 ${
-                  isRecording
-                    ? "bg-red-600 hover:bg-red-700 text-white ring-4 ring-red-400/50 shadow-red-500/25 animate-pulse"
-                    : "bg-clay-700 hover:bg-clay-800 text-white"
-                }`}
-                title="Speak your quote from your van"
-              >
-                {isRecording ? (
-                  <>
-                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
-                    <MicOff className="w-4 h-4" />
-                    <span>Listening... (Tap to Finish)</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-4 h-4 text-amber-300" />
-                    <span>Tap and talk</span>
-                  </>
-                )}
-              </button>
-            </div>
-            {fromHome && (
-              <p className="mb-3 rounded-xl border border-clay-200 bg-white px-3 py-2 text-sm text-ink">
-                Your notes are in the box. Tap Build the quote.
-              </p>
-            )}
-
-            <textarea
-              id="job-notes"
-              rows={4}
-              value={notesInput}
-              onChange={(e) => setNotesInput(e.target.value)}
-              placeholder="Speak or type the job: brick garden wall, 10 metres, two days for two of us..."
-              className="w-full min-w-0 p-3.5 text-base font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-clay-600 focus:border-transparent shadow-2xs text-slate-900"
-            />
-
-            {/* Live Recording Status Banner */}
-            {isRecording && (
-              <div className="mt-2.5 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-xs text-red-900 flex items-center justify-between gap-2 animate-in fade-in">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping shrink-0" />
-                  <span className="font-bold">
-                    Van Mic Active: Speak job scope, materials or days needed.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotesInput("");
-                    triggerToast("Dictation cleared.");
-                  }}
-                  className="text-[11px] font-bold text-red-700 underline hover:text-red-900 shrink-0"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-
-            <div className="mt-3 flex flex-col gap-2 border-t border-clay-100/80 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={handleExpandDescription}
-                  disabled={isExpanding || !notesInput.trim()}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-bold text-amber-950 transition hover:bg-amber-100 disabled:opacity-50 sm:w-auto"
-                >
-                  <Sparkles className="h-4 w-4 text-amber-700" />
-                  <span>{isExpanding ? "Polishing..." : "Expand to professional scope"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNotesInput("")}
-                  className="inline-flex min-h-11 items-center justify-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-900"
-                >
-                  <RotateCcw className="h-4 w-4" /> Clear notes
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                {photos.length > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
-                    <Camera className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>{photos.length} photo{photos.length > 1 ? "s" : ""} included</span>
-                  </span>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleGenerateAI}
-                  disabled={isGenerating || !notesInput.trim()}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-clay-700 px-4 py-2 text-base font-bold text-white shadow-md transition hover:bg-clay-800 active:scale-[0.98] disabled:opacity-50 sm:w-auto"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>{isGenerating ? "Building your quote…" : "Build the quote"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-sm leading-relaxed text-stone-600">
-            <Link href="/settings/prices" className="inline-flex min-h-11 items-center font-bold text-clay-800 underline">
-              My price list
-            </Link>
-            <p>
-              Build the quote uses a matching saved price, and your day rate or hourly rate from Settings.
-              Or tap Add from my price list on the lines below. You still check every line before you send the quote.
-            </p>
           </div>
 
           {/* Job Site & Inspection Photos Uploader */}
@@ -1496,6 +1613,12 @@ export default function QuotesClient() {
                   markDraftEdited();
                   setItems((current) => [...current, { ...line, id: `line-${++lineSerial.current}` }]);
                   triggerToast(`Added ${line.description} from your price list.`);
+                }}
+                onBrowsePrices={() => {
+                  setPricePickerOpen(true);
+                  window.setTimeout(() => {
+                    document.getElementById("quote-price-picker")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
                 }}
                 onUpdateItem={handleUpdateItem}
                 onDeleteItem={handleDeleteItem}
@@ -1687,6 +1810,42 @@ export default function QuotesClient() {
           </div>
         </div>
       </div>
+
+      {savedQuotes.length > 0 ? (
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4" aria-labelledby="saved-quotes-heading">
+          <h2 id="saved-quotes-heading" className="text-lg font-black text-ink">
+            Your quotes
+          </h2>
+          <p className="mt-1 text-sm text-stone-600">Open one, or delete a draft you do not want.</p>
+          <ul className="mt-3 space-y-3">
+            {savedQuotes.map((quote) => (
+              <li key={quote.id} className="rounded-xl border border-stone-200 p-3">
+                <p className="text-base font-bold text-ink break-words">{quote.title || "Untitled quote"}</p>
+                <p className="text-sm text-stone-600">
+                  {quote.clientName || "No customer"} · {quote.status} · £{money(quote.total)}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/quotes?quote=${quote.id}`}
+                    className="inline-flex min-h-11 items-center rounded-xl bg-slate-100 px-3 text-sm font-bold text-slate-800"
+                  >
+                    Open
+                  </Link>
+                  {quote.status === "Draft" ? (
+                    <DeleteDraftQuote
+                      id={quote.id}
+                      name={quote.title}
+                      onDeleted={() => {
+                        if (activeQuoteId === quote.id) performDiscard();
+                      }}
+                    />
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {shareNotice && (
         <div className="fixed bottom-[calc(10.5rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-40 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 shadow-lg lg:hidden">

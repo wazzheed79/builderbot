@@ -29,6 +29,7 @@ import {
 import { loadDemoSampleData } from "@/lib/storage";
 import { brand } from "@/lib/brand.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
+import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
 
 export default function DashboardPage() {
   const ready = useClientReady();
@@ -216,11 +217,12 @@ export default function DashboardPage() {
                     </span>
                     <Link
                       href={`/quotes?quote=${q.id}`}
-                      className="text-xs font-semibold text-clay-800 inline-flex items-center gap-1"
+                      className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-clay-800"
                     >
                       Open
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </Link>
+                    {q.status === "Draft" ? <DeleteDraftQuote id={q.id} name={q.title} /> : null}
                     <Link
                       href={`/q/${q.token || q.id}`}
                       className="text-xs font-semibold text-clay-800 inline-flex items-center gap-1"
