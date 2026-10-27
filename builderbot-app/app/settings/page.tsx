@@ -28,6 +28,7 @@ import {
   getPricingMemory,
   savePricingMemory,
 } from "@/lib/storage";
+import NumberField from "@/components/NumberField";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile>(() => getBusinessProfile());
@@ -511,15 +512,15 @@ export default function SettingsPage() {
                 Default Deposit %
               </label>
               <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
+                <NumberField
+                  decimal={false}
+                  min={0}
+                  max={100}
                   value={profile.defaultDepositPercent}
-                  onChange={(e) => handleChange("defaultDepositPercent", Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-clay-600 text-sm font-medium"
+                  onValue={(next) => handleChange("defaultDepositPercent", next ?? 0)}
+                  className="min-h-12 w-full rounded-xl border border-slate-300 px-3.5 pr-10 text-base font-medium focus:outline-none focus:ring-2 focus:ring-clay-600"
                 />
-                <span className="absolute right-3.5 top-2.5 text-xs font-bold text-slate-400">%</span>
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
               </div>
             </div>
 
@@ -527,12 +528,12 @@ export default function SettingsPage() {
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Payment Terms (Days)
               </label>
-              <input
-                type="number"
-                min="0"
+              <NumberField
+                decimal={false}
+                min={0}
                 value={profile.paymentTermsDays}
-                onChange={(e) => handleChange("paymentTermsDays", Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-clay-600 text-sm font-medium"
+                onValue={(next) => handleChange("paymentTermsDays", next ?? 0)}
+                className="min-h-12 w-full rounded-xl border border-slate-300 px-3.5 text-base font-medium focus:outline-none focus:ring-2 focus:ring-clay-600"
               />
             </div>
 
@@ -540,12 +541,12 @@ export default function SettingsPage() {
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Quote Validity (Days)
               </label>
-              <input
-                type="number"
-                min="1"
+              <NumberField
+                decimal={false}
+                min={1}
                 value={profile.quoteValidityDays}
-                onChange={(e) => handleChange("quoteValidityDays", Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-clay-600 text-sm font-medium"
+                onValue={(next) => handleChange("quoteValidityDays", next ?? 1)}
+                className="min-h-12 w-full rounded-xl border border-slate-300 px-3.5 text-base font-medium focus:outline-none focus:ring-2 focus:ring-clay-600"
               />
             </div>
 
@@ -590,17 +591,19 @@ export default function SettingsPage() {
                 Baseline Day Rate (£/day)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-400">£</span>
-                <input
-                  type="number"
-                  min="50"
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">£</span>
+                <NumberField
+                  min={50}
                   value={pricingMemory.laborDayRate}
-                  onChange={(e) => {
-                    const val = Number(e.target.value) || 0;
-                    setPricingMemory((prev) => ({ ...prev, laborDayRate: val }));
-                    savePricingMemory({ ...pricingMemory, laborDayRate: val });
+                  onValue={(next) => {
+                    const laborDayRate = next ?? 0;
+                    setPricingMemory((prev) => {
+                      const updated = { ...prev, laborDayRate };
+                      savePricingMemory(updated);
+                      return updated;
+                    });
                   }}
-                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900"
+                  className="min-h-12 w-full rounded-xl border border-slate-300 pl-8 pr-3.5 text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -610,17 +613,19 @@ export default function SettingsPage() {
                 Baseline Hourly Rate (£/hr)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-400">£</span>
-                <input
-                  type="number"
-                  min="10"
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">£</span>
+                <NumberField
+                  min={10}
                   value={pricingMemory.laborHourlyRate}
-                  onChange={(e) => {
-                    const val = Number(e.target.value) || 0;
-                    setPricingMemory((prev) => ({ ...prev, laborHourlyRate: val }));
-                    savePricingMemory({ ...pricingMemory, laborHourlyRate: val });
+                  onValue={(next) => {
+                    const laborHourlyRate = next ?? 0;
+                    setPricingMemory((prev) => {
+                      const updated = { ...prev, laborHourlyRate };
+                      savePricingMemory(updated);
+                      return updated;
+                    });
                   }}
-                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900"
+                  className="min-h-12 w-full rounded-xl border border-slate-300 pl-8 pr-3.5 text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -630,19 +635,22 @@ export default function SettingsPage() {
                 Default Material Markup (%)
               </label>
               <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
+                <NumberField
+                  decimal={false}
+                  min={0}
+                  max={100}
                   value={pricingMemory.preferredMarkupPercent}
-                  onChange={(e) => {
-                    const val = Number(e.target.value) || 0;
-                    setPricingMemory((prev) => ({ ...prev, preferredMarkupPercent: val }));
-                    savePricingMemory({ ...pricingMemory, preferredMarkupPercent: val });
+                  onValue={(next) => {
+                    const preferredMarkupPercent = next ?? 0;
+                    setPricingMemory((prev) => {
+                      const updated = { ...prev, preferredMarkupPercent };
+                      savePricingMemory(updated);
+                      return updated;
+                    });
                   }}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900"
+                  className="min-h-12 w-full rounded-xl border border-slate-300 px-3.5 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <span className="absolute right-3.5 top-2.5 text-xs font-bold text-slate-400">%</span>
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
               </div>
             </div>
           </div>
@@ -654,7 +662,7 @@ export default function SettingsPage() {
             My price list
           </Link>
           <p className="text-sm leading-relaxed text-slate-600">
-            Add the materials and jobs you price often. New quotes use those prices, and the AI fills in the quantities. You still check every line.
+            Add the materials and jobs you price often. Build the quote uses a matching price, and on a quote you can tap Add from my price list. You still check every line.
           </p>
 
           <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/60 rounded-xl flex items-center justify-between text-xs text-indigo-900">

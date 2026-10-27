@@ -92,25 +92,11 @@ function wordsOf(description) {
     .filter((word) => word.length > 2);
 }
 
-function sameFamily(left, right) {
-  if (!left || !right || left.length < 6 || right.length < 6) return false;
-  return left.includes(right) || right.includes(left);
-}
-
 function sameWords(left, right) {
   const a = wordsOf(left);
   const b = wordsOf(right);
   if (!a.length || a.length !== b.length) return false;
   return [...a].sort().join(" ") === [...b].sort().join(" ");
-}
-
-function descriptionsMatch(left, right) {
-  const a = wordsOf(left);
-  const b = wordsOf(right);
-  if (a.length < 2 || b.length < 2) return false;
-  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
-  const pool = new Set(longer);
-  return shorter.every((word) => pool.has(word));
 }
 
 function rowName(row) {
@@ -142,6 +128,129 @@ function isHourlyLabour(item) {
   return (type === "labor" || type === "labour") && unitsMatch(item?.unit, "hr");
 }
 
+/** Words that describe the job but are not the thing being priced. */
+const PRICE_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "for",
+  "with",
+  "of",
+  "to",
+  "on",
+  "in",
+  "new",
+  "old",
+  "supply",
+  "supplied",
+  "install",
+  "installation",
+  "installed",
+  "installing",
+  "fitting",
+  "fitted",
+  "fit",
+  "replacement",
+  "replace",
+  "replacing",
+  "including",
+  "includes",
+  "included",
+  "high",
+  "higher",
+  "efficiency",
+  "efficient",
+  "horizontal",
+  "vertical",
+  "complete",
+  "full",
+]);
+
+function coreWords(description) {
+  return wordsOf(description).filter((word) => !PRICE_STOP_WORDS.has(word));
+}
+
+function itemKind(item) {
+  const type = String(item?.type || item?.itemType || "").toLowerCase();
+  if (type === "labor" || type === "labour") return "labor";
+  if (type === "service") return "service";
+  if (type === "material") return "material";
+  return "";
+}
+
+function kindsCompatible(line, row) {
+  const left = itemKind(line);
+  const right = itemKind(row);
+  if (!left || !right) return true;
+  if (left === right) return true;
+  return (left === "material" || left === "service") && (right === "material" || right === "service");
+}
+
+function wholeItemUnit(unit) {
+  if (unitsMatch(unit, "each") || unitsMatch(unit, "lot")) return true;
+  const flat = squashUnit(unit);
+  return flat === "pack" || flat === "item" || flat === "service" || flat === "kit" || flat === "set";
+}
+
+/** Same unit, or both are a whole item (each, unit, lot, job) so a boiler price can replace a guessed one. */
+function unitsCompatible(left, right) {
+  if (unitsMatch(left, right)) return true;
+  if (!squashUnit(left) || !squashUnit(right)) return true;
+  return wholeItemUnit(left) && wholeItemUnit(right);
+}
+
+/**
+ * A saved price fits a line when its own words appear near the start of that line.
+ * "New boiler" fits "Combi boiler". "Flue kit" does not replace the whole boiler line.
+ * A material price does not replace a labour line that only mentions the material.
+ * @returns {{ shared: number, earliest: number } | null}
+ */
+function looseOverlap(item, row) {
+  if (!kindsCompatible(item, row)) return null;
+  if (!unitsCompatible(item.unit, rowUnit(row))) return null;
+  const lineWords = coreWords(item.description);
+  const savedWords = coreWords(rowName(row));
+  if (!lineWords.length || !savedWords.length || lineWords.length > 12) return null;
+  const lineSet = new Set(lineWords);
+  if (!savedWords.every((word) => lineSet.has(word))) return null;
+  const earliest = Math.min(...savedWords.map((word) => lineWords.indexOf(word)));
+  if (savedWords.length === 1) {
+    if (savedWords[0].length < 5 || earliest > 2) return null;
+  } else if (earliest > 2) {
+    return null;
+  }
+  return { shared: savedWords.length, earliest };
+}
+
+function exactPriceMatch(item, rows) {
+  const canon = canonicalUnit(item.unit);
+  const wanted = new Set([
+    priceKey(item.description, item.unit),
+    canon ? priceKey(item.description, canon) : "",
+  ]);
+  const named = rows.filter((row) => sameWords(item.description, rowName(row)));
+  const byName = named.find((row) => unitsMatch(rowUnit(row), item.unit)) || (named.length === 1 ? named[0] : undefined);
+  if (byName) return byName;
+  return rows.find((row) => wanted.has(row.key)) || null;
+}
+
+function bestLooseMatch(item, rows) {
+  let best = null;
+  let bestScore = 0;
+  for (const row of rows) {
+    const overlap = looseOverlap(item, row);
+    if (!overlap) continue;
+    const score = overlap.shared * 100 - overlap.earliest;
+    if (score > bestScore) {
+      best = row;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 /**
  * @param {Array<{ id?: string, type?: string, description: string, quantity: number, unit: string, rate: number }>} items
  * @param {Array<{ key: string, description?: string, unit?: string, rate: number, itemType?: string }>} memories
@@ -152,28 +261,101 @@ export function applyRememberedPrices(items = [], memories = []) {
   const genericHourly = rows.find((row) => unitsMatch(rowUnit(row), "hr") && isGenericLabourName(rowName(row)));
 
   return items.map((item) => {
-    const canon = canonicalUnit(item.unit);
-    const wanted = new Set([
-      priceKey(item.description, item.unit),
-      canon ? priceKey(item.description, canon) : "",
-    ]);
-    const named = rows.filter((row) => sameWords(item.description, rowName(row)));
-    const byName = named.find((row) => unitsMatch(rowUnit(row), item.unit)) || (named.length === 1 ? named[0] : undefined);
-    const exact = byName || rows.find((row) => wanted.has(row.key));
-    const similar =
-      exact ||
-      rows.find((row) => {
-        if (!unitsMatch(rowUnit(row), item.unit)) return false;
-        const other = wordsOf(rowName(row)).join(" ");
-        const words = wordsOf(item.description).join(" ");
-        return descriptionsMatch(item.description, rowName(row)) || sameFamily(words, other);
-      });
-    const labourHour = !similar && isHourlyLabour(item) ? genericHourly : null;
-    const match = similar || labourHour;
+    const matched = exactPriceMatch(item, rows) || bestLooseMatch(item, rows);
+    const match = matched || (isHourlyLabour(item) ? genericHourly : null);
     if (!match || !(Number(match.rate) >= 0)) return { ...item, usualPrice: false };
     const unit = rowUnit(match) || item.unit;
-    return { ...item, rate: Number(match.rate), unit: canonicalUnit(unit) || unit, usualPrice: true };
+    return {
+      ...item,
+      rate: Number(match.rate),
+      unit: canonicalUnit(unit) || unit,
+      usualPrice: true,
+      rateSource: "list",
+    };
   });
+}
+
+/**
+ * Labour lines that did not come from the price list use the day rate or hourly rate from Settings.
+ * A price-list match already on the line is left as it is.
+ * @param {Array<{ type?: string, description?: string, quantity?: number, unit?: string, rate?: number, usualPrice?: boolean, rateSource?: string }>} items
+ * @param {{ laborHourlyRate?: number, laborDayRate?: number } | null | undefined} pricingMemory
+ */
+export function applySettingsLabourRates(items = [], pricingMemory) {
+  const memory = pricingMemory && typeof pricingMemory === "object" ? pricingMemory : null;
+  const hourly = Number(memory?.laborHourlyRate);
+  const daily = Number(memory?.laborDayRate);
+  return items.map((item) => {
+    if (item.usualPrice) return { ...item, rateSource: item.rateSource || "list" };
+    const type = String(item.type || "");
+    if (type !== "labor" && type !== "labour") return { ...item, usualPrice: false };
+    if (unitsMatch(item.unit, "hr") && hourly > 0) {
+      return { ...item, rate: hourly, usualPrice: false, rateSource: "settings" };
+    }
+    if (unitsMatch(item.unit, "day") && daily > 0) {
+      return { ...item, rate: daily, usualPrice: false, rateSource: "settings" };
+    }
+    return { ...item, usualPrice: false };
+  });
+}
+
+/** Price-list matches first, then the Settings labour rate on any labour line still using a guess. */
+export function applyQuotePrices(items = [], memories = [], pricingMemory) {
+  return applySettingsLabourRates(applyRememberedPrices(items, memories), pricingMemory);
+}
+
+/**
+ * One quote line from a saved price. Quantity starts at 1 so the tradesperson can change it.
+ * @param {unknown} row
+ */
+export function lineFromPriceList(row) {
+  const source = row && typeof row === "object" ? /** @type {Record<string, unknown>} */ (row) : {};
+  const normalized = normalizePriceListItem({
+    description: source.description,
+    unit: source.unit,
+    rate: source.rate,
+    itemType: source.itemType,
+  });
+  if (!normalized.ok) return null;
+  return {
+    type: normalized.item.itemType,
+    description: normalized.item.description,
+    quantity: 1,
+    unit: normalized.item.unit,
+    rate: normalized.item.rate,
+    usualPrice: true,
+    rateSource: "list",
+  };
+}
+
+/**
+ * The prices sent with a quote build. Long names are shortened so one price cannot reject the whole request.
+ * @param {{ laborHourlyRate?: number, laborDayRate?: number, preferredMarkupPercent?: number } | null | undefined} memory
+ * @param {unknown} remembered
+ */
+export function pricingMemoryForQuote(memory, remembered) {
+  const source = memory && typeof memory === "object" ? memory : {};
+  const hourly = Number(source.laborHourlyRate);
+  const daily = Number(source.laborDayRate);
+  const markup = Number(source.preferredMarkupPercent);
+  const rows = (Array.isArray(remembered) ? remembered : []).slice(0, PRICE_LIST_LIMIT).map((row) => {
+    const record = row && typeof row === "object" ? /** @type {Record<string, unknown>} */ (row) : {};
+    const itemType = record.itemType === "labor" || record.itemType === "service" ? record.itemType : "material";
+    const rate = Number(record.rate);
+    return {
+      key: String(record.key || "").slice(0, 160),
+      description: String(record.description || "").slice(0, 200),
+      unit: String(record.unit || "each").slice(0, 30),
+      rate: Number.isFinite(rate) ? Math.min(PRICE_LIST_MAX_RATE, Math.max(0, rate)) : 0,
+      itemType,
+    };
+  });
+  return {
+    ...(hourly > 0 ? { laborHourlyRate: hourly } : {}),
+    ...(daily > 0 ? { laborDayRate: daily } : {}),
+    ...(Number.isFinite(markup) ? { preferredMarkupPercent: Math.min(100, Math.max(0, markup)) } : {}),
+    remembered: rows,
+  };
 }
 
 /**

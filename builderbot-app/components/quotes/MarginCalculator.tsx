@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Calculator, ArrowRight } from "lucide-react";
+import NumberField from "@/components/NumberField";
 import { LineItem, roundMoney, getPricingMemory, savePricingMemory } from "@/lib/storage";
 
 interface MarginCalculatorProps {
@@ -87,11 +88,11 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
-            <input
+            <NumberField
               id="material-cost"
-              type="number"
               value={materialCost}
-              onChange={(e) => setMaterialCost(parseFloat(e.target.value) || 0)}
+              min={0}
+              onValue={(next) => setMaterialCost(next ?? 0)}
               className="min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-base font-bold text-slate-900"
             />
           </div>
@@ -127,13 +128,11 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
           <label htmlFor="days-on-site" className="block text-xs font-bold text-slate-700">
             Estimated Days on Site
           </label>
-          <input
+          <NumberField
             id="days-on-site"
-            type="number"
-            min="0.5"
-            step="0.5"
             value={days}
-            onChange={(e) => setDays(parseFloat(e.target.value) || 0)}
+            min={0.5}
+            onValue={(next) => setDays(next ?? 0)}
             className="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-900"
           />
         </div>
@@ -144,11 +143,11 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
-            <input
+            <NumberField
               id="day-rate"
-              type="number"
               value={dayRate}
-              onChange={(e) => setDayRate(parseFloat(e.target.value) || 0)}
+              min={0}
+              onValue={(next) => setDayRate(next ?? 0)}
               className="min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-base font-bold text-slate-900"
             />
           </div>
@@ -176,11 +175,11 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
-            <input
+            <NumberField
               id="disposal-cost"
-              type="number"
               value={disposalCost}
-              onChange={(e) => setDisposalCost(parseFloat(e.target.value) || 0)}
+              min={0}
+              onValue={(next) => setDisposalCost(next ?? 0)}
               className="min-h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-base font-bold text-slate-900"
             />
           </div>

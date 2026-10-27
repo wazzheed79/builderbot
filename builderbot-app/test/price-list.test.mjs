@@ -7,10 +7,13 @@ import {
   PRICE_LIST_LIMIT,
   PROMPT_PRICE_LIMIT,
   TRY_PRICES_NOTE,
+  applyQuotePrices,
   applyRememberedPrices,
+  lineFromPriceList,
   planPriceListDelete,
   planPriceListUpsert,
   priceKey,
+  pricingMemoryForQuote,
   rememberedPricesPrompt,
   unitLabel,
 } from "../lib/price-memory.mjs";
@@ -189,4 +192,104 @@ test("the quote builder sends saved prices to the AI, and the guest demo does no
   assert.match(home, /OWN_PRICES_LINE/);
   assert.match(tryPage, /OWN_PRICES_LINE/);
   assert.match(tryPage, /TRY_PRICES_NOTE/);
+
+  const editor = fs.readFileSync(new URL("components/quotes/LineItemEditor.tsx", root), "utf8");
+  const quotes = fs.readFileSync(new URL("app/quotes/QuotesClient.tsx", root), "utf8");
+  const numberField = fs.readFileSync(new URL("components/NumberField.tsx", root), "utf8");
+  assert.match(editor, /Add from my price list/);
+  assert.match(editor, /From your price list/);
+  assert.match(editor, /Your rate from Settings/);
+  assert.match(quotes, /pricingMemoryForQuote/);
+  assert.match(quotes, /onAddPrice/);
+  assert.match(numberField, /inputMode=\{decimal \? "decimal" : "numeric"\}/);
+  assert.equal(numberField.includes('type="number"'), false);
+  assert.match(generate, /applyQuotePrices/);
+});
+
+test("a saved boiler price replaces a combi boiler line, and the hourly rate comes from Settings", () => {
+  const boiler = {
+    key: priceKey("New boiler", "each"),
+    description: "New boiler",
+    unit: "each",
+    rate: 1800,
+    itemType: "material",
+  };
+  const flue = {
+    key: priceKey("Flue kit", "each"),
+    description: "Flue kit",
+    unit: "each",
+    rate: 80,
+    itemType: "material",
+  };
+  const [line] = applyRememberedPrices(
+    [
+      {
+        type: "material",
+        description: "High-Efficiency Condensing Combi Boiler & Horizontal Flue Kit",
+        quantity: 1,
+        unit: "unit",
+        rate: 1200,
+      },
+    ],
+    [flue, boiler]
+  );
+  assert.equal(line.rate, 1800);
+  assert.equal(line.usualPrice, true);
+  assert.equal(line.rateSource, "list");
+
+  const [flueOnly] = applyRememberedPrices(
+    [
+      {
+        type: "material",
+        description: "High-Efficiency Condensing Combi Boiler & Horizontal Flue Kit",
+        quantity: 1,
+        unit: "lot",
+        rate: 1200,
+      },
+    ],
+    [flue]
+  );
+  assert.equal(flueOnly.rate, 1200);
+  assert.equal(flueOnly.usualPrice, false);
+
+  const [pricedBoiler, labour] = applyQuotePrices(
+    [
+      {
+        type: "material",
+        description: "Combi boiler supply and fit",
+        quantity: 1,
+        unit: "lot",
+        rate: 1200,
+      },
+      {
+        type: "labor",
+        description: "Drain down, pipework rerouting, boiler installation and system commission",
+        quantity: 8,
+        unit: "hrs",
+        rate: 45,
+      },
+    ],
+    [boiler],
+    { laborHourlyRate: 65, laborDayRate: 320 }
+  );
+  assert.equal(pricedBoiler.rate, 1800);
+  assert.equal(pricedBoiler.rateSource, "list");
+  assert.equal(labour.rate, 65);
+  assert.equal(labour.rateSource, "settings");
+  assert.equal(labour.usualPrice, false);
+
+  const added = lineFromPriceList(boiler);
+  assert.equal(added.description, "New boiler");
+  assert.equal(added.quantity, 1);
+  assert.equal(added.rate, 1800);
+  assert.equal(added.usualPrice, true);
+
+  const payload = pricingMemoryForQuote(
+    { laborHourlyRate: 65, laborDayRate: 0, preferredMarkupPercent: 20 },
+    [{ ...boiler, key: "k".repeat(200), description: "d".repeat(250) }]
+  );
+  assert.equal(payload.laborHourlyRate, 65);
+  assert.equal(payload.laborDayRate, undefined);
+  assert.equal(payload.remembered[0].key.length, 160);
+  assert.equal(payload.remembered[0].description.length, 200);
 });

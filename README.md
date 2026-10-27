@@ -16,7 +16,7 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 - A short van demo on the home page and at `/walkthrough`. Five recorded clips, all in the same voice, play in order. Together they last about 32 seconds. Sound starts when you tap, each step waits until its clip ends, and it stops after the last clip. The pictures are sample data, not a real customer or business.
 - Anyone can try a quote with no account at `/try`. They type notes, or tap a decorating, plumbing, or electrics example, and see Standard, Better, and Premium plus a preview of the customer page. The business name on that preview is “Your Business Name”. It is not saved, and it cannot be sent or emailed. After they create a free account, that quote is waiting in the quote builder.
 - Signed-in users can ask Google Gemini to turn notes (and optional site photos) into line items and a scope. The reply is checked before it is used. A failed, empty, or unusable reply falls back to a labelled rough estimate. The try-it page uses the same check. A guest is limited to five builds a day from one network address. The signed-in hourly cap is unchanged.
-- Every quantity and rate can be edited. A signed-in tradesperson can save a price list (name, unit, and price in pounds) under Settings. New quotes use that list, and prices already typed on a quote, in the same way. The AI fills in the quantities. The try-it page does not save or use a price list.
+- Every quantity and rate can be edited. A price or quantity box can be cleared while typing, so a 0 does not stick to the next number. A signed-in tradesperson can save a price list (name, unit, and price in pounds) under Settings. Build the quote uses a matching saved price, and the day rate or hourly rate from Settings. On the quote, Add from my price list puts a saved price on as a line. The try-it page does not save or use a price list.
 - One total, or three choices labelled Standard, Better, and Premium. The customer picks one.
 - Customers, a business profile (name, logo, terms, bank details), and a dashboard of quotes sent, won value, and win rate.
 - A customer link with its own WhatsApp preview. The customer can accept or decline without an account. Views are counted, and the same phone opening the same quote again within a day counts once.
@@ -32,7 +32,7 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 ## How it works
 
 1. **Describe the job.** On the home page, the try-it page, or in the quote builder, talk or type a few rough notes. The try-it page needs no account.
-2. **Check the prices.** The app builds an itemised list. If you have saved a day rate or a price list, those prices are used and the AI fills in the quantities. Change any line. Send one price, or Standard, Better, and Premium.
+2. **Check the prices.** The app builds an itemised list. A matching price from My price list is used, and labour uses the day rate or hourly rate from Settings. A line that used a saved price says so. You can also tap Add from my price list. Change any line. Send one price, or Standard, Better, and Premium.
 3. **Save and send.** Sign in, save the quote, then share the link or a WhatsApp message. Until it is saved online, the quote stays in that browser.
 4. **The customer decides.** They open the link, read the quote, choose an option if one was offered, and accept or decline. They do not need an account.
 5. **Invoice.** After the quote is sent or accepted, turn it into an invoice and share or print that too.
@@ -159,6 +159,10 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 ## Progress / Changelog
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
+
+### 27 October 2026
+
+- Saved prices reach the quote. Build the quote uses a matching price from My price list, and the day rate or hourly rate from Settings. A matching line says “From your price list”. On the quote, Add from my price list adds a saved price as a line. Price and quantity boxes can be cleared, so a 0 does not stick to the next number you type.
 
 ### 26 October 2026
 
