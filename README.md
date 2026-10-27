@@ -27,7 +27,7 @@ The app is in a free public beta for UK trades. Card payments are switched off. 
 - A materials and labour margin calculator.
 - Drafts are kept in the browser and offered back after a refresh. Signed-in drafts also upload when the connection returns.
 - Quotes are not sent until a real business name is saved. Accepted quotes show bank details only when the tradesperson has saved them.
-- Sign-in by email link (opened on `/auth/confirm` when the person taps) or by email and password. A 6-digit code can be typed in when the email shows one.
+- Sign-in by email link (opened on `/auth/confirm` when the person taps) or by email and password. The email also has a code of 6 to 10 digits, which can be typed on the sign-in page.
 
 ## How it works
 
@@ -162,6 +162,7 @@ Dates are the dates on the commits. The same history, in [Keep a Changelog](http
 
 ### 27 October 2026
 
+- The sign-in email’s code can be typed in. The page accepts 6 to 10 digits, which is what Supabase sends (this project sends 8), and it says the email has a button and a code. Opening the link in Edge on Android stays in that tab. The guest banner and the cookie banner are not on the tap-to-sign-in page.
 - Saved prices reach the quote. Build the quote uses a matching price from My price list, and the day rate or hourly rate from Settings. A matching line says “From your price list”. On the quote, Add from my price list adds a saved price as a line. Price and quantity boxes can be cleared, so a 0 does not stick to the next number you type.
 
 ### 26 October 2026

@@ -1,47 +1,6 @@
 import { NextResponse } from "next/server";
-import { brand } from "@/lib/brand.mjs";
+import { appManifest } from "@/lib/pwa-manifest.mjs";
 
 export function GET() {
-  return NextResponse.json({
-    name: `${brand.name} — ${brand.tagline}`,
-    short_name: brand.shortName,
-    description: brand.description,
-    start_url: "/dashboard",
-    id: "/dashboard",
-    display: "standalone",
-    background_color: "#f6f0e6",
-    theme_color: "#c4522a",
-    orientation: "portrait",
-    scope: "/",
-    icons: [
-      {
-        src: "/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any maskable",
-      },
-      {
-        src: "/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-    ],
-    shortcuts: [
-      {
-        name: "New Quote",
-        short_name: "New Quote",
-        description: "Start a new trade quote",
-        url: "/quotes",
-        icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }],
-      },
-      {
-        name: "Customers",
-        short_name: "Customers",
-        description: "View customer directory and quotes",
-        url: "/customers",
-        icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }],
-      },
-    ],
-  });
+  return NextResponse.json(appManifest());
 }

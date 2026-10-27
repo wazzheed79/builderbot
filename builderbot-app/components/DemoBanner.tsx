@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { loadDemoSampleData } from "@/lib/storage";
 import { brand } from "@/lib/brand.mjs";
+import { isSignInHandoffPath } from "@/lib/public-pages.mjs";
 import { CloudOff, ArrowRight, RefreshCw, X } from "lucide-react";
 
 export default function DemoBanner() {
@@ -29,7 +30,8 @@ export default function DemoBanner() {
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/try" ||
-    pathname === "/walkthrough"
+    pathname === "/walkthrough" ||
+    isSignInHandoffPath(pathname)
   ) {
     return null;
   }

@@ -42,8 +42,8 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-ink">Sign-in emails</h2>
           <p className="mt-2">
-            Sign-in emails are sent by Resend from {brand.ownerEmail}. They contain a link and a
-            6-digit code. We do not take card numbers. Card payments are switched off.
+            Sign-in emails are sent by Resend from {brand.ownerEmail}. They contain a button and a
+            code. We do not take card numbers. Card payments are switched off.
           </p>
         </section>
         <section>

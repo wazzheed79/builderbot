@@ -9,6 +9,7 @@ import {
 } from "@/lib/supabase";
 import { hydrateLocalCache, clearLocalData } from "@/lib/storage";
 import { setAnalyticsUser } from "@/lib/analytics";
+import { emailCodeDigits, emailCodeError } from "@/lib/email-code.mjs";
 
 interface AuthContextType {
   user: User | null;
@@ -135,9 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase authentication is not configured in this environment." };
 
-    const token = code.replace(/\D/g, "");
-    if (token.length !== 6) return { error: "Enter the 6-digit code from the email." };
+    const token = emailCodeDigits(code);
+    const rejected = emailCodeError(token);
+    if (rejected) return { error: rejected };
 
+    // Type "email" is the code in the sign-in message. Supabase checks both
+    // the confirmation token and the magic-link token for that type.
     const { error } = await sb.auth.verifyOtp({
       email: email.trim().toLowerCase(),
       token,
