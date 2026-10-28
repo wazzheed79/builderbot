@@ -21,6 +21,7 @@ import {
   Camera,
   Receipt,
   ListPlus,
+  Trash2,
 } from "lucide-react";
 import {
   LineItem,
@@ -1136,12 +1137,22 @@ export default function QuotesClient() {
     setPricePickerOpen(false);
     setRecoveryOffer(null);
     setDiscardAsk(false);
+    setAppliedQuoteParam("");
+    router.replace("/quotes");
     triggerToast("Quote discarded.");
   };
 
   const discardRecovery = () => {
     performDiscard();
   };
+
+  const hasWorkInProgress = Boolean(
+    openQuote ||
+    recoveryOffer ||
+    snapshotHasWork({ notesInput, quoteTitle, clientName, items, photos }) ||
+    items.length > 0 ||
+    total > 0
+  );
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 pb-44 sm:px-6 sm:py-10 lg:px-8 lg:pb-12">
@@ -1371,9 +1382,7 @@ export default function QuotesClient() {
         ) : null}
       </div>
 
-      {(recoveryOffer ||
-        snapshotHasWork({ notesInput, quoteTitle, clientName, items, photos }) ||
-        openQuote?.status === "Draft") && (
+      {hasWorkInProgress && (
         <div className="mt-4">
           <button
             type="button"
@@ -1863,51 +1872,63 @@ export default function QuotesClient() {
       )}
 
       {/* Mobile Sticky Summary & Fast Action Bar (lg:hidden) */}
-      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-40 flex w-full max-w-[100vw] items-center justify-between gap-2 overflow-hidden border-t-2 border-slate-800 bg-slate-950/95 px-3 py-2.5 text-white shadow-[0_-8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md lg:hidden">
-        <div className="flex min-w-0 flex-col">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
-            {vatEnabled ? "Total inc. VAT" : "Total"}
-          </span>
-          <span className="text-xl font-black tabular-nums text-white">£{money(total)}</span>
-          <span className="text-[11px] font-bold text-amber-200">
-            Deposit £{money(deposit)} ({depositPercent}%)
-          </span>
-        </div>
+      {hasWorkInProgress && (
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-40 flex w-full max-w-[100vw] items-center justify-between gap-1.5 overflow-hidden border-t-2 border-slate-800 bg-slate-950/95 px-3 py-2.5 text-white shadow-[0_-8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md lg:hidden">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
+              {vatEnabled ? "Total inc. VAT" : "Total"}
+            </span>
+            <span className="text-xl font-black tabular-nums text-white">£{money(total)}</span>
+            <span className="text-[11px] font-bold text-amber-200">
+              Deposit £{money(deposit)} ({depositPercent}%)
+            </span>
+          </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={saveAndIssue}
-            disabled={sharing}
-            className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-clay-700 px-3 text-sm font-extrabold text-white shadow-md transition hover:bg-clay-800 active:scale-95 disabled:opacity-60"
-          >
-            <Save className="h-4 w-4" />
-            <span>Save</span>
-          </button>
-          {(activeQuoteId || activeToken) && (
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              onClick={shareOnWhatsApp}
+              onClick={saveAndIssue}
               disabled={sharing}
-              className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-clay-700 px-3 text-sm font-extrabold text-white shadow-md transition hover:bg-clay-800 active:scale-95 disabled:opacity-60"
             >
-              <Share2 className="h-4 w-4" />
-              <span>Send</span>
+              <Save className="h-4 w-4" />
+              <span>Save</span>
             </button>
-          )}
+            {(activeQuoteId || activeToken) && (
+              <button
+                type="button"
+                onClick={shareOnWhatsApp}
+                disabled={sharing}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>Send</span>
+              </button>
+            )}
 
-          <button
-            type="button"
-            onClick={() => {
-              document.getElementById("quote-share")?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-            className="flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200 transition hover:bg-slate-700 hover:text-white"
-            aria-label="Jump to save and share"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById("quote-share")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200 transition hover:bg-slate-700 hover:text-white"
+              aria-label="Jump to save and share"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDiscardAsk(true)}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-red-500/40 bg-red-950/40 text-red-300 transition hover:bg-red-900/60 hover:text-red-100 active:scale-95"
+              aria-label="Discard quote"
+              title="Discard quote"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

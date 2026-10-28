@@ -78,6 +78,8 @@ test("the new quote screen leads with the job, a price picker, and discard", () 
   assert.match(quotes, /Add from my price list/);
   assert.match(quotes, /Discard quote/);
   assert.match(quotes, /Discard this quote\?/);
+  assert.match(quotes, /<Trash2/);
+  assert.match(quotes, /aria-label="Discard quote"/);
   assert.match(quotes, /onBrowsePrices/);
   assert.doesNotMatch(quotes, /href="\/settings\/prices"[\s\S]{0,120}My price list/);
   assert.match(picker, /type="checkbox"/);
