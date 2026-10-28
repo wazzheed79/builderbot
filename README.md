@@ -160,6 +160,10 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
 
+### 28 October 2026
+
+- Business details save again after the first time. Changing the business name or the other Settings details and saving updates the account, and the same details are there after a reload or a sign-in on another phone. If the save does not reach the account, Settings says so. No database migration.
+
 ### 27 October 2026
 
 - A new quote starts with “What is the job?”. Add from my price list adds saved prices onto that quote. Discard quote throws the quote away, and a draft can be deleted from the list as well.

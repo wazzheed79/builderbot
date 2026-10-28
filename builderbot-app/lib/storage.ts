@@ -1,6 +1,7 @@
 import {
   syncCustomerToCloud,
   syncProfileToCloud,
+  type ProfileCloudResult,
   updateCloudQuoteStatus,
   deleteCloudCustomer,
   deleteCloudQuote,
@@ -226,12 +227,16 @@ export function getBusinessProfile(): BusinessProfile {
   }
 }
 
-export function saveBusinessProfile(profile: BusinessProfile): BusinessProfile {
+export type { ProfileCloudResult };
+
+export async function saveBusinessProfile(profile: BusinessProfile): Promise<ProfileCloudResult> {
+  const result = await syncProfileToCloud(profile);
+  if (!result.ok) return result;
   if (typeof window !== "undefined") {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    window.dispatchEvent(new Event("builderbot_storage_updated"));
   }
-  syncProfileToCloud(profile).catch(() => {});
-  return profile;
+  return result;
 }
 
 // Quote DNA & Personal Pricing Memory

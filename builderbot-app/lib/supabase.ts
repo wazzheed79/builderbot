@@ -10,6 +10,7 @@ import {
   isSharedSequentialQuoteId,
   newQuoteId,
 } from "./quote-rules.mjs";
+import { profileUpsertOptions } from "./profile-sync.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
@@ -315,40 +316,56 @@ export async function syncCustomerToCloud(customer: Customer): Promise<boolean> 
   }
 }
 
-export async function syncProfileToCloud(profile: BusinessProfile): Promise<boolean> {
+export type ProfileCloudResult =
+  | { ok: true; cloud: boolean }
+  | { ok: false; error: string };
+
+const PROFILE_SAVE_ERROR =
+  "Your business details did not save to your account. Check your connection and try again.";
+
+export async function syncProfileToCloud(profile: BusinessProfile): Promise<ProfileCloudResult> {
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) return { ok: true, cloud: false };
 
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return false;
+    if (!ownerId) return { ok: true, cloud: false };
 
-    const { error } = await sb.from("profiles").upsert({
-      owner_id: ownerId,
-      company_name: profile.companyName,
-      trading_name: profile.tradingName || null,
-      owner_name: profile.ownerName,
-      phone: profile.phone,
-      email: profile.email,
-      website: profile.website || null,
-      address: profile.address,
-      trade: profile.trade,
-      vat_registered: profile.vatRegistered,
-      vat_number: profile.vatNumber || null,
-      bank_name: profile.bankName || null,
-      bank_sort_code: profile.bankSortCode || null,
-      bank_account_number: profile.bankAccountNumber || null,
-      accreditations: profile.accreditations,
-      default_deposit_percent: profile.defaultDepositPercent,
-      payment_terms_days: profile.paymentTermsDays,
-      quote_validity_days: profile.quoteValidityDays,
-      terms_and_conditions: profile.termsAndConditions || null,
-      logo_url: profile.logoUrl || null,
-    });
-    return !error;
-  } catch {
-    return false;
+    const { error } = await sb.from("profiles").upsert(
+      {
+        owner_id: ownerId,
+        company_name: profile.companyName,
+        trading_name: profile.tradingName || null,
+        owner_name: profile.ownerName,
+        phone: profile.phone,
+        email: profile.email,
+        website: profile.website || null,
+        address: profile.address,
+        trade: profile.trade,
+        vat_registered: profile.vatRegistered,
+        vat_number: profile.vatNumber || null,
+        bank_name: profile.bankName || null,
+        bank_sort_code: profile.bankSortCode || null,
+        bank_account_number: profile.bankAccountNumber || null,
+        accreditations: profile.accreditations,
+        default_deposit_percent: profile.defaultDepositPercent,
+        payment_terms_days: profile.paymentTermsDays,
+        quote_validity_days: profile.quoteValidityDays,
+        terms_and_conditions: profile.termsAndConditions || null,
+        logo_url: profile.logoUrl || null,
+        updated_at: new Date().toISOString(),
+      },
+      profileUpsertOptions()
+    );
+    if (error) {
+      console.warn("Profile save failed:", error.code || "", error.message || "");
+      return { ok: false, error: PROFILE_SAVE_ERROR };
+    }
+    return { ok: true, cloud: true };
+  } catch (err) {
+    console.warn("Profile save failed:", err instanceof Error ? err.message : "unknown");
+    return { ok: false, error: PROFILE_SAVE_ERROR };
   }
 }
 
