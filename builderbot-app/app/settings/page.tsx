@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -29,16 +29,27 @@ import {
   savePricingMemory,
 } from "@/lib/storage";
 import NumberField from "@/components/NumberField";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile>(() => getBusinessProfile());
   const [pricingMemory, setPricingMemory] = useState<PricingMemory>(() => getPricingMemory());
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [newAccreditation, setNewAccreditation] = useState("");
+  const toastTimer = useRef<number | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  const triggerToast = (msg: string, error = false) => {
+    setToast({ message: msg, error });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), error ? 6000 : 3000);
+  };
+
+  const showSaveFailure = (message: string) => {
+    setSaveError(message);
+    triggerToast(message, true);
   };
 
   const handleChange = <K extends keyof BusinessProfile>(
@@ -48,18 +59,48 @@ export default function SettingsPage() {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
+  const finishSave = (
+    result: Awaited<ReturnType<typeof saveBusinessProfile>>,
+    success: string,
+    onSaved?: () => void
+  ) => {
+    if (!result.ok) {
+      showSaveFailure(result.error);
+      return;
+    }
+    if (user && !result.cloud) {
+      showSaveFailure("Sign in again, then save. These details are on this phone only until then.");
+      return;
+    }
+    onSaved?.();
+    setSaveError(null);
+    triggerToast(success);
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    saveBusinessProfile(profile);
-    triggerToast("Business profile & branding saved successfully!");
+    if (saving || authLoading) return;
+    setSaving(true);
+    void saveBusinessProfile(profile)
+      .then((result) => {
+        finishSave(result, "Business profile & branding saved successfully!");
+      })
+      .finally(() => setSaving(false));
   };
 
   const handleReset = () => {
-    if (confirm("Clear your business name and contact details?")) {
-      setProfile(DEFAULT_BUSINESS_PROFILE);
-      saveBusinessProfile(DEFAULT_BUSINESS_PROFILE);
-      triggerToast("Business details cleared. Add your business name before you send a quote.");
-    }
+    if (saving || authLoading) return;
+    if (!confirm("Clear your business name and contact details?")) return;
+    setSaving(true);
+    void saveBusinessProfile(DEFAULT_BUSINESS_PROFILE)
+      .then((result) => {
+        finishSave(
+          result,
+          "Business details cleared. Add your business name before you send a quote.",
+          () => setProfile(DEFAULT_BUSINESS_PROFILE)
+        );
+      })
+      .finally(() => setSaving(false));
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,10 +162,17 @@ export default function SettingsPage() {
   return (
     <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 min-w-0">
       {/* Toast Alert */}
-      {toastMessage && (
-        <div className="fixed top-20 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-semibold border border-slate-700 animate-in slide-in-from-top-2">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-          <span>{toastMessage}</span>
+      {toast && (
+        <div
+          role={toast.error ? "alert" : "status"}
+          className="fixed top-20 right-4 z-50 max-w-sm bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-start gap-2.5 text-sm font-semibold border border-slate-700 animate-in slide-in-from-top-2"
+        >
+          {toast.error ? (
+            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-300" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
@@ -687,14 +735,25 @@ export default function SettingsPage() {
           </Link>
         </div>
 
+        {saveError ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <span>{saveError}</span>
+          </div>
+        ) : null}
+
         {/* Action Save Button */}
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 bg-clay-700 hover:bg-clay-800 text-white font-bold py-3.5 px-8 rounded-xl shadow-md transition active:scale-[0.98]"
+            disabled={saving || authLoading}
+            className="inline-flex min-h-12 items-center gap-2 bg-clay-700 hover:bg-clay-800 disabled:opacity-60 text-white font-bold py-3.5 px-8 rounded-xl shadow-md transition active:scale-[0.98]"
           >
             <Save className="w-4 h-4" />
-            <span>Save Business Profile</span>
+            <span>{saving ? "Saving..." : "Save Business Profile"}</span>
           </button>
         </div>
       </form>

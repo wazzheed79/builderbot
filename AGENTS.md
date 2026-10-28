@@ -53,6 +53,7 @@ stateDiagram-v2
 
 The dated record of what shipped is `CHANGELOG.md`, with a shorter copy in `README.md`. This list is the working memory for agents. Add a line here when you ship something, and add the same fact to those two files.
 
+- [x] **Business details save more than once**: The first Settings save creates the profile. Later saves update that same account row (`owner_id`), so a second or third edit reaches the database and is there on another device. A failed cloud save is shown as an error. Day rate, hourly rate, and markup stay in this browser. No database migration.
 - [x] **Clearer new quote**: The job box is at the top (“What is the job?”, placeholder “New boiler fit”). Add from my price list opens a picker on the quote. Discard quote deletes the draft and does not offer it back. Drafts can also be deleted from the quote list, the dashboard, and a customer.
 - [x] **Price list on the quote, and number boxes that can be cleared**: Build the quote uses a matching saved price and the Settings day or hourly rate. Matching lines say “From your price list”. The quote editor has Add from my price list. Quantity, rate, and Settings number boxes can be emptied while typing, so a lone 0 is replaced instead of becoming 050. No database migration.
 - [x] **Sign-in code and Edge on Android**: The sign-in email has a button and a code of 6 to 10 digits (this project sends 8). The sign-in page accepts that code and says the email has both. Typing it signs you in. The tap-to-sign-in page is a normal browser page, so Edge on Android no longer asks to open the Edge app, and the guest banner and cookie banner are not on that page.
@@ -133,6 +134,7 @@ The dated record of what shipped is `CHANGELOG.md`, with a shorter copy in `READ
 - [ ] Revenue analytics & tax summaries
 
 ## Ideas & Future Improvements
+- [ ] Save the Settings day rate, hourly rate, and material markup on the account, so they are there after a sign-in on another phone. They are only in this browser today.
 - [ ] Show a short per-account quote number on the paperwork (BB-1042 for that tradesperson) while the stored id stays unique across accounts.
 - [ ] Turn on Supabase leaked-password protection. It is off, and the login page still offers a password. Dashboard setting only.
 - [ ] Set `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` on Vercel so source maps upload. The token stays out of git.
