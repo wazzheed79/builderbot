@@ -1,17 +1,25 @@
 // Shared rate-limit rules. The database counter is applied in rate-limit.ts.
-// Memory is only the fallback for a local try-out with no service role key.
+// If that check fails, memory applies the same limit. It is also used for a
+// local try-out with no service role key.
 import { createHash } from "node:crypto";
 
 const rateLimitMap = new Map();
 
+/**
+ * Drop timestamps that have left their own window. A daily guest limit must
+ * survive longer than a minute, so this uses the window stored with the key.
+ * @param {number} [now]
+ */
+export function pruneMemoryRateLimits(now = Date.now()) {
+  for (const [key, record] of rateLimitMap.entries()) {
+    const keepFor = Math.max(1000, Number(record.windowMs) || 60000);
+    record.timestamps = record.timestamps.filter((stamp) => now - stamp < keepFor);
+    if (record.timestamps.length === 0) rateLimitMap.delete(key);
+  }
+}
+
 if (typeof setInterval !== "undefined") {
-  const timer = setInterval(() => {
-    const now = Date.now();
-    for (const [key, record] of rateLimitMap.entries()) {
-      record.timestamps = record.timestamps.filter((stamp) => now - stamp < 60000);
-      if (record.timestamps.length === 0) rateLimitMap.delete(key);
-    }
-  }, 300000);
+  const timer = setInterval(() => pruneMemoryRateLimits(), 300000);
   if (typeof timer.unref === "function") timer.unref();
 }
 
@@ -22,8 +30,10 @@ if (typeof setInterval !== "undefined") {
  */
 export function checkMemoryRateLimit(identifier, maxRequests = 15, windowMs = 60000) {
   const now = Date.now();
-  const record = rateLimitMap.get(identifier) || { timestamps: [] };
-  record.timestamps = record.timestamps.filter((stamp) => now - stamp < windowMs);
+  const window = Math.max(1000, Number(windowMs) || 60000);
+  const record = rateLimitMap.get(identifier) || { timestamps: [], windowMs: window };
+  record.windowMs = Math.max(Number(record.windowMs) || 0, window);
+  record.timestamps = record.timestamps.filter((stamp) => now - stamp < window);
 
   if (record.timestamps.length >= maxRequests) {
     const oldestTimestamp = record.timestamps[0];
@@ -109,9 +119,11 @@ export function isServiceRoleKey(key) {
 }
 
 /**
- * A failed database check allows the request. A real "not allowed" answer still
- * blocks it. Memory is used when this server has no service role key, or when
- * the SQL function has not been installed yet.
+ * A failed database check uses the in-memory counter for the same limit.
+ * It does not allow the request through, and it does not refuse everyone:
+ * the caller must pass the memory result. A real "not allowed" answer from
+ * the database still blocks the request. Memory is also used when this
+ * server has no service role key, or when the SQL function is not installed.
  * @param {{
  *   serviceRoleConfigured: boolean,
  *   missingFunction?: boolean,
@@ -124,22 +136,13 @@ export function isServiceRoleKey(key) {
  * }} input
  */
 export function decideRateLimit(input) {
-  if (!input.serviceRoleConfigured || input.missingFunction) {
+  if (!input.serviceRoleConfigured || input.missingFunction || input.rpcError) {
     const allowed = Boolean(input.memoryAllowed);
     return {
       allowed,
       remaining: allowed ? Math.max(0, Number(input.memoryRemaining) || 0) : 0,
       retryAfterSec: allowed ? 0 : Math.max(1, Number(input.memoryRetryAfterSec) || 60),
       source: /** @type {"memory"} */ ("memory"),
-    };
-  }
-
-  if (input.rpcError) {
-    return {
-      allowed: true,
-      remaining: Math.max(0, Number(input.openRemaining) || 0),
-      retryAfterSec: 0,
-      source: /** @type {"open"} */ ("open"),
     };
   }
 

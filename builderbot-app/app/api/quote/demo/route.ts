@@ -13,8 +13,7 @@ import {
   guestQuotePayload,
   validateGuestNotes,
 } from "@/lib/guest-demo.mjs";
-
-const MAX_BODY_CHARS = 20_000;
+import { MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG, checkBodySize } from "@/lib/image-payload.mjs";
 
 const LIMIT_MESSAGE =
   "That's all the free tries from this phone today. Create a free account to keep going.";
@@ -26,14 +25,15 @@ const LIMIT_MESSAGE =
  */
 export async function POST(request: NextRequest) {
   try {
-    const declaredLength = Number(request.headers.get("content-length") || 0);
-    if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_CHARS) {
-      return NextResponse.json({ error: "Those notes are too long." }, { status: 413 });
+    const declaredLength = request.headers.get("content-length");
+    const declaredSize = checkBodySize(declaredLength, "", MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG);
+    if (!declaredSize.ok) {
+      return NextResponse.json({ error: declaredSize.error }, { status: declaredSize.status });
     }
-
     const rawText = await request.text();
-    if (rawText.length > MAX_BODY_CHARS) {
-      return NextResponse.json({ error: "Those notes are too long." }, { status: 413 });
+    const sized = checkBodySize(declaredLength, rawText, MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG);
+    if (!sized.ok) {
+      return NextResponse.json({ error: sized.error }, { status: sized.status });
     }
 
     let rawBody: unknown = null;

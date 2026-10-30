@@ -36,7 +36,7 @@ export const WALKTHROUGH_SCENES = [
     id: 3,
     stepNumber: 4,
     title: "They pick an option and type their name",
-    shortTitle: "Sign",
+    shortTitle: "Accept",
     badge: "Step 4",
     narration:
       "Your customer picks an option, taps Accept on their phone, and types their name to sign.",

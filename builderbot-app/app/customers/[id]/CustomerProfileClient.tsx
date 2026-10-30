@@ -556,7 +556,7 @@ export default function CustomerProfileClient({
                             </span>
                             {q.status === "Accepted" && q.acceptedSignatureName && (
                               <span className="block text-[10px] text-emerald-700 font-medium mt-0.5">
-                                Signed: {q.acceptedSignatureName}
+                                Typed acceptance: {q.acceptedSignatureName}
                               </span>
                             )}
                             <QuoteFollowUp quote={q} companyName={businessProfile.companyName} />

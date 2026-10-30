@@ -25,7 +25,7 @@ export default function PricingPage() {
         <ul className="mt-4 space-y-2 text-sm text-stone-700">
           <li>Write a quote on your phone, with prices you can edit.</li>
           <li>Save customers in this browser, or sign in so they sync to your account.</li>
-          <li>Send a customer a link. They can read it and sign if the quote was sent and has not expired.</li>
+          <li>Send a customer a link. They can read it and accept it by typing their name, if the quote was sent and has not expired.</li>
           <li>Keep your own bank details hidden until the customer has accepted.</li>
         </ul>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">

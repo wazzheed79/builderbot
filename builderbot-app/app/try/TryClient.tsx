@@ -278,8 +278,8 @@ export default function TryClient() {
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-white/90">
               {signedIn
-                ? "Open it in the quote builder, add your business name, then save it and send the link for your customer to sign."
-                : "Create a free account and this quote will be waiting in the builder. Add your business name, check the prices, then send a link and get it signed. No card."}
+                ? "Open it in the quote builder, add your business name, then save it and send the link for your customer to accept."
+                : "Create a free account and this quote will be waiting in the builder. Add your business name, check the prices, then send a link for a typed acceptance. No card."}
             </p>
             <Link
               href={signedIn ? "/quotes" : "/login?next=/quotes"}

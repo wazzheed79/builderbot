@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/wazzheed79/builderbot/actions/workflows/ci.yml/badge.svg)](https://github.com/wazzheed79/builderbot/actions/workflows/ci.yml)
 
-Chuffed Quotes turns rough job notes into a professional, itemised quote. A tradesperson talks or types the job, checks the prices, and sends a link. The customer opens it on their phone, picks a price if they were offered a choice, and signs. A sent or accepted quote can then become an invoice.
+Chuffed Quotes turns rough job notes into a professional, itemised quote. A tradesperson talks or types the job, checks the prices, and sends a link. The customer opens it on their phone, picks a price if they were offered a choice, and accepts by typing their name. A sent or accepted quote can then become an invoice.
 
 **Live site:** [https://www.chuffedquotes.co.uk](https://www.chuffedquotes.co.uk)
 
@@ -115,7 +115,9 @@ Copy names into `.env.local`. Put real values only in that file or in the host�
 | `X_ACCESS_TOKEN` | Optional. Only for that script. |
 | `X_ACCESS_SECRET` | Optional. Only for that script. |
 
-AI quoting runs for signed-in users. Each account can run 30 quote builds and 30 scope rewrites in a rolling hour. If the quota check itself fails, the build is allowed and the fault is logged. A stored “limit reached” answer still stops the build. If Gemini returns an error, times out (20 seconds), or sends unusable JSON, the quote uses the rough estimate.
+AI quoting runs for signed-in users. Each account can run 30 quote builds and 30 scope rewrites in a rolling hour. A guest on `/try` can run 5 builds a day from one network address. Those counts live in Supabase. If that database check fails, the same limit is applied in the server’s memory for that address or account. The first requests in the window still go through. The limit still stops the next one. A stored “limit reached” answer still stops the build. It does not leave the helper open with no limit. If Gemini returns an error, times out (20 seconds), or sends unusable JSON, the quote uses the rough estimate.
+
+An AI quote request, including photos, cannot be larger than about 1.8 MB. Each photo must be a real JPEG, PNG, GIF, or WebP, and each one must be smaller than about 350,000 characters. The quote builder shows the plain-English message if a photo is too big or is not a real image. The try-it page does not send photos.
 
 `E2E_BASE_URL` is read by `builderbot-app/test/e2e-live-check.mjs` when you point that script at a deployed site. It is not required for `npm test`.
 
@@ -144,7 +146,7 @@ The live site is hosted on Vercel. Merging to `main` is what ships a new version
 
 **New Supabase project:** in the SQL editor, run the whole of `builderbot-app/supabase/schema.sql`. That file is the current database, including quotes, invoices, templates, rate limits, and view counting.
 
-**Database that already exists:** run any file in `builderbot-app/supabase/migrations/` that has not been applied yet, in filename order. Those files are safe to run more than once. A fresh project that has just run `schema.sql` does not need them again.
+**Database that already exists:** run any file in `builderbot-app/supabase/migrations/` that has not been applied yet, in filename order. Those files are safe to run more than once. A fresh project that has just run `schema.sql` does not need them again. The typed-acceptance migration is `builderbot-app/supabase/migrations/20261030120000_typed_acceptance_record.sql`. Apply it in the Supabase SQL editor when you are ready. Until then, accepting a quote still works. After it is applied, each acceptance is also stored as a row that cannot be edited or deleted.
 
 Set the environment variable names from the table above in Vercel. Leave every Stripe variable blank. Sign-in emails are sent from `hello@chuffedquotes.co.uk`. The privacy notice names Resend as the sender. That mail setup is in Supabase, not in this repository.
 
@@ -159,6 +161,12 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 ## Progress / Changelog
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
+
+### 30 October 2026
+
+- If the database rate-limit check fails, AI quoting uses this server’s own memory for the same limit (15 a minute per network address, 5 guest builds a day, and 30 an hour per account). It does not allow unlimited calls, and a database fault does not refuse every quote.
+- An AI request has a size cap. Each photo is checked as a real image, and the quote builder shows a plain-English message if one is too big or is not a photo.
+- A customer accepts a quote by typing their name. That is called a typed acceptance. After you apply `builderbot-app/supabase/migrations/20261030120000_typed_acceptance_record.sql` in Supabase, the name, time, network address, total, and chosen option are stored in a row that cannot be edited or deleted. Accepting a quote still works before that SQL is applied.
 
 ### 28 October 2026
 

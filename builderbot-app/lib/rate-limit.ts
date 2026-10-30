@@ -16,19 +16,21 @@ export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
   retryAfterSec?: number;
-  source: "database" | "memory" | "blocked" | "open";
+  source: "database" | "memory" | "blocked";
 };
 
-function allowedBecauseCheckFailed(maxRequests: number): RateLimitResult {
-  return { allowed: true, remaining: maxRequests, source: "open" };
+function memoryLimit(identifier: string, maxRequests: number, windowMs: number): RateLimitResult {
+  return { ...checkMemoryRateLimit(identifier, maxRequests, windowMs), source: "memory" };
 }
 
 /**
  * One request against a named limit. The database counter survives a new
  * server and is called with the service-role client. If that check cannot be
- * completed, the request is allowed and the fault is logged. Memory is only
- * used when the service role key is not set, or the SQL function is not
- * installed yet.
+ * completed, this server's memory applies the same limit for this address or
+ * account. That still lets the first requests through, and it stops the next
+ * one once the limit is used. A stored "not allowed" answer still stops the
+ * request. Memory is also used when the service role key is not set, or the
+ * SQL function is not installed yet.
  */
 export async function checkRateLimit(
   identifier: string,
@@ -39,22 +41,22 @@ export async function checkRateLimit(
   const serviceRoleConfigured = Boolean(serviceKey);
 
   if (!serviceRoleConfigured) {
-    return { ...checkMemoryRateLimit(identifier, maxRequests, windowMs), source: "memory" };
+    return memoryLimit(identifier, maxRequests, windowMs);
   }
 
   if (!isServiceRoleKey(serviceKey)) {
     reportServerFault(
-      "Rate limit check skipped. The server key cannot call consume_rate_limit, so this request was allowed."
+      "Rate limit check could not use the database. This server's own limit is being used instead."
     );
-    return allowedBecauseCheckFailed(maxRequests);
+    return memoryLimit(identifier, maxRequests, windowMs);
   }
 
   const sb = getServiceRoleSupabase();
   if (!sb) {
     reportServerFault(
-      "Rate limit check skipped. The service-role client was not available, so this request was allowed."
+      "Rate limit check could not use the database. The service-role client was not available, so this server's own limit is being used instead."
     );
-    return allowedBecauseCheckFailed(maxRequests);
+    return memoryLimit(identifier, maxRequests, windowMs);
   }
 
   const result = await sb.rpc("consume_rate_limit", {
@@ -68,20 +70,20 @@ export async function checkRateLimit(
     console.error(
       "Rate limit storage is not installed yet. Using this server's memory until the migration is applied."
     );
-    return { ...checkMemoryRateLimit(identifier, maxRequests, windowMs), source: "memory" };
+    return memoryLimit(identifier, maxRequests, windowMs);
   }
 
   if (result.error) {
     reportServerFault(
-      `Rate limit check failed. ${result.error.message || "The database check did not finish."} This request was allowed.`
+      `Rate limit check failed. ${result.error.message || "The database check did not finish."} This server's own limit is being used instead.`
     );
+    return memoryLimit(identifier, maxRequests, windowMs);
   }
 
   const decided = decideRateLimit({
     serviceRoleConfigured: true,
-    rpcError: Boolean(result.error),
+    rpcError: false,
     data: result.data,
-    openRemaining: maxRequests,
   });
   return {
     allowed: decided.allowed,

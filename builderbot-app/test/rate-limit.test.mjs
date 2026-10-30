@@ -11,6 +11,7 @@ import {
   hashRateSubject,
   isMissingRateLimitFunction,
   isServiceRoleKey,
+  pruneMemoryRateLimits,
 } from "../lib/rate-limit.mjs";
 
 test("the database count blocks once the window is used", () => {
@@ -24,17 +25,34 @@ test("the database count blocks once the window is used", () => {
   assert.equal(blocked.retryAfterSec, 40);
 });
 
-test("a database check that errors allows the request", () => {
-  const broken = decideRateLimit({
+test("a database error uses the in-memory limit and does not allow every request", () => {
+  const key = `fallback:${Date.now()}`;
+  const first = checkMemoryRateLimit(key, 1, 60_000);
+  const open = decideRateLimit({
     serviceRoleConfigured: true,
     rpcError: true,
     data: { allowed: true },
-    openRemaining: 15,
+    memoryAllowed: first.allowed,
+    memoryRemaining: first.remaining,
+    memoryRetryAfterSec: first.retryAfterSec,
   });
-  assert.equal(broken.allowed, true);
-  assert.equal(broken.source, "open");
-  assert.equal(broken.remaining, 15);
-  assert.equal(broken.retryAfterSec, 0);
+  assert.equal(open.allowed, true);
+  assert.equal(open.source, "memory");
+  assert.equal(open.remaining, 0);
+  assert.equal(open.retryAfterSec, 0);
+
+  const second = checkMemoryRateLimit(key, 1, 60_000);
+  const closed = decideRateLimit({
+    serviceRoleConfigured: true,
+    rpcError: true,
+    data: null,
+    memoryAllowed: second.allowed,
+    memoryRemaining: second.remaining,
+    memoryRetryAfterSec: second.retryAfterSec,
+  });
+  assert.equal(closed.allowed, false);
+  assert.equal(closed.source, "memory");
+  assert.ok(closed.retryAfterSec >= 1);
 });
 
 test("a broken reply is not treated as permission to call", () => {
@@ -102,6 +120,17 @@ test("memory still stops the next call inside the window", () => {
   const second = checkMemoryRateLimit(key, 1, 60_000);
   assert.equal(second.allowed, false);
   assert.ok(second.retryAfterSec >= 1);
+});
+
+test("a longer window is not wiped by the memory cleanup", () => {
+  const key = `day-window:${Date.now()}`;
+  const day = 24 * 60 * 60 * 1000;
+  assert.equal(checkMemoryRateLimit(key, 2, day).allowed, true);
+  pruneMemoryRateLimits(Date.now() + 5 * 60 * 1000);
+  const second = checkMemoryRateLimit(key, 2, day);
+  assert.equal(second.allowed, true);
+  assert.equal(second.remaining, 0);
+  assert.equal(checkMemoryRateLimit(key, 2, day).allowed, false);
 });
 
 test("the platform IP is used ahead of a caller-supplied forwarded header", () => {

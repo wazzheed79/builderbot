@@ -6,6 +6,7 @@ import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 import { sanitizeExpandedScope } from "@/lib/quote-ai.mjs";
+import { MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG, checkBodySize } from "@/lib/image-payload.mjs";
 
 const ExpandRequestSchema = z.object({
   notes: z
@@ -34,6 +35,12 @@ interface ExpandResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    const declaredLength = request.headers.get("content-length");
+    const declaredSize = checkBodySize(declaredLength, "", MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG);
+    if (!declaredSize.ok) {
+      return NextResponse.json({ error: declaredSize.error }, { status: declaredSize.status });
+    }
+
     // 1. Rate Limiting Check (15 requests/min per IP)
     const clientIp = getClientIp(request);
     const rateCheck = await checkRateLimit(`ai-expand:${clientIp}`, 15, 60000);
@@ -48,8 +55,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Request Body & Schema Validation
-    const rawBody = await request.json().catch(() => null);
-    if (!rawBody) {
+    const rawText = await request.text();
+    const sized = checkBodySize(declaredLength, rawText, MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG);
+    if (!sized.ok) {
+      return NextResponse.json({ error: sized.error }, { status: sized.status });
+    }
+    let rawBody: unknown = null;
+    try {
+      rawBody = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      rawBody = null;
+    }
+    if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
       return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
     }
 

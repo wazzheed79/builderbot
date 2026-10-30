@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { fetchPublicQuoteByToken, submitPublicDecision } from "@/lib/supabase-server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  TYPED_ACCEPTANCE_REQUIRED,
+  TYPED_ACCEPTANCE_TOO_LONG,
+} from "@/lib/acceptance-record.mjs";
 
 // Validation schema for digital acceptance/decline
 const DecisionPayloadSchema = z.object({
@@ -11,7 +15,7 @@ const DecisionPayloadSchema = z.object({
   signatureName: z
     .string()
     .trim()
-    .max(100, "Signature name cannot exceed 100 characters.")
+    .max(100, TYPED_ACCEPTANCE_TOO_LONG)
     .optional(),
   selectedOptionId: z.string().trim().max(80).optional(),
   reason: z
@@ -93,12 +97,9 @@ export async function POST(
 
     const { status, signatureName, reason, selectedOptionId } = parseResult.data;
 
-    // Enforce signature name for acceptance
+    // A typed name is required. The acceptance row itself is written in the database.
     if (status === "Accepted" && (!signatureName || signatureName.length === 0)) {
-      return NextResponse.json(
-        { error: "A typed legal signature name is required to accept this quote." },
-        { status: 422 }
-      );
+      return NextResponse.json({ error: TYPED_ACCEPTANCE_REQUIRED }, { status: 422 });
     }
 
     const decisionResult = await submitPublicDecision(id, status, {

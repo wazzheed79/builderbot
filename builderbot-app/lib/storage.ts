@@ -1193,7 +1193,7 @@ export function getRecentActivityFeed(): ActivityItem[] {
         id: `${q.id}-accepted`,
         type: "quote_accepted",
         title: `Quote ${q.id} Accepted`,
-        description: `${q.acceptedSignatureName || q.clientName} signed £${q.total.toFixed(2)} (${q.title})`,
+        description: `${q.acceptedSignatureName || q.clientName} accepted £${q.total.toFixed(2)} (${q.title})`,
         timestamp: q.acceptedAt,
         relativeTime: formatRelativeTime(q.acceptedAt),
         link: `/q/${q.token || q.id}`,

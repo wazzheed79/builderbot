@@ -14,7 +14,7 @@ export default function TermsPage() {
         Back to {brand.name}
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Terms of use</h1>
-      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 20 October 2026</p>
+      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 30 October 2026</p>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
         Plain-language terms for the free beta. Not legal advice.
       </p>
@@ -35,6 +35,9 @@ export default function TermsPage() {
             Prices, descriptions, VAT, and any trade registration you type are yours to check
             before a customer sees them. Suggested prices are estimates. They are not a survey,
             a fixed contract, or proof of a licence. Do not send a quote you have not read.
+            When a customer types their name, that is a typed acceptance of the quote they were
+            shown, including the total and any option they chose. It is not a separate signed
+            contract from this app.
           </p>
         </section>
         <section>
