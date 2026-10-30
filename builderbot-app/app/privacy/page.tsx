@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         Back to {brand.name}
       </Link>
       <h1 className="mt-4 text-3xl font-black text-ink tracking-tight">Privacy notice</h1>
-      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 22 October 2026</p>
+      <p className="mt-2 text-sm font-semibold text-stone-500">Last updated 30 October 2026</p>
       <p className="mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4">
         A plain-language notice for the free beta. It is not legal advice.
       </p>
@@ -62,7 +62,9 @@ export default function PrivacyPage() {
           <p className="mt-2">
             We record that they viewed the quote, and whether they accepted or declined. Opening
             the same quote again on the same phone within a day counts as one view. If they type
-            their name to accept, that name is saved with the quote.
+            their name to accept, that typed acceptance is saved and cannot be edited afterwards.
+            It stores the name they typed, the time, the network address, the total they accepted,
+            and the option they chose, if they were offered a choice.
           </p>
         </section>
         <section>

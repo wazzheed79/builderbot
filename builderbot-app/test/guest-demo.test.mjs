@@ -157,7 +157,7 @@ test("sign-in opens the quote builder only when a try-it quote is waiting", () =
     items: sampleItems,
     aiPowered: false,
   });
-  writeGuestDemoQuote(storage, payload, "2026-10-22T12:00:00.000Z");
+  writeGuestDemoQuote(storage, payload, new Date().toISOString());
   assert.equal(pathAfterAuth("/dashboard", storage), "/quotes");
   assert.equal(pathAfterAuth("", storage), "/quotes");
   assert.equal(pathAfterAuth("/customers", storage), "/customers");

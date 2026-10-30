@@ -2,6 +2,8 @@
 // It is kept in this browser only. Nothing here writes a quote, a public
 // link, or an email. The daily cap is applied by the existing rate-limit
 // helper, which stores a hash of the address, not the address itself.
+// If that database check fails, the same daily cap is applied in this
+// server's memory instead of allowing the request through.
 import { safeNextPath } from "./auth-callback.mjs";
 import {
   MAX_LINE_ITEMS,

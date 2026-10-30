@@ -39,7 +39,7 @@ The goal is to remove paperwork and allow tradespeople to spend more time earnin
 
 ### PDF & Customer Portal
 - [x] Create professional branded PDF
-- [x] Digital customer acceptance & signature
+- [x] Typed acceptance on the customer quote
 - [x] Download & print capability
 - [x] Instant WhatsApp & SMS sharing
 

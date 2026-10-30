@@ -1,6 +1,5 @@
 import { getServiceRoleSupabase } from "@/lib/supabase-server";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { isServiceRoleKey } from "@/lib/rate-limit.mjs";
+import { checkMemoryRateLimit, isServiceRoleKey } from "@/lib/rate-limit.mjs";
 import { reportServerFault } from "@/lib/server-fault";
 import {
   AI_LIMIT,
@@ -14,34 +13,39 @@ export { quotaMessage } from "@/lib/ai-quota.mjs";
 export type AiTurn = {
   allowed: boolean;
   retryAfterSec: number;
-  source: "database" | "memory" | "blocked" | "open";
+  source: "database" | "memory" | "blocked";
 };
+
+function memoryTurn(userId: string, kind: "generate" | "expand") {
+  return checkMemoryRateLimit(`ai-${kind}:user:${userId}`, AI_LIMIT, AI_WINDOW_MS);
+}
 
 /**
  * One AI request for a signed-in user. The database counter is the limit that
  * survives a new server, called with the service-role client. If that check
- * cannot be completed, the request is allowed and the fault is logged. A
- * stored "limit reached" answer still stops the request. Memory is only used
- * when the service role key is not set.
+ * cannot be completed, this server's memory applies the same hourly limit for
+ * that account. The first requests in the hour still go through. A stored
+ * "limit reached" answer still stops the request. Memory is also used when
+ * the service role key is not set.
  */
 export async function takeAiTurn(userId: string, kind: "generate" | "expand"): Promise<AiTurn> {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const serviceRoleConfigured = Boolean(serviceKey);
-  let rpcError = false;
   let data: unknown = null;
+  let useMemory = !serviceRoleConfigured;
 
   if (serviceRoleConfigured) {
     if (!isServiceRoleKey(serviceKey)) {
-      rpcError = true;
+      useMemory = true;
       reportServerFault(
-        "AI quota check skipped. The server key cannot call consume_ai_quota, so this request was allowed."
+        "AI quota check could not use the database. This server's own hourly limit is being used instead."
       );
     } else {
       const sb = getServiceRoleSupabase();
       if (!sb) {
-        rpcError = true;
+        useMemory = true;
         reportServerFault(
-          "AI quota check skipped. The service-role client was not available, so this request was allowed."
+          "AI quota check could not use the database. The service-role client was not available, so this server's own hourly limit is being used instead."
         );
       } else {
         const result = await sb.rpc("consume_ai_quota", {
@@ -50,31 +54,26 @@ export async function takeAiTurn(userId: string, kind: "generate" | "expand"): P
           p_limit: AI_LIMIT,
           p_window_seconds: AI_WINDOW_SECONDS,
         });
-        rpcError = Boolean(result.error);
         data = result.data;
         if (result.error) {
+          useMemory = true;
           reportServerFault(
-            `AI quota check failed. ${result.error.message || "The database check did not finish."} This request was allowed.`
+            `AI quota check failed. ${result.error.message || "The database check did not finish."} This server's own hourly limit is being used instead.`
           );
         }
       }
     }
   }
 
-  const memory = serviceRoleConfigured
-    ? undefined
-    : await checkRateLimit(`ai-${kind}:user:${userId}`, AI_LIMIT, AI_WINDOW_MS);
+  const memory = useMemory ? memoryTurn(userId, kind) : undefined;
 
   const turn = decideAiTurn({
-    serviceRoleConfigured,
-    rpcError,
+    serviceRoleConfigured: serviceRoleConfigured && !useMemory,
+    rpcError: false,
     data,
     memoryAllowed: memory ? memory.allowed : false,
     memoryRetryAfterSec: memory?.retryAfterSec,
   });
-  const source =
-    turn.source === "database" || turn.source === "blocked" || turn.source === "open"
-      ? turn.source
-      : "memory";
+  const source = turn.source === "database" || turn.source === "blocked" ? turn.source : "memory";
   return { allowed: turn.allowed, retryAfterSec: turn.retryAfterSec, source };
 }

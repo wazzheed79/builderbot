@@ -13,7 +13,7 @@ export const SUBSCRIPTION_PLANS = {
       "Up to 5 professional quotes per month",
       "Standard PDF quote downloads",
       "Basic customer contact book",
-      "Accept & digital signature links",
+      "Typed acceptance links",
       `${brand.name} name shown on shared pages`,
     ],
     highlight: false,

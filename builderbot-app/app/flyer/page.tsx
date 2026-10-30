@@ -75,7 +75,7 @@ export default function TradeFlyerPage() {
           </h1>
 
           <p className="mt-2 text-xs sm:text-sm text-slate-300 font-medium max-w-md mx-auto leading-relaxed">
-            Stop losing your evenings to paperwork after a 10-hour day on site. Price, quote, and get signed off from your phone in under 2 minutes.
+            Stop losing your evenings to paperwork after a 10-hour day on site. Price, quote, and get a typed acceptance from your phone in under 2 minutes.
           </p>
         </div>
 
@@ -119,10 +119,10 @@ export default function TradeFlyerPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 leading-snug">
-                  3. Collect Deposits & Digital Signatures
+                  3. Typed acceptance on their phone
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                  Homeowners can read the quote and sign it on their phone. Card payments are not switched on during the beta.
+                  Homeowners can read the quote and accept it on their phone by typing their name. Card payments are not switched on during the beta.
                 </p>
               </div>
             </div>

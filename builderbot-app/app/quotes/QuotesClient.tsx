@@ -48,6 +48,7 @@ import {
   guestDemoToBuilderFields,
   readGuestDemoQuote,
 } from "@/lib/guest-demo.mjs";
+import { validateAiPhotos } from "@/lib/image-payload.mjs";
 import QuoteTemplatesBar, {
   QuoteTemplate,
   DEFAULT_QUOTE_TEMPLATES,
@@ -701,13 +702,18 @@ export default function QuotesClient() {
         triggerToast("Could not load your price list, so this quote uses suggested prices. Try again in a moment.");
       }
       const rememberedRows = loadedPrices.ok ? loadedPrices.items : [];
+      const photoCheck = validateAiPhotos(photos);
+      if (!photoCheck.ok) {
+        triggerToast(photoCheck.error);
+        return;
+      }
       const res = await fetch("/api/quote/generate", {
         method: "POST",
         headers: await getAuthHeaders(),
         body: JSON.stringify({
           notes: notesInput.trim(),
           trade: profile.trade,
-          photos: photos && photos.length > 0 ? photos : undefined,
+          photos: photoCheck.photos.length > 0 ? photoCheck.photos : undefined,
           pricingMemory: pricingMemoryForQuote(getPricingMemory(), rememberedRows),
         }),
       });
@@ -1812,7 +1818,7 @@ export default function QuotesClient() {
               <div className="p-3 bg-clay-50/70 border border-clay-200/60 rounded-xl flex items-start gap-2 text-xs text-clay-800">
                 <HelpCircle className="w-4 h-4 text-clay-700 shrink-0 mt-0.5" />
                 <span>
-                  Sign in before you share. The customer then gets a private link they can open and sign on their phone.
+                  Sign in before you share. The customer then gets a private link they can open and accept on their phone.
                 </span>
               </div>
             </div>

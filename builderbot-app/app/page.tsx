@@ -406,7 +406,7 @@ export default function Home() {
           </h2>
           <p className="mt-3 text-base leading-relaxed text-paper/90">
             Try a quote with no account. Create a free account when you want it saved, with your
-            business name on it, and a link your customer can sign. No card.
+            business name on it, and a link your customer can accept. No card.
           </p>
           <div className="mt-6">
             <FoundingOffer />

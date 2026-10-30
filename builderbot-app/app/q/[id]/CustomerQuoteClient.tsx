@@ -274,7 +274,7 @@ export default function CustomerQuoteClient({
   const handleConfirmAccept = async () => {
     if (!loadedQuote || decisionPending) return;
     if (!signatureName.trim()) {
-      setDecisionError("Type your name to sign.");
+      setDecisionError("Type your name to accept.");
       return;
     }
     if (!agreedToTerms) {
@@ -315,7 +315,7 @@ export default function CustomerQuoteClient({
             chosenOption?.id
           );
           if (!rememberLocalDecision(signed)) {
-            setDecisionError("This quote cannot be accepted. Drafts and expired quotes stay unsigned.");
+            setDecisionError("This quote cannot be accepted. Drafts and expired quotes stay open.");
             return;
           }
           captureEvent("quote_accepted", { had_options: offeringChoice });
@@ -342,7 +342,7 @@ export default function CustomerQuoteClient({
       setDecisionError(null);
       setShowSignModal(false);
     } catch {
-      setDecisionError("Could not reach the quote. Nothing was signed.");
+      setDecisionError("Could not reach the quote. Nothing was accepted.");
     } finally {
       setDecisionPending(false);
     }
@@ -465,10 +465,10 @@ export default function CustomerQuoteClient({
                     status === "accepted" ? "text-slate-900" : "text-clay-700"
                   }`}
                 >
-                  3. {status === "accepted" ? "Accepted" : "Sign & Accept"}
+                  3. {status === "accepted" ? "Accepted" : "Accept"}
                 </span>
                 <span className="text-[10px] text-slate-400 hidden sm:block">
-                  {status === "accepted" ? "Signed" : "Your decision"}
+                  {status === "accepted" ? "Typed acceptance" : "Your decision"}
                 </span>
               </div>
 
@@ -503,13 +503,13 @@ export default function CustomerQuoteClient({
             <div className="flex items-start gap-4">
               <CheckCircle2 className="w-8 h-8 text-white shrink-0 mt-0.5" />
               <div>
-                <h2 className="text-xl font-black">Quote Accepted & Signed!</h2>
+                <h2 className="text-xl font-black">Quote accepted</h2>
                 <p className="text-emerald-100 text-sm mt-1">
-                  Thank you, {signatureName || loadedQuote.clientName}. Your digital acceptance has been confirmed with {contractorName}.
+                  Thank you, {signatureName || loadedQuote.clientName}. Your typed acceptance has been confirmed with {contractorName}.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-xs bg-emerald-700/80 px-3 py-1 rounded-lg font-semibold">
-                    Signed: {loadedQuote.acceptedSignatureName || signatureName}
+                    Typed acceptance: {loadedQuote.acceptedSignatureName || signatureName}
                   </span>
                   <span className="text-xs bg-emerald-700/80 px-3 py-1 rounded-lg font-semibold">
                     Deposit Due: {formatGbp(loadedQuote.deposit)}
@@ -839,13 +839,13 @@ export default function CustomerQuoteClient({
                   Verified Digital Quotation
                 </span>
                 <p className="text-xs text-slate-600 max-w-md">
-                  Scan this code with a phone camera to read the quote and sign it.
+                  Scan this code with a phone camera to read the quote and accept it.
                 </p>
                 <p className="text-[11px] font-mono text-slate-400">
                   Ref: {loadedQuote.id} • Valid until {expiry.expiryFormatted}
                 </p>
               </div>
-              <QuoteQrCode url={quoteLiveUrl} size={90} label="Scan to Sign" />
+              <QuoteQrCode url={quoteLiveUrl} size={90} label="Scan to accept" />
             </div>
 
             {/* Site & Inspection Reference Photos */}
@@ -904,7 +904,7 @@ export default function CustomerQuoteClient({
                     className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 font-bold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800 active:scale-[0.98] sm:flex-1"
                   >
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>Accept & Sign Quote</span>
+                    <span>Accept quote</span>
                   </button>
 
                   {(contactPhone || contactEmail) && (
@@ -935,7 +935,7 @@ export default function CustomerQuoteClient({
                 <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-emerald-800 font-semibold">
                   <span className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                    <span>Accepted & signed by {loadedQuote.acceptedSignatureName || signatureName}.</span>
+                    <span>Accepted by {loadedQuote.acceptedSignatureName || signatureName}.</span>
                   </span>
                   <button
                     type="button"
@@ -1026,20 +1026,20 @@ export default function CustomerQuoteClient({
               }}
               className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-700 px-4 text-base font-bold text-white"
             >
-              Accept & sign
+              Accept
             </button>
           </div>
         </div>
       )}
 
-      {/* Accept & Sign Modal */}
+      {/* Typed acceptance modal */}
       {showSignModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs overflow-y-auto p-4">
           <div className="bg-white rounded-2xl max-w-md w-full mx-auto my-4 p-6 shadow-2xl border border-slate-200 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>Digital Quote Acceptance</span>
+                <span>Typed acceptance</span>
               </h3>
               <button
                 type="button"
@@ -1053,7 +1053,7 @@ export default function CustomerQuoteClient({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              By typing your legal name below, you confirm acceptance of quotation <strong>{loadedQuote.id}</strong> ({printable.total}) and agree to the required deposit of <strong>{printable.deposit}</strong>.
+              By typing your name below, you accept quotation <strong>{loadedQuote.id}</strong> ({printable.total}) and the deposit of <strong>{printable.deposit}</strong>. This is a typed acceptance.
             </p>
 
             {offeringChoice && (
@@ -1086,11 +1086,11 @@ export default function CustomerQuoteClient({
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1" htmlFor="signature-name">
-                  Full Legal Name
+                <label className="block text-xs font-bold text-slate-700 mb-1" htmlFor="acceptance-name">
+                  Your name
                 </label>
                 <input
-                  id="signature-name"
+                  id="acceptance-name"
                   type="text"
                   value={signatureName}
                   onChange={(e) => {
@@ -1139,7 +1139,7 @@ export default function CustomerQuoteClient({
                 disabled={decisionPending}
                 className="flex-1 min-h-11 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-md transition"
               >
-                {decisionPending ? "Signing…" : "Confirm & Sign"}
+                {decisionPending ? "Saving…" : "Confirm acceptance"}
               </button>
             </div>
           </div>

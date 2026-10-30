@@ -19,4 +19,5 @@ Do not add a GitHub Action, git hook, or bot that commits these files to `main` 
 - The app lives in `builderbot-app/`. Live site: https://www.chuffedquotes.co.uk.
 - Card payments are switched off in this beta. Leave Stripe keys blank.
 - Quote choices are Standard, Better, and Premium. The builder button still says “Good, Better, Best”; that mismatch is an open fix, not a second set of names to introduce.
-- AI quoting is signed-in only, 30 builds and 30 scope rewrites an hour, and falls back to a rough estimate when Gemini fails. If the quota check itself errors, the build is allowed.
+- AI quoting is signed-in only, 30 builds and 30 scope rewrites an hour, and falls back to a rough estimate when Gemini fails. A guest try-it is 5 builds a day per network address. If the database limit check errors, the same limit is applied in this server’s memory. It does not allow unlimited calls, and it does not refuse every quote.
+- A customer accepts a quote by typing their name (a typed acceptance, not a legal signature). The immutable acceptance row needs `builderbot-app/supabase/migrations/20261030120000_typed_acceptance_record.sql` applied by the owner in Supabase. Do not apply that migration yourself.

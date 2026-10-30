@@ -4,7 +4,7 @@ import QuotesClient from "./QuotesClient";
 
 export const metadata: Metadata = {
   title: "Quote builder",
-  description: "Talk or type the job, set the prices, then share a link the customer can sign.",
+  description: "Talk or type the job, set the prices, then share a link the customer can accept.",
 };
 
 export default function QuotesPage() {

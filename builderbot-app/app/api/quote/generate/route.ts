@@ -9,6 +9,16 @@ import { getSignedInUserId } from "@/lib/ai-access";
 import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
+import {
+  MAX_AI_BODY_CHARS,
+  MAX_AI_PHOTOS,
+  MAX_PHOTO_CHARS,
+  PHOTO_TOO_LARGE,
+  REQUEST_TOO_LARGE,
+  TOO_MANY_PHOTOS,
+  checkBodySize,
+  validateAiPhotos,
+} from "@/lib/image-payload.mjs";
 
 const GenerateRequestSchema = z.object({
   notes: z
@@ -22,8 +32,8 @@ const GenerateRequestSchema = z.object({
     .max(100)
     .optional(),
   photos: z
-    .array(z.string().max(1_500_000, "Each photo must be a smaller image."))
-    .max(6)
+    .array(z.string().max(MAX_PHOTO_CHARS, PHOTO_TOO_LARGE))
+    .max(MAX_AI_PHOTOS, TOO_MANY_PHOTOS)
     .optional(),
   pricingMemory: z
     .object({
@@ -70,6 +80,12 @@ interface GenerateResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    const declaredLength = request.headers.get("content-length");
+    const declaredSize = checkBodySize(declaredLength, "", MAX_AI_BODY_CHARS, REQUEST_TOO_LARGE);
+    if (!declaredSize.ok) {
+      return NextResponse.json({ error: declaredSize.error }, { status: declaredSize.status });
+    }
+
     // 1. Rate Limiting Check (15 requests/min per IP)
     const clientIp = getClientIp(request);
     const rateCheck = await checkRateLimit(`ai-generate:${clientIp}`, 15, 60000);
@@ -84,8 +100,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Request Body & Schema Validation
-    const rawBody = await request.json().catch(() => null);
-    if (!rawBody) {
+    const rawText = await request.text();
+    const sized = checkBodySize(declaredLength, rawText, MAX_AI_BODY_CHARS, REQUEST_TOO_LARGE);
+    if (!sized.ok) {
+      return NextResponse.json({ error: sized.error }, { status: sized.status });
+    }
+    let rawBody: unknown = null;
+    try {
+      rawBody = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      rawBody = null;
+    }
+    if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
       return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
     }
 
@@ -97,7 +123,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes, trade, photos, pricingMemory, tiers } = parseResult.data;
+    const { notes, trade, pricingMemory, tiers } = parseResult.data;
+    const photosCheck = validateAiPhotos(parseResult.data.photos);
+    if (!photosCheck.ok) {
+      return NextResponse.json({ error: photosCheck.error }, { status: 422 });
+    }
+    const photos = photosCheck.photos;
     const remembered = pricingMemory?.remembered || [];
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const userId = await getSignedInUserId(request);
