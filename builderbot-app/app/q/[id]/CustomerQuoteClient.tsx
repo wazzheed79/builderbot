@@ -65,11 +65,112 @@ function withChosenOption(quote: Quote, optionId?: string): Quote {
   };
 }
 
+const TERMS_ERROR = "Tick the box to agree to the terms.";
+
 function quoteMissingOnline(statusCode: number, message: string) {
   return (
     statusCode === 404 ||
     message === "Quote not found." ||
     message === "Quotation not found or expired."
+  );
+}
+
+function JobProgress({
+  status,
+  contractorName,
+}: {
+  status: "pending" | "accepted" | "rejected" | "expired";
+  contractorName: string;
+}) {
+  const steps: Array<{
+    state: "done" | "current" | "future" | "problem";
+    label: string;
+    detail: string;
+  }> =
+    status === "accepted"
+      ? [
+          { state: "done", label: "1. Prepared", detail: `By ${contractorName}` },
+          { state: "done", label: "2. Viewed", detail: "Under review" },
+          { state: "done", label: "3. Accepted", detail: "Typed acceptance" },
+          { state: "current", label: "4. Scheduled", detail: "Start date agreed" },
+        ]
+      : status === "rejected"
+        ? [
+            { state: "done", label: "1. Prepared", detail: `By ${contractorName}` },
+            { state: "done", label: "2. Viewed", detail: "Under review" },
+            { state: "problem", label: "3. Declined", detail: "Not going ahead" },
+            { state: "future", label: "4. Scheduled", detail: "Start date agreed" },
+          ]
+        : status === "expired"
+          ? [
+              { state: "done", label: "1. Prepared", detail: `By ${contractorName}` },
+              { state: "done", label: "2. Viewed", detail: "Under review" },
+              { state: "problem", label: "3. Expired", detail: "Ask for a new price" },
+              { state: "future", label: "4. Scheduled", detail: "Start date agreed" },
+            ]
+          : [
+              { state: "done", label: "1. Prepared", detail: `By ${contractorName}` },
+              { state: "done", label: "2. Viewed", detail: "Under review" },
+              { state: "current", label: "3. Accept", detail: "Your decision" },
+              { state: "future", label: "4. Scheduled", detail: "Start date agreed" },
+            ];
+  const heading =
+    status === "accepted"
+      ? "Signed"
+      : status === "rejected"
+        ? "Declined"
+        : status === "expired"
+          ? "Expired"
+          : "Waiting for your review";
+
+  return (
+    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200">
+      <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+        <span>Job Progress Tracker</span>
+        <span className="font-semibold text-slate-500">{heading}</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2 text-center">
+        {steps.map((step) => (
+          <ProgressStep key={step.label} state={step.state} label={step.label} detail={step.detail} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProgressStep({
+  state,
+  label,
+  detail,
+}: {
+  state: "done" | "current" | "future" | "problem";
+  label: string;
+  detail: string;
+}) {
+  const circle =
+    state === "done"
+      ? "bg-emerald-100 text-emerald-700"
+      : state === "current"
+        ? "bg-slate-900 text-white ring-4 ring-slate-200"
+        : state === "problem"
+          ? "bg-rose-100 text-rose-700"
+          : "bg-slate-100 text-slate-400";
+  const text =
+    state === "problem" ? "text-rose-800" : state === "future" ? "text-slate-400" : "text-slate-900";
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`mb-1.5 flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-xs ${circle}`}>
+        {state === "done" ? (
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+        ) : state === "problem" ? (
+          <XCircle className="h-4 w-4 text-rose-700" aria-hidden="true" />
+        ) : (
+          <span>{label.slice(0, 1)}</span>
+        )}
+      </div>
+      <span className={`text-[11px] font-bold leading-tight ${text}`}>{label}</span>
+      <span className="hidden text-[10px] text-slate-400 sm:block">{detail}</span>
+    </div>
   );
 }
 
@@ -278,7 +379,7 @@ export default function CustomerQuoteClient({
       return;
     }
     if (!agreedToTerms) {
-      setDecisionError("Tick the box to agree to the terms.");
+      setDecisionError(TERMS_ERROR);
       return;
     }
     if (offeringChoice && !chosenOption) {
@@ -416,87 +517,7 @@ export default function CustomerQuoteClient({
         {/* Banner / Notice for Customer */}
         <div className="no-print space-y-4">
         {/* Customer Job Progress Stepper */}
-        {status !== "rejected" && status !== "expired" && (
-          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200">
-            <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-              <span>Job Progress Tracker</span>
-              <span className="font-semibold text-slate-500">
-                {status === "accepted"
-                  ? "Signed"
-                  : "Waiting for your review"}
-              </span>
-            </div>
-            <div className="grid grid-cols-4 gap-2 text-center relative">
-              {/* Step 1 */}
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-900 leading-tight">1. Prepared</span>
-                <span className="text-[10px] text-slate-400 hidden sm:block">By {contractorName}</span>
-              </div>
-
-              {/* Step 2 */}
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-clay-100 text-clay-800 flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-clay-700" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-900 leading-tight">2. Viewed</span>
-                <span className="text-[10px] text-slate-400 hidden sm:block">Under Review</span>
-              </div>
-
-              {/* Step 3 */}
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs transition ${
-                    status === "accepted"
-                      ? "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500/20"
-                      : "bg-clay-700 text-white ring-4 ring-clay-100 animate-pulse"
-                  }`}
-                >
-                  {status === "accepted" ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  ) : (
-                    <span>3</span>
-                  )}
-                </div>
-                <span
-                  className={`text-[11px] font-bold leading-tight ${
-                    status === "accepted" ? "text-slate-900" : "text-clay-700"
-                  }`}
-                >
-                  3. {status === "accepted" ? "Accepted" : "Accept"}
-                </span>
-                <span className="text-[10px] text-slate-400 hidden sm:block">
-                  {status === "accepted" ? "Typed acceptance" : "Your decision"}
-                </span>
-              </div>
-
-              {/* Step 4 */}
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1.5 shadow-xs ${
-                    status === "accepted"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  <span>4</span>
-                </div>
-                <span
-                  className={`text-[11px] font-bold leading-tight ${
-                    status === "accepted" ? "text-emerald-700" : "text-slate-400"
-                  }`}
-                >
-                  4. Scheduled
-                </span>
-                <span className="text-[10px] text-slate-400 hidden sm:block">
-                  {status === "accepted" ? "Booking Confirmed" : "Start Date Agreed"}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+        <JobProgress status={status} contractorName={contractorName} />
 
         {status === "accepted" ? (
           <div className="bg-emerald-600 text-white p-6 sm:p-7 rounded-2xl shadow-xl space-y-4 animate-in fade-in duration-300">
@@ -1102,23 +1123,33 @@ export default function CustomerQuoteClient({
                 />
               </div>
 
-              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-600 select-none">
-                <input
-                  type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => {
-                    setAgreedToTerms(e.target.checked);
-                    setDecisionError(null);
-                  }}
-                  className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 mt-0.5"
-                />
-                <span>
-                  I agree to the terms, scope of work, and deposit schedule stated in this quotation.
-                </span>
-              </label>
+              <div>
+                <label htmlFor="acceptance-terms" className="flex min-h-11 cursor-pointer items-start gap-2.5 text-xs text-slate-600 select-none">
+                  <input
+                    id="acceptance-terms"
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    aria-invalid={decisionError === TERMS_ERROR || undefined}
+                    aria-describedby={decisionError === TERMS_ERROR ? "acceptance-terms-error" : undefined}
+                    onChange={(e) => {
+                      setAgreedToTerms(e.target.checked);
+                      if (e.target.checked) setDecisionError(null);
+                    }}
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>
+                    I agree to the terms, scope of work, and deposit schedule stated in this quotation.
+                  </span>
+                </label>
+                {decisionError === TERMS_ERROR && (
+                  <p id="acceptance-terms-error" role="alert" className="mt-2 text-sm font-semibold text-rose-800">
+                    {TERMS_ERROR}
+                  </p>
+                )}
+              </div>
             </div>
 
-            {decisionError && (
+            {decisionError && decisionError !== TERMS_ERROR && (
               <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
                 {decisionError}
               </p>

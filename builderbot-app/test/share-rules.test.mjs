@@ -125,23 +125,29 @@ test("WhatsApp Invoice URL: Encodes wa.me URL correctly", () => {
 });
 
 test("Email Share: Pre-populates mailto link with encoded quote subject and body", () => {
-  const emailUrl = getEmailShareUrl(
-    {
-      quoteId: "BB-1042",
-      token: "q_token_123",
-      clientName: "Sarah Jenkins",
-      quoteTitle: "Bathroom Renovation",
-      companyName: "Premier Trade Services",
-      total: 850,
-      deposit: 170,
-      depositPercent: 20,
-    },
-    "sarah@example.com",
-    "https://builderbot.co.uk"
-  );
+  const quote = {
+    quoteId: "BB-1042",
+    token: "q_token_123",
+    clientName: "Sarah Jenkins",
+    quoteTitle: "Bathroom Renovation",
+    companyName: "Premier Trade Services",
+    total: 850,
+    deposit: 170,
+    depositPercent: 20,
+  };
+  const emailUrl = getEmailShareUrl(quote, "sarah@example.com", "https://builderbot.co.uk");
+  const fields = new URLSearchParams(emailUrl.slice(emailUrl.indexOf("?") + 1));
+  const link = "https://builderbot.co.uk/q/q_token_123";
 
   assert.match(emailUrl, /^mailto:sarah@example\.com\?subject=/);
-  assert.match(emailUrl, /BB-1042/);
+  assert.match(fields.get("subject") || "", /BB-1042/);
+  assert.match(fields.get("subject") || "", new RegExp(link.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(fields.get("body") || "", new RegExp(link.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+  const blank = getEmailShareUrl(quote, "", "https://www.chuffedquotes.co.uk");
+  const blankFields = new URLSearchParams(blank.slice(blank.indexOf("?") + 1));
+  assert.match(blank, /^mailto:\?subject=/);
+  assert.match(blankFields.get("body") || "", /https:\/\/www\.chuffedquotes\.co\.uk\/q\/q_token_123/);
 });
 
 test("WhatsApp Follow-Up Message: Generates warm, non-pushy trade copy", () => {

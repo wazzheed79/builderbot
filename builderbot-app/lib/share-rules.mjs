@@ -102,11 +102,13 @@ export function getWhatsAppInvoiceShareUrl(params) {
  * Generates an Email mailto: link for sending the quotation.
  */
 export function getEmailShareUrl(params, clientEmail, siteOrigin) {
+  const quoteUrl = `${siteOrigin}/q/${params.token || params.quoteId}`;
   const subject = encodeURIComponent(
-    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${displayBusinessName(params.companyName, params.contractorName)})`
+    `Quotation Ref: ${params.quoteId} — ${params.quoteTitle || "Planned Works"} (${displayBusinessName(params.companyName, params.contractorName)}) ${quoteUrl}`
   );
   const body = encodeURIComponent(formatWhatsAppQuoteMessage(params, siteOrigin));
-  return `mailto:${clientEmail}?subject=${subject}&body=${body}`;
+  const to = String(clientEmail || "").trim();
+  return `mailto:${to}?subject=${subject}&body=${body}`;
 }
 
 /**

@@ -16,6 +16,7 @@ import {
   MicOff,
   Calculator,
   Eye,
+  Mail,
   Save,
   MessageCircle,
   Camera,
@@ -65,6 +66,7 @@ import {
   formatWhatsAppQuoteMessage,
   getWhatsAppFollowUpUrl,
   formatWhatsAppFollowUpMessage,
+  getEmailShareUrl,
 } from "@/lib/share";
 import { deleteCloudQuote, getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
@@ -168,6 +170,7 @@ export default function QuotesClient() {
   const [activeToken, setActiveToken] = useState<string | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [shareKind, setShareKind] = useState<"link" | "email" | null>(null);
   const [templateName, setTemplateName] = useState("");
 
   // Client Details
@@ -1004,12 +1007,47 @@ export default function QuotesClient() {
   const openCustomerLink = async () => {
     if (sharing) return;
     setSharing(true);
+    setShareKind("link");
     try {
       const saved = await publishQuote("Sent");
       if (!saved) return;
       window.open(`/q/${saved.token}`, "_blank", "noopener,noreferrer");
     } finally {
       setSharing(false);
+      setShareKind(null);
+    }
+  };
+
+  const sendByEmail = async () => {
+    if (sharing) return;
+    setSharing(true);
+    setShareKind("email");
+    try {
+      const saved = await publishQuote("Sent");
+      if (!saved) return;
+      const siteOrigin = window.location.origin;
+      const params = {
+        quoteId: saved.id,
+        token: saved.token,
+        clientName: saved.clientName || "there",
+        clientPhone: saved.clientPhone,
+        quoteTitle: saved.title,
+        companyName: profile.companyName,
+        contractorName: profile.ownerName,
+        total: saved.total,
+        deposit: saved.deposit,
+        depositPercent: saved.depositPercent,
+      };
+      const mailto = getEmailShareUrl(params, saved.clientEmail || "", siteOrigin);
+      window.location.href = mailto;
+      triggerToast(
+        saved.clientEmail
+          ? "Your email app is opening with this quote."
+          : "Your email app is opening. Add the customer’s email address there."
+      );
+    } finally {
+      setSharing(false);
+      setShareKind(null);
     }
   };
 
@@ -1208,7 +1246,7 @@ export default function QuotesClient() {
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-60"
             >
               <Eye className="w-3.5 h-3.5 text-slate-500" />
-              <span>Customer link ({activeQuoteId})</span>
+              <span>{shareKind === "link" ? "Opening customer link…" : `Customer link (${activeQuoteId})`}</span>
             </button>
           ) : (
             <button
@@ -1778,6 +1816,16 @@ export default function QuotesClient() {
                   <span>Share on WhatsApp</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={sendByEmail}
+                  disabled={sharing}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm font-extrabold text-ink hover:bg-stone-50 disabled:opacity-60"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span>{shareKind === "email" ? "Opening email…" : "Send by email"}</span>
+                </button>
+
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -1786,7 +1834,7 @@ export default function QuotesClient() {
                     className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-60"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>Customer link</span>
+                    <span>{shareKind === "link" ? "Opening customer link…" : "Customer link"}</span>
                   </button>
 
                   <button
