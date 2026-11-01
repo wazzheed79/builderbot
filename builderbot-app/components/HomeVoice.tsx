@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff, Sparkles, ArrowRight } from "lucide-react";
+import SpeechGhostField from "@/components/SpeechGhostField";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
+import { appendSpokenText, applyRecognitionResults } from "@/lib/speech-draft.mjs";
 import { useAuth } from "./AuthProvider";
 
 interface SpeechRecognitionResultItem {
@@ -63,7 +65,9 @@ export default function HomeVoice() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const appliedSpeechRef = useRef("");
   const [notes, setNotes] = useState("");
+  const [interim, setInterim] = useState("");
   const [recording, setRecording] = useState(false);
   const [hint, setHint] = useState("");
   const [selectedDemo, setSelectedDemo] = useState<string | null>(null);
@@ -81,20 +85,29 @@ export default function HomeVoice() {
     recognition.interimResults = true;
     recognition.lang = "en-GB";
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          const text = event.results[i][0].transcript.trim();
-          if (text) {
-            setNotes((prev) => `${prev ? prev + " " : ""}${text}`.slice(0, 2000));
-          }
-        }
+      const results: { isFinal: boolean; transcript: string }[] = [];
+      for (let i = 0; i < event.results.length; i++) {
+        results.push({
+          isFinal: event.results[i].isFinal,
+          transcript: event.results[i][0]?.transcript || "",
+        });
+      }
+      const next = applyRecognitionResults(appliedSpeechRef.current, results);
+      appliedSpeechRef.current = next.appliedFinals;
+      setInterim(next.interim);
+      if (next.delta) {
+        setNotes((prev) => appendSpokenText(prev, next.delta, 2000));
       }
     };
     recognition.onerror = () => {
       setRecording(false);
+      setInterim("");
       setHint("The microphone stopped. You can type the job instead.");
     };
-    recognition.onend = () => setRecording(false);
+    recognition.onend = () => {
+      setRecording(false);
+      setInterim("");
+    };
     recognitionRef.current = recognition;
   }, []);
 
@@ -106,10 +119,13 @@ export default function HomeVoice() {
     if (recording) {
       recognitionRef.current.stop();
       setRecording(false);
+      setInterim("");
       setHint("Stopped. Read the notes, then build the quote.");
       return;
     }
     try {
+      appliedSpeechRef.current = "";
+      setInterim("");
       recognitionRef.current.start();
       setRecording(true);
       setHint("Listening. Talk about the job for about 30 seconds, then tap stop.");
@@ -136,6 +152,7 @@ export default function HomeVoice() {
   const handleSelectDemo = (job: typeof DEMO_JOBS[0]) => {
     setSelectedDemo(job.label);
     setNotes(job.text);
+    setInterim("");
     setHint(`Loaded ${job.trade} example. Tap "Build this quote" below to see it live!`);
   };
 
@@ -192,16 +209,18 @@ export default function HomeVoice() {
         <span>{recording ? "Stop talking" : "Tap and talk from the van"}</span>
       </button>
 
-      <textarea
+      <SpeechGhostField
         id="home-notes"
         value={notes}
-        onChange={(event) => {
-          setNotes(event.target.value.slice(0, 2000));
+        interim={interim}
+        onChange={(value) => {
+          setNotes(value.slice(0, 2000));
           setSelectedDemo(null);
         }}
         rows={4}
+        maxLength={2000}
         placeholder="Or type notes here: e.g. Replace consumer unit, 10 ways with SPD, test and certify, 1 day on site."
-        className="mt-3 w-full min-w-0 rounded-xl border border-stone-300 bg-paper px-3 py-3 text-base text-ink focus:border-clay-600 focus:outline-hidden focus:ring-1 focus:ring-clay-600"
+        className="mt-3 w-full min-w-0 rounded-xl border border-stone-300 bg-paper px-3 py-3 text-base text-ink focus-within:border-clay-600 focus-within:ring-1 focus-within:ring-clay-600"
       />
 
       {hint && (

@@ -16,6 +16,7 @@ import {
   MicOff,
   Calculator,
   Eye,
+  Mail,
   Save,
   MessageCircle,
   Camera,
@@ -41,7 +42,9 @@ import {
 } from "@/lib/storage";
 import { useBusinessProfile, useClientReady, useCustomerList, useInvoiceList, useQuoteList, useSavedQuoteTemplates } from "@/lib/live-store";
 import { canCreateInvoiceFromQuote } from "@/lib/invoice-rules.mjs";
+import SpeechGhostField from "@/components/SpeechGhostField";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
+import { appendSpokenText, applyRecognitionResults } from "@/lib/speech-draft.mjs";
 import {
   builderCanTakeGuestDemo,
   clearGuestDemoQuote,
@@ -63,6 +66,7 @@ import {
   formatWhatsAppQuoteMessage,
   getWhatsAppFollowUpUrl,
   formatWhatsAppFollowUpMessage,
+  getEmailShareUrl,
 } from "@/lib/share";
 import { deleteCloudQuote, getAuthHeaders, syncQuoteToCloud } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
@@ -166,6 +170,7 @@ export default function QuotesClient() {
   const [activeToken, setActiveToken] = useState<string | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [shareKind, setShareKind] = useState<"link" | "email" | null>(null);
   const [templateName, setTemplateName] = useState("");
 
   // Client Details
@@ -183,7 +188,9 @@ export default function QuotesClient() {
 
   // Voice Recording state
   const [isRecording, setIsRecording] = useState(false);
+  const [speechInterim, setSpeechInterim] = useState("");
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const appliedSpeechRef = useRef("");
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
@@ -561,19 +568,29 @@ export default function QuotesClient() {
         recognition.lang = "en-GB";
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
-          // Only append FINAL speech results so text doesn't duplicate
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              const text = event.results[i][0].transcript.trim();
-              if (text) {
-                setNotesInput((prev) => `${prev ? prev + " " : ""}${text}`);
-              }
-            }
+          const results: { isFinal: boolean; transcript: string }[] = [];
+          for (let i = 0; i < event.results.length; i++) {
+            results.push({
+              isFinal: event.results[i].isFinal,
+              transcript: event.results[i][0]?.transcript || "",
+            });
+          }
+          const next = applyRecognitionResults(appliedSpeechRef.current, results);
+          appliedSpeechRef.current = next.appliedFinals;
+          setSpeechInterim(next.interim);
+          if (next.delta) {
+            setNotesInput((prev) => appendSpokenText(prev, next.delta));
           }
         };
 
-        recognition.onerror = () => setIsRecording(false);
-        recognition.onend = () => setIsRecording(false);
+        recognition.onerror = () => {
+          setIsRecording(false);
+          setSpeechInterim("");
+        };
+        recognition.onend = () => {
+          setIsRecording(false);
+          setSpeechInterim("");
+        };
         recognitionRef.current = recognition;
       }
     }
@@ -589,14 +606,18 @@ export default function QuotesClient() {
     if (isRecording) {
       recognitionRef.current.stop();
       setIsRecording(false);
+      setSpeechInterim("");
       triggerToast("Voice recording stopped.");
     } else {
       try {
+        appliedSpeechRef.current = "";
+        setSpeechInterim("");
         recognitionRef.current.start();
         setIsRecording(true);
         triggerToast("Listening... dictate your job notes clearly.");
       } catch {
         setIsRecording(false);
+        setSpeechInterim("");
       }
     }
   };
@@ -986,12 +1007,47 @@ export default function QuotesClient() {
   const openCustomerLink = async () => {
     if (sharing) return;
     setSharing(true);
+    setShareKind("link");
     try {
       const saved = await publishQuote("Sent");
       if (!saved) return;
       window.open(`/q/${saved.token}`, "_blank", "noopener,noreferrer");
     } finally {
       setSharing(false);
+      setShareKind(null);
+    }
+  };
+
+  const sendByEmail = async () => {
+    if (sharing) return;
+    setSharing(true);
+    setShareKind("email");
+    try {
+      const saved = await publishQuote("Sent");
+      if (!saved) return;
+      const siteOrigin = window.location.origin;
+      const params = {
+        quoteId: saved.id,
+        token: saved.token,
+        clientName: saved.clientName || "there",
+        clientPhone: saved.clientPhone,
+        quoteTitle: saved.title,
+        companyName: profile.companyName,
+        contractorName: profile.ownerName,
+        total: saved.total,
+        deposit: saved.deposit,
+        depositPercent: saved.depositPercent,
+      };
+      const mailto = getEmailShareUrl(params, saved.clientEmail || "", siteOrigin);
+      window.location.href = mailto;
+      triggerToast(
+        saved.clientEmail
+          ? "Your email app is opening with this quote."
+          : "Your email app is opening. Add the customer’s email address there."
+      );
+    } finally {
+      setSharing(false);
+      setShareKind(null);
     }
   };
 
@@ -1190,7 +1246,7 @@ export default function QuotesClient() {
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-60"
             >
               <Eye className="w-3.5 h-3.5 text-slate-500" />
-              <span>Customer link ({activeQuoteId})</span>
+              <span>{shareKind === "link" ? "Opening customer link…" : `Customer link (${activeQuoteId})`}</span>
             </button>
           ) : (
             <button
@@ -1288,13 +1344,15 @@ export default function QuotesClient() {
             Your notes are in the box. Tap Build the quote.
           </p>
         )}
-        <textarea
+        <SpeechGhostField
           id="job-notes"
           rows={4}
           value={notesInput}
-          onChange={(e) => setNotesInput(e.target.value)}
+          interim={speechInterim}
+          onChange={setNotesInput}
           placeholder="New boiler fit"
-          className="w-full min-w-0 min-h-28 p-3.5 text-base font-medium rounded-xl border-2 border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-clay-600 focus:border-transparent shadow-2xs text-slate-900"
+          className="w-full min-w-0 min-h-28 rounded-xl border-2 border-slate-300 bg-white p-3.5 text-base font-medium text-slate-900 shadow-2xs focus-within:border-transparent focus-within:ring-2 focus-within:ring-clay-600"
+          textareaClassName="min-h-24"
         />
         {isRecording && (
           <div className="mt-2.5 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-xs text-red-900 flex items-center justify-between gap-2">
@@ -1306,6 +1364,7 @@ export default function QuotesClient() {
               type="button"
               onClick={() => {
                 setNotesInput("");
+                setSpeechInterim("");
                 triggerToast("Dictation cleared.");
               }}
               className="text-[11px] font-bold text-red-700 underline hover:text-red-900 shrink-0"
@@ -1757,6 +1816,16 @@ export default function QuotesClient() {
                   <span>Share on WhatsApp</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={sendByEmail}
+                  disabled={sharing}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm font-extrabold text-ink hover:bg-stone-50 disabled:opacity-60"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span>{shareKind === "email" ? "Opening email…" : "Send by email"}</span>
+                </button>
+
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -1765,7 +1834,7 @@ export default function QuotesClient() {
                     className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-200 disabled:opacity-60"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>Customer link</span>
+                    <span>{shareKind === "link" ? "Opening customer link…" : "Customer link"}</span>
                   </button>
 
                   <button

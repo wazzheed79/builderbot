@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { brand } from "@/lib/brand.mjs";
+import { absoluteCanonicalUrl } from "@/lib/site-urls.mjs";
 import FoundingOffer from "@/components/FoundingOffer";
+
+const pricingUrl = absoluteCanonicalUrl("/pricing");
+const pricingDescription = `${brand.name} is free during the beta. Build professional quotes in under 2 minutes, with no card and no paid plans.`;
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: `${brand.name} is free while it is in testing. No card needed.`,
+  description: pricingDescription,
+  alternates: { canonical: pricingUrl },
+  openGraph: {
+    title: `Pricing · ${brand.name}`,
+    description: pricingDescription,
+    url: pricingUrl,
+  },
 };
 
 export default function PricingPage() {
@@ -13,11 +23,11 @@ export default function PricingPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
       <FoundingOffer />
       <h1 className="mt-4 text-3xl sm:text-4xl font-black tracking-tight text-ink">
-        {brand.name} is free during the beta
+        {brand.name} is free during the beta.
       </h1>
       <p className="mt-3 text-base text-stone-600 leading-relaxed">
-        {brand.tagline}. There is no card payment and no paid plan to buy yet. You will not be
-        charged for using this test version.
+        Build professional quotes in under 2 minutes, with no card and no paid plans. You will
+        not be charged for using this test version.
       </p>
 
       <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">

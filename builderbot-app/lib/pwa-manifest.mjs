@@ -16,6 +16,18 @@ const icons = [
 ];
 
 /**
+ * Both addresses serve the home-screen manifest. /site.webmanifest is the
+ * name some browsers request. The email sign-in pages do not use either
+ * address: they keep the browser manifest from /api/auth-manifest.
+ */
+export function manifestRewrites() {
+  return [
+    { source: "/manifest.json", destination: "/api/pwa-manifest" },
+    { source: "/site.webmanifest", destination: "/api/pwa-manifest" },
+  ];
+}
+
+/**
  * Home-screen app. `handle_links` is `not-preferred` so an https link,
  * including the sign-in email, stays in the browser tab. Edge on Android
  * otherwise offers to open that link in the Edge app. The home-screen icon
