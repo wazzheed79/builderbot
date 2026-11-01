@@ -162,6 +162,12 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
 
+### 1 November 2026
+
+- If the AI quote is unavailable, the rough estimate follows the trade you selected and words such as replace, unblock, repair, or fix. A roofer replacing a few tiles gets a roof repair. A plumber unblocking a kitchen sink gets a small plumbing repair, not a full kitchen fit. A short repair that matches nothing else is a small call-out. The try-it page uses the same fallback.
+- The sitemap uses `https://www.chuffedquotes.co.uk` on every address. The pricing page says the beta is free, then that a quote takes under 2 minutes, with no card and no paid plans. Pricing, try-it, and the van demo name that www address for search and link previews. `/site.webmanifest` works, and the email sign-in pages stay ordinary browser pages.
+- Words you are still saying show in grey in the notes box, then join the notes when the phrase is finished.
+
 ### 30 October 2026
 
 - If the database rate-limit check fails, AI quoting uses this server’s own memory for the same limit (15 a minute per network address, 5 guest builds a day, and 30 an hour per account). It does not allow unlimited calls, and a database fault does not refuse every quote.

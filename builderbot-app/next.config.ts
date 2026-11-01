@@ -1,13 +1,14 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 import { legacyRedirects } from "./lib/domain-redirect.mjs";
+import { manifestRewrites } from "./lib/pwa-manifest.mjs";
 
 const nextConfig: NextConfig = {
   async redirects() {
     return legacyRedirects();
   },
   async rewrites() {
-    return [{ source: "/manifest.json", destination: "/api/pwa-manifest" }];
+    return manifestRewrites();
   },
   async headers() {
     return [

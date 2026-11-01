@@ -1,13 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import VanWalkthrough from "@/components/VanWalkthrough";
+import { absoluteCanonicalUrl } from "@/lib/site-urls.mjs";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+
+const walkthroughUrl = absoluteCanonicalUrl("/walkthrough");
+const walkthroughDescription =
+  "A short demo of the five steps: speak or type the job, check the prices, send a WhatsApp link, the customer types their name, then make an invoice.";
 
 export const metadata: Metadata = {
   title: "Quick van demo — Chuffed Quotes",
-  description:
-    "A short demo of the five steps: speak or type the job, check the prices, send a WhatsApp link, the customer types their name, then make an invoice.",
-  alternates: { canonical: "/walkthrough" },
+  description: walkthroughDescription,
+  alternates: { canonical: walkthroughUrl },
+  openGraph: {
+    title: "Quick van demo — Chuffed Quotes",
+    description: walkthroughDescription,
+    url: walkthroughUrl,
+  },
 };
 
 export default function WalkthroughPage() {

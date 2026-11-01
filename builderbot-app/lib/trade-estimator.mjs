@@ -18,6 +18,266 @@ export function statedLabourHours(notes = "") {
 }
 
 /**
+ * The Settings trade, or a short name such as "Roofing" / "Plumbing".
+ * @param {string} [trade]
+ */
+function tradeFamily(trade = "") {
+  const text = String(trade || "").toLowerCase();
+  if (text.includes("roof")) return "roofing";
+  if (text.includes("plumb") || text.includes("heat") || text.includes("gas") || text.includes("hvac")) {
+    return "plumbing";
+  }
+  if (text.includes("electri")) return "electrical";
+  if (text.includes("paint") || text.includes("decor")) return "decorating";
+  if (text.includes("plaster") || text.includes("render")) return "plastering";
+  if (text.includes("joiner") || text.includes("carpent")) return "carpentry";
+  if (text.includes("brick") || text.includes("mason")) return "brickwork";
+  if (text.includes("landscap") || text.includes("ground") || text.includes("fenc")) return "landscaping";
+  if (text.includes("floor")) return "flooring";
+  if (text.includes("kitchen")) return "kitchen";
+  if (text.includes("bath") || text.includes("til")) return "bathroom";
+  if (text.includes("general") || text.includes("build")) return "general";
+  return "";
+}
+
+/**
+ * A small repair or replacement, not a whole new installation.
+ * @param {string} lower
+ */
+function isRepairJob(lower) {
+  return /\b(?:replace[ds]?|replacing|unblock(?:ing|ed)?|repairs?|repairing|fix(?:ing|ed)?|mend(?:ing|ed)?|reseal(?:ing|ed)?)\b/.test(
+    lower
+  );
+}
+
+/**
+ * @param {string} lower
+ */
+function mentionsRoof(lower) {
+  return /\b(?:roofs?|slates?|ridges?|gutters?|guttering|leadwork|flashings?|fascias?|soffits?)\b/.test(lower);
+}
+
+/**
+ * @param {string} lower
+ */
+function mentionsBoiler(lower) {
+  return /\b(?:boilers?|combis?)\b/.test(lower);
+}
+
+/**
+ * @param {string} lower
+ * @returns {number | null}
+ */
+function countedTiles(lower) {
+  const match = lower.match(/\b(\d+)\s*(?:x\s*)?(?:roof(?:ing)?\s+)?tiles?\b/);
+  if (!match) return null;
+  const count = Number(match[1]);
+  if (!Number.isFinite(count)) return null;
+  return Math.max(1, Math.min(80, Math.round(count)));
+}
+
+/**
+ * @param {string} lower
+ */
+function mentionsFullReroof(lower) {
+  return /\b(?:re-?roof|strip(?:ping)? the roof|full roof|new roof|scaffold)\b/.test(lower);
+}
+
+/**
+ * Cabinets, worktops, or a sink unit. A sink in the kitchen is not enough.
+ * @param {string} lower
+ */
+function isFullKitchenFit(lower) {
+  return (
+    /\b(?:worktops?|cabinets?|cupboards?|plinths?|kitchen\s+units?)\b/.test(lower) ||
+    /\bsink\s+units?\b/.test(lower) ||
+    (/\b(?:cookers?|hobs?|ovens?)\b/.test(lower) && /\bkitchen\b/.test(lower))
+  );
+}
+
+/**
+ * @param {string} lower
+ */
+function isPlumbingRepairJob(lower) {
+  if (isFullKitchenFit(lower) && !/\b(?:unblock|blocked|blockage|leaking|leak)\b/.test(lower)) return false;
+  if (mentionsBoiler(lower) && !/\b(?:unblock|trap|sink)\b/.test(lower)) return false;
+  return (
+    /\b(?:unblocks?|unblocking|unblocked|blockages?|blocked|traps?|leaks?|leaking|drips?|dripping|taps?|valves?|washers?|radiators?|cisterns?|toilets?|basins?|u-?bends?)\b/.test(
+      lower
+    ) ||
+    (/\bsinks?\b/.test(lower) && /\b(?:unblock|blocked|slow|replace|trap|leak|waste)\b/.test(lower)) ||
+    /\bplumb/.test(lower)
+  );
+}
+
+/**
+ * "Kitchen" here is the room. The job is a sink, trap, or blockage.
+ * @param {string} lower
+ */
+function isKitchenSinkRepair(lower) {
+  if (!/\bkitchen\b/.test(lower) || isFullKitchenFit(lower)) return false;
+  return isPlumbingRepairJob(lower) || (isRepairJob(lower) && /\b(?:sinks?|traps?|wastes?|taps?|pipes?)\b/.test(lower));
+}
+
+/**
+ * "Replace 5 tiles" names a material, not a bathroom.
+ * @param {string} lower
+ */
+function isAmbiguousTileRepair(lower) {
+  if (!/\btiles?\b/.test(lower) && !/\btiling\b/.test(lower)) return false;
+  if (/\b(?:bathrooms?|showers?|grout|porcelain|tanking|adhesive|wet\s*rooms?)\b/.test(lower)) return false;
+  if (mentionsRoof(lower)) return false;
+  return isRepairJob(lower);
+}
+
+/**
+ * Trade and repair words win over a room or a material that also fits a bigger template.
+ * @param {string} lower
+ * @param {string} [trade]
+ * @returns {"roof-tiles" | "roofing" | "plumbing-repair" | "small-repair" | null}
+ */
+function chooseFallbackKind(lower, trade = "") {
+  const family = tradeFamily(trade);
+  const bathroomTiling = /\b(?:bathrooms?|showers?|grout|porcelain|tanking|wet\s*rooms?)\b/.test(lower);
+  if (
+    family === "roofing" &&
+    (mentionsRoof(lower) || /\btiles?\b/.test(lower) || /\btiling\b/.test(lower)) &&
+    !(bathroomTiling && !mentionsRoof(lower))
+  ) {
+    const count = countedTiles(lower);
+    if (count != null && count <= 30 && !mentionsFullReroof(lower)) return "roof-tiles";
+    return "roofing";
+  }
+  if (isAmbiguousTileRepair(lower) && family !== "bathroom") return "small-repair";
+  if (
+    isKitchenSinkRepair(lower) ||
+    (family === "plumbing" && isPlumbingRepairJob(lower) && !isFullKitchenFit(lower) && !mentionsBoiler(lower))
+  ) {
+    return "plumbing-repair";
+  }
+  return null;
+}
+
+function plumbingRepairItems() {
+  return [
+    {
+      type: "labor",
+      description: "Plumber call-out and repair time",
+      quantity: 2,
+      unit: "hrs",
+      rate: 55.0,
+    },
+    {
+      type: "material",
+      description: "Small materials allowance (washers, olives, valves) — check on site",
+      quantity: 1,
+      unit: "allowance",
+      rate: 25.0,
+    },
+    {
+      type: "service",
+      description: "Local waste and consumables",
+      quantity: 1,
+      unit: "service",
+      rate: 15.0,
+    },
+  ];
+}
+
+/**
+ * @param {number} count
+ */
+function roofTileRepairItems(count) {
+  const hours = Math.max(1, Math.round(count * 0.4 * 2) / 2);
+  return [
+    {
+      type: "material",
+      description: "Replacement roof tiles to match the existing covering",
+      quantity: count,
+      unit: "tiles",
+      rate: 4.5,
+    },
+    {
+      type: "labor",
+      description: "Access, remove the damaged tiles, and fix the replacements",
+      quantity: hours,
+      unit: "hrs",
+      rate: 52.0,
+    },
+    {
+      type: "service",
+      description: "Small waste and consumables",
+      quantity: 1,
+      unit: "service",
+      rate: 25.0,
+    },
+  ];
+}
+
+function fullRoofingItems() {
+  return [
+    {
+      type: "material",
+      description: "Replacement Roof Slates / Interlocking Tiles & Copper Nails",
+      quantity: 1,
+      unit: "lot",
+      rate: 280.0,
+    },
+    {
+      type: "material",
+      description: "Breathable Membrane Underlay & Code 4 Milled Lead Flashing",
+      quantity: 1,
+      unit: "roll/lot",
+      rate: 165.0,
+    },
+    {
+      type: "labor",
+      description: "Roof stripping, battens inspection, replacement slate fixing, and mortar pointing",
+      quantity: 10,
+      unit: "hrs",
+      rate: 52.0,
+    },
+    {
+      type: "service",
+      description: "Safe scaffold/tower access and damaged roof waste disposal",
+      quantity: 1,
+      unit: "service",
+      rate: 150.0,
+    },
+  ];
+}
+
+/**
+ * @param {string} notes
+ */
+function smallRepairItems(notes) {
+  const promptSnippet = notes.trim().slice(0, 48);
+  return [
+    {
+      type: "labor",
+      description: "Call-out and repair time for the job described",
+      quantity: 2,
+      unit: "hrs",
+      rate: 45.0,
+    },
+    {
+      type: "material",
+      description: `Small materials allowance for: ${promptSnippet}${notes.trim().length > 48 ? "..." : ""} — check on site`,
+      quantity: 1,
+      unit: "allowance",
+      rate: 25.0,
+    },
+    {
+      type: "service",
+      description: "Consumables and local waste",
+      quantity: 1,
+      unit: "service",
+      rate: 15.0,
+    },
+  ];
+}
+
+/**
  * @param {string} [notes]
  * @param {string} [trade]
  * @param {any} [pricingMemory]
@@ -28,8 +288,30 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   const items = [];
   let title = "Trade Works Specification";
   let suggestedDepositPercent = 20;
+  let markRough = false;
+  const kind = chooseFallbackKind(lower, trade);
 
-  if (lower.includes("fence") || lower.includes("panel") || lower.includes("post") || lower.includes("gravel board")) {
+  if (kind === "roof-tiles" || kind === "roofing") {
+    title = "Roofing Repair & Weatherproofing";
+    if (kind === "roof-tiles") {
+      suggestedDepositPercent = 0;
+      markRough = true;
+      items.push(...roofTileRepairItems(countedTiles(lower) || 1));
+    } else {
+      suggestedDepositPercent = 25;
+      items.push(...fullRoofingItems());
+    }
+  } else if (kind === "plumbing-repair") {
+    title = "Plumbing Call-Out & Repair";
+    suggestedDepositPercent = 0;
+    markRough = true;
+    items.push(...plumbingRepairItems());
+  } else if (kind === "small-repair") {
+    title = "Small Repair";
+    suggestedDepositPercent = 0;
+    markRough = true;
+    items.push(...smallRepairItems(notes));
+  } else if (lower.includes("fence") || lower.includes("panel") || lower.includes("post") || lower.includes("gravel board")) {
     title = "Timber Fencing & Post Installation";
     suggestedDepositPercent = 20;
     items.push(
@@ -190,36 +472,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   ) {
     title = "Roofing Repair & Weatherproofing";
     suggestedDepositPercent = 25;
-    items.push(
-      {
-        type: "material",
-        description: "Replacement Roof Slates / Interlocking Tiles & Copper Nails",
-        quantity: 1,
-        unit: "lot",
-        rate: 280.0,
-      },
-      {
-        type: "material",
-        description: "Breathable Membrane Underlay & Code 4 Milled Lead Flashing",
-        quantity: 1,
-        unit: "roll/lot",
-        rate: 165.0,
-      },
-      {
-        type: "labor",
-        description: "Roof stripping, battens inspection, replacement slate fixing, and mortar pointing",
-        quantity: 10,
-        unit: "hrs",
-        rate: 52.0,
-      },
-      {
-        type: "service",
-        description: "Safe scaffold/tower access and damaged roof waste disposal",
-        quantity: 1,
-        unit: "service",
-        rate: 150.0,
-      }
-    );
+    items.push(...fullRoofingItems());
   } else if (
     lower.includes("plaster") ||
     lower.includes("skim") ||
@@ -337,8 +590,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   } else if (
     lower.includes("bathroom") ||
     lower.includes("shower") ||
-    lower.includes("tile") ||
-    lower.includes("tiling")
+    ((lower.includes("tile") || lower.includes("tiling")) && !isAmbiguousTileRepair(lower))
   ) {
     title = "Bathroom Fitting & Wall Tiling";
     suggestedDepositPercent = 25;
@@ -373,6 +625,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
       }
     );
   } else if (
+    isKitchenSinkRepair(lower) ||
     lower.includes("tap") ||
     lower.includes("leak") ||
     lower.includes("radiator") ||
@@ -382,29 +635,7 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
   ) {
     title = "Plumbing Call-Out & Repair";
     suggestedDepositPercent = 0;
-    items.push(
-      {
-        type: "labor",
-        description: "Plumber call-out and repair time",
-        quantity: 2,
-        unit: "hrs",
-        rate: 55.0,
-      },
-      {
-        type: "material",
-        description: "Small materials allowance (washers, olives, valves) — check on site",
-        quantity: 1,
-        unit: "allowance",
-        rate: 25.0,
-      },
-      {
-        type: "service",
-        description: "Local waste and consumables",
-        quantity: 1,
-        unit: "service",
-        rate: 15.0,
-      }
-    );
+    items.push(...plumbingRepairItems());
   } else if (
     lower.includes("brick") ||
     lower.includes("blockwork") ||
@@ -447,12 +678,13 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
       }
     );
   } else if (
-    lower.includes("kitchen") ||
-    lower.includes("worktop") ||
-    lower.includes("cabinet") ||
-    lower.includes("cupboard") ||
-    lower.includes("sink unit") ||
-    lower.includes("cooker")
+    !isKitchenSinkRepair(lower) &&
+    (lower.includes("kitchen") ||
+      lower.includes("worktop") ||
+      lower.includes("cabinet") ||
+      lower.includes("cupboard") ||
+      lower.includes("sink unit") ||
+      lower.includes("cooker"))
   ) {
     title = "Kitchen Fitting & Worktop Installation";
     suggestedDepositPercent = 25;
@@ -749,6 +981,11 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
         rate: 50.0,
       }
     );
+  } else if (isRepairJob(lower)) {
+    title = "Small Repair";
+    suggestedDepositPercent = 0;
+    markRough = true;
+    items.push(...smallRepairItems(notes));
   } else {
     title = "Specified Trade Works & Labour";
     suggestedDepositPercent = 20;
@@ -806,7 +1043,10 @@ export function estimateTradeJob(notes = "", trade = "", pricingMemory = null, p
     : "";
   const tradeNote = String(trade || "").trim() ? ` Trade: ${String(trade).trim()}.` : "";
   const roughPrefix =
-    title === "Specified Trade Works & Labour" || title === "Plumbing Call-Out & Repair"
+    markRough ||
+    title === "Specified Trade Works & Labour" ||
+    title === "Plumbing Call-Out & Repair" ||
+    title === "Small Repair"
       ? "ROUGH ESTIMATE — edit every price before sending. "
       : "";
 

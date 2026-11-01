@@ -1,9 +1,5 @@
 import type { MetadataRoute } from "next";
-import { configuredSiteUrl } from "@/lib/brand.mjs";
-
-function siteUrl() {
-  return configuredSiteUrl() || "https://www.chuffedquotes.co.uk";
-}
+import { absoluteCanonicalUrl } from "@/lib/site-urls.mjs";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -12,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/", "/q/", "/i/"],
     },
-    sitemap: `${siteUrl()}/sitemap.xml`,
+    sitemap: absoluteCanonicalUrl("/sitemap.xml"),
   };
 }

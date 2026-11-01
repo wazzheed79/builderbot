@@ -1,15 +1,9 @@
 import type { MetadataRoute } from "next";
-import { configuredSiteUrl } from "@/lib/brand.mjs";
-
-function siteUrl() {
-  return configuredSiteUrl() || "https://www.chuffedquotes.co.uk";
-}
+import { PUBLIC_SITEMAP_PATHS, absoluteCanonicalUrl } from "@/lib/site-urls.mjs";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const site = siteUrl();
-  const paths = ["/", "/try", "/walkthrough", "/pricing", "/login", "/feedback", "/privacy", "/terms"];
-  return paths.map((path) => ({
-    url: `${site}${path === "/" ? "" : path}`,
+  return PUBLIC_SITEMAP_PATHS.map((path) => ({
+    url: absoluteCanonicalUrl(path),
     changeFrequency: path === "/" ? "weekly" : "monthly",
     priority: path === "/" ? 1 : 0.6,
   }));

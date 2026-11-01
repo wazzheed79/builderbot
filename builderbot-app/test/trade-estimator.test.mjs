@@ -116,6 +116,86 @@ test("estimateTradeJob: calibrates labor rates using contractor pricingMemory DN
   assert.equal(laborItem.rate, 62.5);
 });
 
+test("estimateTradeJob: a roofer replacing tiles gets a roof repair, not a bathroom", () => {
+  const quote = estimateTradeJob("Replace 5 tiles", "Roofing");
+  assert.equal(quote.title, "Roofing Repair & Weatherproofing");
+  assert.equal(
+    quote.items.some((item) => /bathroom|porcelain|tanking|grout/i.test(item.description)),
+    false
+  );
+  const tiles = quote.items.find((item) => /roof tiles/i.test(item.description));
+  assert.ok(tiles);
+  assert.equal(tiles.quantity, 5);
+  assert.equal(tiles.unit, "tiles");
+
+  const cladding = estimateTradeJob("Replace 5 tiles", "Roofing & Cladding");
+  assert.equal(cladding.title, "Roofing Repair & Weatherproofing");
+  assert.equal(
+    cladding.items.some((item) => /bathroom|porcelain|tanking/i.test(item.description)),
+    false
+  );
+});
+
+test("estimateTradeJob: a plumber unblocking a kitchen sink gets a small repair, not a kitchen fit", () => {
+  const quote = estimateTradeJob("Unblock kitchen sink and replace trap", "Plumbing");
+  assert.equal(quote.title, "Plumbing Call-Out & Repair");
+  assert.equal(
+    quote.items.some((item) => /worktop|cabinet|cupboard/i.test(item.description)),
+    false
+  );
+  assert.ok(quote.items.some((item) => /call-out and repair/i.test(item.description)));
+
+  const heating = estimateTradeJob("Unblock kitchen sink and replace trap", "Plumbing & Heating");
+  assert.equal(heating.title, "Plumbing Call-Out & Repair");
+});
+
+test("estimateTradeJob: repair words do not turn a real kitchen, boiler, or bathroom into a call-out", () => {
+  const kitchen = estimateTradeJob(
+    "Fit 8 kitchen base and wall cabinets and laminate worktops",
+    "Plumbing & Heating"
+  );
+  assert.equal(kitchen.title, "Kitchen Fitting & Worktop Installation");
+
+  const boiler = estimateTradeJob(
+    "Install new combi boiler and powerflush heating system",
+    "Plumbing"
+  );
+  assert.equal(boiler.title, "Heating & Plumbing Installation");
+
+  const bath = estimateTradeJob("Tile bathroom shower area with porcelain tiles", "General Building");
+  assert.equal(bath.title, "Bathroom Fitting & Wall Tiling");
+
+  const rooferBathroom = estimateTradeJob(
+    "Tile bathroom shower area with porcelain tiles",
+    "Roofing"
+  );
+  assert.equal(rooferBathroom.title, "Bathroom Fitting & Wall Tiling");
+
+  const guestSink = estimateTradeJob(
+    "Kitchen mixer tap is leaking and the sink waste is slow. Replace the tap, renew the trap, and check the isolation valves. About half a day."
+  );
+  assert.equal(guestSink.title, "Plumbing Call-Out & Repair");
+  assert.equal(guestSink.items.find((item) => item.type === "labor").quantity, 4);
+});
+
+test("estimateTradeJob: a short repair that matches no trade template is a small call-out", () => {
+  const tiles = estimateTradeJob("Replace 5 tiles");
+  assert.equal(tiles.title, "Small Repair");
+  assert.equal(
+    tiles.items.some((item) => /bathroom|porcelain|kitchen fitting|worktop/i.test(item.description)),
+    false
+  );
+
+  const latch = estimateTradeJob("Fix the loose gate latch", "General Building & Renovation");
+  assert.equal(latch.title, "Small Repair");
+  assert.equal(latch.suggestedDepositPercent, 0);
+  assert.match(latch.scopeOfWork, /ROUGH ESTIMATE/);
+
+  const roof = estimateTradeJob("Replace broken roof slates and repair guttering", "Roofing");
+  assert.equal(roof.title, "Roofing Repair & Weatherproofing");
+  assert.ok(roof.items.some((item) => item.description.includes("Slates")));
+});
+
 test("estimateTradeJob: cross-references site inspection photos in scope of work", () => {
   const withPhotos = estimateTradeJob(
     "Replace damaged garden fence",

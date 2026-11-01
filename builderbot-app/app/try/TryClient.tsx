@@ -13,8 +13,10 @@ import {
   readGuestDemoQuote,
   writeGuestDemoQuote,
 } from "@/lib/guest-demo.mjs";
+import SpeechGhostField from "@/components/SpeechGhostField";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
 import { OWN_PRICES_LINE, TRY_PRICES_NOTE } from "@/lib/price-memory.mjs";
+import { appendSpokenText, applyRecognitionResults } from "@/lib/speech-draft.mjs";
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -52,9 +54,11 @@ export default function TryClient() {
   const { user, loading } = useAuth();
   const signedIn = !loading && Boolean(user);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const appliedSpeechRef = useRef("");
   const started = useRef(false);
   const resultRef = useRef<HTMLDivElement | null>(null);
   const [notes, setNotes] = useState("");
+  const [interim, setInterim] = useState("");
   const [recording, setRecording] = useState(false);
   const [hint, setHint] = useState("");
   const [busy, setBusy] = useState(false);
@@ -104,20 +108,29 @@ export default function TryClient() {
     recognition.interimResults = true;
     recognition.lang = "en-GB";
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          const text = event.results[i][0].transcript.trim();
-          if (text) {
-            setNotes((prev) => `${prev ? `${prev} ` : ""}${text}`.slice(0, GUEST_NOTES_MAX));
-          }
-        }
+      const results: { isFinal: boolean; transcript: string }[] = [];
+      for (let i = 0; i < event.results.length; i++) {
+        results.push({
+          isFinal: event.results[i].isFinal,
+          transcript: event.results[i][0]?.transcript || "",
+        });
+      }
+      const next = applyRecognitionResults(appliedSpeechRef.current, results);
+      appliedSpeechRef.current = next.appliedFinals;
+      setInterim(next.interim);
+      if (next.delta) {
+        setNotes((prev) => appendSpokenText(prev, next.delta, GUEST_NOTES_MAX));
       }
     };
     recognition.onerror = () => {
       setRecording(false);
+      setInterim("");
       setHint("The microphone stopped. You can type the job instead.");
     };
-    recognition.onend = () => setRecording(false);
+    recognition.onend = () => {
+      setRecording(false);
+      setInterim("");
+    };
     recognitionRef.current = recognition;
   }, []);
 
@@ -129,9 +142,12 @@ export default function TryClient() {
     if (recording) {
       recognitionRef.current.stop();
       setRecording(false);
+      setInterim("");
       return;
     }
     try {
+      appliedSpeechRef.current = "";
+      setInterim("");
       recognitionRef.current.start();
       setRecording(true);
       setHint("Listening. Talk about the job, then tap stop.");
@@ -144,6 +160,7 @@ export default function TryClient() {
   const buildQuote = async (text: string, usedExample: boolean) => {
     const notesText = text.trim().slice(0, GUEST_NOTES_MAX);
     setNotes(notesText);
+    setInterim("");
     setError("");
     captureEvent("demo_build_clicked", { used_example: usedExample });
     if (notesText.length < 3) {
@@ -213,14 +230,15 @@ export default function TryClient() {
       <label htmlFor="try-notes" className="mt-3 block text-sm font-black text-ink">
         Job notes
       </label>
-      <textarea
+      <SpeechGhostField
         id="try-notes"
         value={notes}
-        onChange={(event) => setNotes(event.target.value.slice(0, GUEST_NOTES_MAX))}
+        interim={interim}
+        onChange={(value) => setNotes(value.slice(0, GUEST_NOTES_MAX))}
         rows={4}
         maxLength={GUEST_NOTES_MAX}
         placeholder="Kitchen tap is leaking. Replace the tap and check the pipe. About an hour on site."
-        className="mt-1 w-full min-w-0 rounded-xl border border-stone-300 bg-white px-3 py-3 text-base text-ink"
+        className="mt-1 w-full min-w-0 rounded-xl border border-stone-300 bg-white px-3 py-3 text-base text-ink focus-within:border-clay-600 focus-within:ring-1 focus-within:ring-clay-600"
       />
       <p className="mt-1 text-xs text-stone-500">{notes.length}/{GUEST_NOTES_MAX}</p>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr]">
