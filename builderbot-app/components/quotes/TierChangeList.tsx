@@ -12,7 +12,7 @@ export default function TierChangeList({
   label: string;
   changes?: unknown;
 }) {
-  const lines = visibleTierChanges({ changes });
+  const lines = visibleTierChanges({ label, changes });
   if (lines.length === 0) return null;
   return (
     <span className="mt-2 block border-t border-stone-200 pt-2">

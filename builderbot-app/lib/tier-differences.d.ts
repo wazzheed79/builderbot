@@ -19,7 +19,12 @@ export type TierChangeSet = {
 
 export function sanitizeTierChanges(raw: unknown): TierChangeSet | null;
 
-export function visibleTierChanges(option: { changes?: unknown } | null | undefined): string[];
+/** A Better or Premium point that describes the basic job, not a difference. */
+export function ordinaryChangePoint(text: string): boolean;
+
+export function visibleTierChanges(
+  option: { label?: string; changes?: unknown } | null | undefined
+): string[];
 
 export function tierChangeHeading(label: string): string;
 

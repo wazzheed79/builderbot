@@ -12,6 +12,9 @@ export const TIER_CHANGES_PROMPT =
   "A decorating Better bullet can be 'Trade emulsion swapped for a durable washable paint'. " +
   "If the notes say the customer is supplying the paint, do not swap the paint. Say the extra preparation instead, for example 'Nail holes and small cracks filled and sanded first'. " +
   "Do not use a vague line on its own, such as 'upgraded materials' or 'a neater finish'. " +
+  "Better and Premium must list only real differences from the tier below. " +
+  "Do not repeat Standard's work there. Do not put dust sheets, masking, a clean-up, or anything described as standard or included as standard on Better or Premium. Those belong on Standard, when they are part of the job. " +
+  "Every Better and Premium bullet must name a real upgrade: a different material, extra preparation, an extra coat, a finer finish, or an extra item. " +
   "Do not put prices, percentages, or pound amounts in the bullets. " +
   "Do not claim Gas Safe, NICEIC, or any other registration unless the notes say so.";
 
@@ -29,12 +32,13 @@ export const tierChangesSchema = {
       type: "array",
       items: { type: "string" },
       description:
-        "Three or four short bullets naming the materials, prep, coats, finish, or extra items that change compared with Standard.",
+        "Three or four short bullets naming only what changes from Standard: a different material, extra preparation, an extra coat, a finer finish, or an extra item. Do not include dust sheets, masking, a clean-up, or anything that is standard or included as standard.",
     },
     premium: {
       type: "array",
       items: { type: "string" },
-      description: "Three or four short bullets naming what changes compared with Better.",
+      description:
+        "Three or four short bullets naming only what changes from Better. Do not repeat Standard or Better, and do not include dust sheets, masking, a clean-up, or anything that is standard or included as standard.",
     },
   },
   required: ["standard", "better", "premium"],
@@ -181,7 +185,7 @@ const PACKS = {
       "Posts set in concrete",
     ],
     better: [
-      "Closeboard panels instead of standard featheredge",
+      "Closeboard panels instead of ordinary featheredge",
       "A taller gravel board so the timber sits off the soil",
       "Post caps so water does not sit on the posts",
       "The tops of the panels lined up",
@@ -257,7 +261,7 @@ const PACKS = {
       "Packaging taken away",
     ],
     better: [
-      "Rectified porcelain instead of standard ceramic",
+      "Rectified porcelain instead of basic ceramic",
       "Epoxy grout in the shower, which resists mould",
       "Tanking across the shower walls, not only the tray",
       "A metal trim on the outside corners",
@@ -314,7 +318,7 @@ const PACKS = {
       "Spoil taken away",
     ],
     better: [
-      "Porcelain slabs instead of standard sandstone",
+      "Porcelain slabs instead of ordinary sandstone",
       "A full mortar bed, not dots of mortar",
       "A membrane under the sub-base",
       "Joints filled with a two-part resin",
@@ -465,7 +469,7 @@ const PACKS = {
       "A clean-up when we finish",
     ],
     better: [
-      "A tougher fixing or a harder finish than the standard pack",
+      "A tougher fixing or a harder finish than the basic pack",
       "Gaps filled or sealed, not left open",
       "Trims or beads where the work meets an edge",
       "The area hoovered or raked, not only swept",
@@ -485,6 +489,23 @@ const VAGUE_LINE =
 const ACCREDITATION = /\b(?:gas safe|niceic|napit)\b/i;
 const MIN_BULLET = 12;
 const MAX_BULLET = 140;
+// Ordinary site protection. It can sit on Standard. It is not a change.
+const ORDINARY_WORK = /\b(?:dust sheets?|masking|clean-?up|clean up)\b|\bincluded as standard\b|\bas standard\b/i;
+const UPGRADE_AWAY_FROM_BASIC = /\b(?:instead of|rather than|swapped for|than the standard|not the standard)\b/i;
+
+/**
+ * A Better or Premium point that describes the basic job, not a difference.
+ * "Standard dust sheets and masking included" is ordinary. "Closeboard panels
+ * instead of ordinary featheredge" is a real change.
+ * @param {string} text
+ */
+export function ordinaryChangePoint(text) {
+  const value = String(text || "").toLowerCase();
+  if (!value) return false;
+  if (ORDINARY_WORK.test(value)) return true;
+  if (/\bstandard\b/.test(value) && !UPGRADE_AWAY_FROM_BASIC.test(value)) return true;
+  return false;
+}
 
 /**
  * @param {unknown} value
@@ -500,15 +521,17 @@ function cleanBullet(value) {
 
 /**
  * @param {unknown} value
+ * @param {boolean} [changesOnly] Better and Premium. Ordinary work is dropped.
  * @returns {string[] | null}
  */
-function cleanList(value) {
+function cleanList(value, changesOnly = false) {
   if (!Array.isArray(value)) return null;
   const lines = [];
   const seen = new Set();
   for (const entry of value) {
     const text = cleanBullet(entry);
     if (!text) continue;
+    if (changesOnly && ordinaryChangePoint(text)) continue;
     const key = text.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -517,6 +540,21 @@ function cleanList(value) {
   }
   if (lines.length < 2) return null;
   return lines;
+}
+
+/**
+ * @param {string} line
+ * @param {string[]} earlier
+ */
+function repeatsEarlier(line, earlier) {
+  const value = line.toLowerCase();
+  return earlier.some((other) => {
+    const previous = other.toLowerCase();
+    if (value === previous) return true;
+    const shorter = value.length < previous.length ? value : previous;
+    const longer = value.length < previous.length ? previous : value;
+    return shorter.length >= 20 && longer.includes(shorter);
+  });
 }
 
 /**
@@ -536,12 +574,15 @@ function sameList(left, right) {
 export function sanitizeTierChanges(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = /** @type {Record<string, unknown>} */ (raw);
-  const standard = cleanList(row.standard);
-  const better = cleanList(row.better);
-  const premium = cleanList(row.premium);
+  const standard = cleanList(row.standard, false);
+  const better = cleanList(row.better, true);
+  const premium = cleanList(row.premium, true);
   if (!standard || !better || !premium) return null;
-  if (sameList(standard, better) || sameList(better, premium)) return null;
-  return { standard, better, premium };
+  const betterOnly = better.filter((line) => !repeatsEarlier(line, standard));
+  const premiumOnly = premium.filter((line) => !repeatsEarlier(line, [...standard, ...betterOnly]));
+  if (betterOnly.length < 2 || premiumOnly.length < 2) return null;
+  if (sameList(standard, betterOnly) || sameList(betterOnly, premiumOnly)) return null;
+  return { standard, better: betterOnly, premium: premiumOnly };
 }
 
 /**
@@ -684,15 +725,17 @@ export function resolveTierChanges(context) {
 /**
  * Bullets already stored on a quote. Empty when the quote was saved before
  * this list existed, or when a line is not safe to show.
- * @param {{ changes?: unknown } | null | undefined} option
+ * @param {{ label?: string, changes?: unknown } | null | undefined} option
  */
 export function visibleTierChanges(option) {
   const raw = option?.changes;
   if (!Array.isArray(raw)) return [];
+  const isChange = /^(?:better|premium)$/i.test(String(option?.label || "").trim());
   const lines = [];
   for (const entry of raw) {
     const text = cleanBullet(entry);
     if (!text) continue;
+    if (isChange && ordinaryChangePoint(text)) continue;
     lines.push(text);
     if (lines.length === 4) break;
   }

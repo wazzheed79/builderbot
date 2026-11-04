@@ -11,6 +11,7 @@ import {
   TIER_CHANGES_PROMPT,
   choiceHelp,
   fallbackTierChanges,
+  ordinaryChangePoint,
   sanitizeTierChanges,
   selectTierPack,
   tierChangeHeading,
@@ -119,6 +120,9 @@ test("plumbing and the other trade packs name a real difference and keep every p
         assert.ok(line.length <= 90, `${notes}: ${line}`);
         assert.equal(/£|\b\d+(?:\.\d+)?\s*%/.test(line), false, line);
         assert.doesNotMatch(line, /upgraded materials|neater finish/i);
+        if (option.label !== "Standard") {
+          assert.equal(ordinaryChangePoint(line), false, `${notes}: ${line}`);
+        }
       }
     }
     assert.equal(selectTierPack({ notes, title: estimate.title, items: estimate.items }) === "general", false, notes);
@@ -222,11 +226,86 @@ test("saving a quote keeps the tier prices and the points", () => {
   assert.match(saved.options[1].changes.join(" "), /extra coat/i);
 });
 
+test("what changes drops ordinary work, and keeps a real upgrade", () => {
+  const cleaned = sanitizeTierChanges({
+    standard: [
+      "Light filling and surface sanding",
+      "Two coats of customer-supplied paint to walls and ceilings",
+      "Two coats of customer-supplied satin to woodwork",
+    ],
+    better: [
+      "Nail holes and deep cracks filled, sanded and primed first",
+      "Caulking on skirtings, door frames and sills",
+      "Standard dust sheet protection and edge masking included",
+    ],
+    premium: [
+      "Knotting, spot priming and deep filling",
+      "Dustless sanding extraction",
+      "An extra coat on high-wear trim",
+    ],
+  });
+  assert.ok(cleaned);
+  assert.match(cleaned.standard.join(" "), /customer-supplied paint/);
+  assert.equal(cleaned.better.some((line) => /dust sheet|masking/i.test(line)), false);
+  assert.match(cleaned.better.join(" "), /nail holes/i);
+  assert.match(cleaned.better.join(" "), /caulking/i);
+  assert.match(cleaned.premium.join(" "), /dustless sanding/i);
+  assert.equal(cleaned.better.length, 2);
+  assert.equal(cleaned.premium.length, 3);
+
+  const shown = visibleTierChanges({
+    label: "Better",
+    changes: [
+      "Nail holes and deep cracks filled, sanded and primed first",
+      "Standard dust sheet protection and edge masking included",
+    ],
+  });
+  assert.deepEqual(shown, ["Nail holes and deep cracks filled, sanded and primed first"]);
+  const included = visibleTierChanges({
+    label: "Standard",
+    changes: ["Dust sheets, masking, and a clean-up", "Two coats of the paint you supply"],
+  });
+  assert.equal(included.length, 2);
+});
+
+test("a change list that is only ordinary work falls back to the trade list", () => {
+  assert.equal(
+    sanitizeTierChanges({
+      standard: ["Walls in the emulsion you supply", "Woodwork in the satin you supply"],
+      better: ["Standard dust sheets included", "Masking included as standard", "A clean-up at the end"],
+      premium: ["Dust sheet protection", "Edge masking", "Clean-up included"],
+    }),
+    null
+  );
+
+  const notes = "Paint the hall. The customer is supplying the paint.";
+  const estimate = estimateTradeJob(notes, "", null, []);
+  const plain = buildChoiceOptions(estimate.items, true, estimate.suggestedDepositPercent);
+  const options = buildChoiceOptions(estimate.items, true, estimate.suggestedDepositPercent, {
+    notes,
+    title: estimate.title,
+    items: estimate.items,
+    tierChanges: {
+      standard: ["Walls in the emulsion you supply", "Woodwork in the satin you supply"],
+      better: ["Standard dust sheets included", "Masking included as standard"],
+      premium: ["A clean-up when finished", "Dust sheets left down"],
+    },
+  });
+  assert.equal(options[1].total, plain[1].total);
+  assert.equal(options[2].total, plain[2].total);
+  assert.match(options[1].changes.join(" "), /filled and sanded|extra coat/i);
+  assert.equal(options[1].changes.some((line) => ordinaryChangePoint(line)), false);
+  assert.equal(options[0].changes.some((line) => /dust sheets/i.test(line)), true);
+});
+
 test("the quote prompts ask for concrete tier changes and do not price them", () => {
   assert.match(TIER_CHANGES_PROMPT, /what changes compared with Standard/i);
   assert.match(TIER_CHANGES_PROMPT, /durable washable paint/);
   assert.match(TIER_CHANGES_PROMPT, /supplying the paint/);
   assert.match(TIER_CHANGES_PROMPT, /Do not put prices/);
+  assert.match(TIER_CHANGES_PROMPT, /only real differences/i);
+  assert.match(TIER_CHANGES_PROMPT, /dust sheets, masking, a clean-up/);
+  assert.match(TIER_CHANGES_PROMPT, /included as standard/);
 
   for (const file of ["../app/api/quote/generate/route.ts", "../app/api/quote/demo/route.ts"]) {
     const source = fs.readFileSync(new URL(file, import.meta.url), "utf8");
