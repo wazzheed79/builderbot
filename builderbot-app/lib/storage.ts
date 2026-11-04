@@ -47,6 +47,8 @@ export interface QuoteOption {
   vat: number;
   total: number;
   deposit: number;
+  /** What this price includes, or what changes from the price below. Absent on older quotes. */
+  changes?: string[];
 }
 
 export interface Quote {

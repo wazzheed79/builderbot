@@ -20,6 +20,11 @@ export function sanitizeGeneratedQuote(
       scopeOfWork: string;
       suggestedDepositPercent: number;
       items: SanitizedLineItem[];
+      tierChanges: {
+        standard: string[];
+        better: string[];
+        premium: string[];
+      } | null;
     }
   | { ok: false; reason: string };
 

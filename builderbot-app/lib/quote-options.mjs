@@ -1,15 +1,19 @@
 import { recalculateQuoteTotals, roundMoney } from "./quote-rules.mjs";
+import { resolveTierChanges, tierUpgradeSummary } from "./tier-differences.mjs";
 
 /**
  * Up to three optional prices from one set of lines.
- * Standard keeps the lines as they are. Better and Premium add one extra line
- * so the customer can see what the extra money is for.
+ * Standard keeps the lines as they are. Better and Premium add one extra line.
+ * The extra is still 15% and 30% of the net (with the same £25 and £45 floors).
+ * When the job is known, that line names the difference and `changes` lists it
+ * in short points. With no job to go on, the older general line is kept.
  * A quote with no options, or only one, stays a single price.
- * @param {Array<{ type?: string, description: string, quantity: number, unit: string, rate: number, id?: string }>} items
+ * @param {Array<{ type?: string, description: string, quantity: number, unit: string, rate: number, id?: string, usualPrice?: boolean, rateSource?: string }>} items
  * @param {boolean} vatEnabled
  * @param {number} depositPercent
+ * @param {{ notes?: string, trade?: string, title?: string, items?: unknown[], tierChanges?: unknown } | null} [context]
  */
-export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent = 20) {
+export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent = 20, context = null) {
   const base = items.map((item, index) => ({
     id: item.id || `line-${index + 1}`,
     type: item.type || "material",
@@ -23,18 +27,29 @@ export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent
   const subtotal = base.reduce((sum, item) => sum + item.quantity * item.rate, 0);
   const betterExtra = roundMoney(Math.max(25, subtotal * 0.15));
   const premiumExtra = roundMoney(Math.max(45, subtotal * 0.3));
+  const changes = resolveTierChanges(
+    context
+      ? {
+          ...context,
+          items: context.items && context.items.length ? context.items : base,
+        }
+      : null
+  );
 
   const packs = [
-    { id: "opt-standard", label: "Standard", items: base },
+    { id: "opt-standard", label: "Standard", items: base, changes: changes?.standard },
     {
       id: "opt-better",
       label: "Better",
+      changes: changes?.better,
       items: [
         ...base,
         {
           id: "opt-better-extra",
           type: "service",
-          description: "Upgraded materials and a neater finish",
+          description: changes
+            ? tierUpgradeSummary(changes.better)
+            : "Upgraded materials and a neater finish",
           quantity: 1,
           unit: "job",
           rate: betterExtra,
@@ -44,12 +59,15 @@ export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent
     {
       id: "opt-premium",
       label: "Premium",
+      changes: changes?.premium,
       items: [
         ...base,
         {
           id: "opt-premium-extra",
           type: "service",
-          description: "Premium materials, more time on site, and a longer guarantee",
+          description: changes
+            ? tierUpgradeSummary(changes.premium)
+            : "Premium materials, more time on site, and a longer guarantee",
           quantity: 1,
           unit: "job",
           rate: premiumExtra,
@@ -62,6 +80,7 @@ export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent
     id: pack.id,
     label: pack.label,
     items: pack.items,
+    ...(pack.changes && pack.changes.length > 0 ? { changes: pack.changes } : {}),
     ...recalculateQuoteTotals(pack.items, vatEnabled, depositPercent),
   }));
 }

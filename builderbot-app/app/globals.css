@@ -210,7 +210,6 @@ select {
   }
 
   .quote-totals,
-  .quote-choice,
   .quote-letterhead {
     break-inside: avoid;
     page-break-inside: avoid;

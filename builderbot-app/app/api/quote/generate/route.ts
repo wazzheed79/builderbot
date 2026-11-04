@@ -5,6 +5,7 @@ import { sanitizeGeneratedQuote } from "@/lib/quote-ai.mjs";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { applyQuotePrices, rememberedPricesPrompt } from "@/lib/price-memory.mjs";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
+import { TIER_CHANGES_PROMPT, tierChangesSchema } from "@/lib/tier-differences.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
 import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
@@ -76,6 +77,11 @@ interface GenerateResponse {
   notice?: string;
   usualPrice?: boolean;
   options?: ReturnType<typeof buildChoiceOptions>;
+  tierChanges?: {
+    standard: string[];
+    better: string[];
+    premium: string[];
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -155,7 +161,8 @@ export async function POST(request: NextRequest) {
           ? "When the tradesperson's own prices are listed, use those rates and units for matching materials and jobs, and choose the quantities. "
           : "Materials at realistic trade supplier prices. ") +
         "Recommend a deposit % between 10 and 30 (default 20). " +
-        "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes.";
+        "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes. " +
+        TIER_CHANGES_PROMPT;
 
       const customLabor = pricingMemory?.laborHourlyRate
         ? `£${pricingMemory.laborHourlyRate}/hr`
@@ -253,8 +260,9 @@ export async function POST(request: NextRequest) {
                   },
                   description: "Itemized materials, labor tasks, and waste disposal services",
                 },
+                tierChanges: tierChangesSchema,
               },
-              required: ["title", "scopeOfWork", "suggestedDepositPercent", "items"],
+              required: ["title", "scopeOfWork", "suggestedDepositPercent", "items", "tierChanges"],
             },
           },
         });
@@ -275,8 +283,17 @@ export async function POST(request: NextRequest) {
             suggestedDepositPercent: cleaned.suggestedDepositPercent,
             items: rememberedItems,
             aiPowered: true,
+            ...(cleaned.tierChanges ? { tierChanges: cleaned.tierChanges } : {}),
             ...(tiers
-              ? { options: buildChoiceOptions(rememberedItems, true, cleaned.suggestedDepositPercent) }
+              ? {
+                  options: buildChoiceOptions(rememberedItems, true, cleaned.suggestedDepositPercent, {
+                    notes,
+                    trade,
+                    title: cleaned.title,
+                    items: rememberedItems,
+                    tierChanges: cleaned.tierChanges,
+                  }),
+                }
               : {}),
           };
           return NextResponse.json(result);
@@ -297,7 +314,14 @@ export async function POST(request: NextRequest) {
       suggestedDepositPercent: estimate.suggestedDepositPercent,
       items: rememberedItems,
       ...(tiers
-        ? { options: buildChoiceOptions(rememberedItems, true, estimate.suggestedDepositPercent) }
+        ? {
+            options: buildChoiceOptions(rememberedItems, true, estimate.suggestedDepositPercent, {
+              notes,
+              trade,
+              title: estimate.title,
+              items: rememberedItems,
+            }),
+          }
         : {}),
       aiPowered: false,
       estimateOnly: true,

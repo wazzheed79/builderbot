@@ -270,8 +270,9 @@ export default function TryClient() {
       )}
       <div className="mt-4 space-y-2 text-sm leading-snug text-stone-600">
         <p>
-          You get an itemised quote with Standard, Better, and Premium, and a preview of the page
-          your customer would open.
+          You get an itemised quote with Standard, Better, and Premium. Each price says what is
+          included, or what changes from the one below. You also see a preview of the page your
+          customer would open.
         </p>
         <p className="text-stone-700">{OWN_PRICES_LINE}</p>
         <p>{TRY_PRICES_NOTE}</p>
