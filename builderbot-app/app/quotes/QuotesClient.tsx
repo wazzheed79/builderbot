@@ -74,6 +74,8 @@ import type { Quote } from "@/lib/storage";
 import { loadPriceList, rememberLinePrice } from "@/lib/price-memory";
 import { pricingMemoryForQuote } from "@/lib/price-memory.mjs";
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
+import { tierChangesFromOptions } from "@/lib/tier-differences.mjs";
+import TierChangeList from "@/components/quotes/TierChangeList";
 import { quoteDraftForSave } from "@/lib/quote-draft.mjs";
 import {
   clearWorkingDraft,
@@ -218,6 +220,7 @@ export default function QuotesClient() {
   // Bumped when the tradesperson changes the lines, so a late AI reply cannot replace them.
   const editVersion = useRef(0);
   const requestSerial = useRef(0);
+  const tierChangesRef = useRef<{ standard: string[]; better: string[]; premium: string[] } | null>(null);
   const lineSerial = useRef(0);
   const ignoreAutosave = useRef(false);
   const baselineRef = useRef("");
@@ -269,6 +272,10 @@ export default function QuotesClient() {
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  useEffect(() => {
+    tierChangesRef.current = null;
+  }, [activeQuoteId]);
 
   if (ready && !homeNotesApplied) {
     const stored = readWorkingDraft(window.localStorage);
@@ -669,6 +676,7 @@ export default function QuotesClient() {
     if (typeof template.vatEnabled === "boolean") setVatEnabled(template.vatEnabled);
     setChoiceOptions(null);
     setChoiceIndex(0);
+    tierChangesRef.current = null;
     triggerToast(`Loaded "${template.name}" template.`);
   };
 
@@ -703,6 +711,7 @@ export default function QuotesClient() {
     setItems(newItems);
     setChoiceOptions(null);
     setChoiceIndex(0);
+    tierChangesRef.current = null;
     setActiveTab("items");
     triggerToast("Labour, materials and markup are on the quote.");
   };
@@ -715,6 +724,7 @@ export default function QuotesClient() {
     }
     const requestId = ++requestSerial.current;
     const startedEdit = editVersion.current;
+    tierChangesRef.current = null;
     setIsGenerating(true);
 
     try {
@@ -772,6 +782,8 @@ export default function QuotesClient() {
         setItems(mappedItems);
         setChoiceOptions(null);
         setChoiceIndex(0);
+        tierChangesRef.current =
+          data.aiPowered && data.tierChanges && Array.isArray(data.tierChanges.better) ? data.tierChanges : null;
         setIsAiDraft(true);
         setEstimateOnly(!data.aiPowered);
         if (data.title && !quoteTitle) setQuoteTitle(data.title);
@@ -871,9 +883,17 @@ export default function QuotesClient() {
   };
 
   const suggestChoices = () => {
-    const source = draftRef.current.items;
+    const draft = draftRef.current;
+    const source = draft.items;
+    const kept = tierChangesFromOptions(draft.choiceOptions) || tierChangesRef.current;
     const next = source.length > 0
-      ? buildChoiceOptions(source, draftRef.current.vatEnabled, draftRef.current.depositPercent)
+      ? buildChoiceOptions(source, draft.vatEnabled, draft.depositPercent, {
+          notes: draft.notesInput,
+          trade: profile.trade,
+          title: draft.quoteTitle,
+          items: source,
+          tierChanges: kept,
+        })
       : [];
     if (next.length < 2) {
       triggerToast("Add a price or some job notes first.");
@@ -1189,6 +1209,7 @@ export default function QuotesClient() {
     setPhotos([]);
     setChoiceOptions(null);
     setChoiceIndex(0);
+    tierChangesRef.current = null;
     setActiveQuoteId(null);
     setActiveToken(null);
     setIsAiDraft(false);
@@ -1659,7 +1680,7 @@ export default function QuotesClient() {
                   </button>
                 </div>
                 {choiceOptions && (
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
                     {choiceOptions.map((option, index) => (
                       <button
                         key={option.id}
@@ -1673,6 +1694,7 @@ export default function QuotesClient() {
                         <span className="text-xs text-stone-600">
                           £{money(recalculateQuoteTotals(index === choiceIndex ? items : option.items, vatEnabled, depositPercent).total)}
                         </span>
+                        <TierChangeList label={option.label} changes={option.changes} />
                       </button>
                     ))}
                   </div>

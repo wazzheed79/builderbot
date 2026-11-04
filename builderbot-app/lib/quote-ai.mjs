@@ -3,6 +3,7 @@
 // route can keep the rough estimate instead of saving a broken quote.
 import { z } from "zod";
 import { roundMoney } from "./quote-rules.mjs";
+import { sanitizeTierChanges } from "./tier-differences.mjs";
 
 export const MAX_LINE_ITEMS = 50;
 export const MAX_DESCRIPTION = 200;
@@ -85,7 +86,7 @@ export function clampDepositPercent(value) {
 /**
  * @param {unknown} parsed
  * @param {{ notes?: string, title?: string }} [fallback]
- * @returns {{ ok: true, title: string, scopeOfWork: string, suggestedDepositPercent: number, items: Array<{ type: "labor" | "material" | "service", description: string, quantity: number, unit: string, rate: number }> } | { ok: false, reason: string }}
+ * @returns {{ ok: true, title: string, scopeOfWork: string, suggestedDepositPercent: number, items: Array<{ type: "labor" | "material" | "service", description: string, quantity: number, unit: string, rate: number }>, tierChanges: { standard: string[], better: string[], premium: string[] } | null } | { ok: false, reason: string }}
  */
 export function sanitizeGeneratedQuote(parsed, fallback = {}) {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -122,6 +123,7 @@ export function sanitizeGeneratedQuote(parsed, fallback = {}) {
     scopeOfWork,
     suggestedDepositPercent: clampDepositPercent(checked.data.suggestedDepositPercent),
     items,
+    tierChanges: sanitizeTierChanges(record.tierChanges),
   };
 }
 

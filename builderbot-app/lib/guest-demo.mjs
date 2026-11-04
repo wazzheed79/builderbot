@@ -13,6 +13,7 @@ import {
   repairLineItem,
 } from "./quote-ai.mjs";
 import { buildChoiceOptions } from "./quote-options.mjs";
+import { tierChangesFromOptions } from "./tier-differences.mjs";
 
 export const GUEST_DEMO_STORAGE_KEY = "chuffed_guest_demo_v1";
 export const GUEST_PLACEHOLDER_BUSINESS = "Your Business Name";
@@ -91,7 +92,10 @@ export function validateGuestNotes(notes) {
  *   suggestedDepositPercent?: unknown,
  *   items?: unknown,
  *   aiPowered?: unknown,
- *   notice?: unknown
+ *   notice?: unknown,
+ *   notes?: unknown,
+ *   trade?: unknown,
+ *   tierChanges?: unknown
  * }} input
  */
 export function guestQuotePayload(input) {
@@ -102,9 +106,19 @@ export function guestQuotePayload(input) {
     if (item) items.push(item);
   }
   const suggestedDepositPercent = clampDepositPercent(input?.suggestedDepositPercent);
-  const options = items.length > 0 ? buildChoiceOptions(items, true, suggestedDepositPercent) : [];
   const title = clipText(input?.title, MAX_TITLE) || "Trade works";
   const scopeOfWork = clipText(input?.scopeOfWork, MAX_SCOPE) || title;
+  const notes = clipText(input?.notes, MAX_SCOPE) || scopeOfWork;
+  const options =
+    items.length > 0
+      ? buildChoiceOptions(items, true, suggestedDepositPercent, {
+          notes,
+          trade: clipText(input?.trade, 100),
+          title,
+          items,
+          tierChanges: input?.tierChanges,
+        })
+      : [];
   const aiPowered = input?.aiPowered === true;
   return {
     title,
@@ -138,6 +152,8 @@ function normalizeGuestDemo(parsed, nowMs) {
     items: row.items,
     aiPowered: row.aiPowered === true,
     notice: row.notice,
+    notes: row.notes,
+    tierChanges: row.tierChanges,
   });
   if (!Array.isArray(payload.items) || payload.items.length === 0) return null;
   if (!Array.isArray(payload.options) || payload.options.length < 2) return null;
@@ -193,6 +209,7 @@ export function writeGuestDemoQuote(storage, payload, nowIso) {
     aiPowered: safe.aiPowered,
     estimateOnly: safe.estimateOnly,
     notice: safe.notice,
+    tierChanges: tierChangesFromOptions(safe.options),
   };
   const text = JSON.stringify(record);
   if (text.length > MAX_STORED_CHARS) return false;

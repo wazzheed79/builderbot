@@ -35,6 +35,8 @@ import { captureEvent } from "@/lib/analytics";
 import { CONSENT_EVENT } from "@/lib/analytics-rules.mjs";
 import { displayBusinessName } from "@/lib/business-name.mjs";
 import { bankInstruction, formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
+import { choiceHelp } from "@/lib/tier-differences.mjs";
+import TierChangeList from "@/components/quotes/TierChangeList";
 import {
   useBusinessProfile,
   useClientReady,
@@ -768,10 +770,8 @@ export default function CustomerQuoteClient({
                 <h2 className="mb-1 text-xs font-extrabold uppercase tracking-widest text-stone-600">
                   Choose a price
                 </h2>
-                <p className="mb-3 text-sm text-stone-700">
-                  Pick one. The lines below match that choice.
-                </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <p className="mb-3 text-sm text-stone-700">{choiceHelp(choiceOptions)}</p>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                   {choiceOptions.map((option) => {
                     const selected = (pickedOptionId || loadedQuote.selectedOptionId) === option.id;
                     return (
@@ -783,12 +783,13 @@ export default function CustomerQuoteClient({
                           setPickedOptionId(option.id);
                           setDecisionError(null);
                         }}
-                        className={`min-h-[4.5rem] rounded-2xl border-2 px-4 py-3 text-left ${
+                        className={`min-h-11 rounded-2xl border-2 px-4 py-3 text-left ${
                           selected ? "border-clay-700 bg-clay-50" : "border-stone-200 bg-white"
                         }`}
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>
                         <span className="block text-xl font-black tabular-nums text-clay-800">{formatGbp(option.total)}</span>
+                        <TierChangeList label={option.label} changes={option.changes} />
                       </button>
                     );
                   })}
@@ -1098,6 +1099,7 @@ export default function CustomerQuoteClient({
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>
                         <span className="block text-lg font-black text-clay-700">{formatGbp(option.total)}</span>
+                        <TierChangeList label={option.label} changes={option.changes} />
                       </button>
                     );
                   })}

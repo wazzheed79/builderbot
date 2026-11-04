@@ -1,5 +1,6 @@
 import { buildChoiceOptions } from "./quote-options.mjs";
 import { recalculateQuoteTotals } from "./quote-rules.mjs";
+import { tierChangesFromOptions } from "./tier-differences.mjs";
 
 /**
  * The quote that gets saved. The lines on screen are the quote.
@@ -16,7 +17,13 @@ export function quoteDraftForSave(draft) {
   let options;
   if (choices.length > 1) {
     options = index === 0
-      ? buildChoiceOptions(items, vatEnabled, depositPercent)
+      ? buildChoiceOptions(items, vatEnabled, depositPercent, {
+          notes: draft.notesInput || draft.notes || "",
+          trade: draft.trade || "",
+          title: draft.quoteTitle || draft.title || "",
+          items,
+          tierChanges: tierChangesFromOptions(choices) || draft.tierChanges || null,
+        })
       : choices.map((option, optionIndex) =>
           optionIndex === index ? { ...option, items, ...totals } : option
         );

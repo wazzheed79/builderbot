@@ -67,7 +67,7 @@ const features = [
   {
     icon: Layers,
     title: "One price, or three",
-    body: "Offer a single total, or Standard, Better, and Premium. The customer picks one.",
+    body: "Offer a single total, or Standard, Better, and Premium. Each price says what is included, or what changes from the one below. The customer picks one.",
   },
   {
     icon: ShieldCheck,
@@ -100,7 +100,7 @@ const faqs = [
   },
   {
     q: "What are Standard, Better, and Premium?",
-    a: "An optional set of three prices on one quote. You check each one before you send it. The customer chooses one, and that choice is what they accept. You can also send a single price.",
+    a: "An optional set of three prices on one quote. Standard says what is included. Better and Premium say what changes from the price below, in short plain points. You check each one before you send it. The customer chooses one. You can also send a single price.",
   },
   {
     q: "Do I have to keep the suggested prices?",

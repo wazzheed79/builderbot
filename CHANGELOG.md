@@ -18,6 +18,7 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Changed
 
+- Standard, Better, and Premium say what is different. On the customer’s quote and on the try-it preview, each price has short plain points: what Standard includes, and what changes on Better and Premium (the material, extra preparation or coats, the finish, or an extra item). The AI reply is asked for those points and they are checked before use. A rough quote uses a written list for that trade, including decorating when the customer is supplying the paint. The extra amounts stay 15% and 30% of the net price (£25 and £45 minimums unchanged). A quote that was saved without these points still shows its prices and its old lines. No database migration.
 - Customer acceptance is described as a typed acceptance. The quote page, privacy notice, terms, flyer, and activity text no longer call it a legal signature or a legal name. The recorded van-demo line still says the customer types their name to sign, because that sentence is the audio clip.
 - On a phone, the try-it page shows a one-line introduction, the example buttons, and the job notes on the first screen. The longer explanation, including “Set your day rate and prices once, and every quote uses them…” and the note that the preview uses example prices, sits below the build button.
 - The cookie banner is one shorter row on a phone. Accept and Decline stay side by side, and both are still at least 44 pixels tall.

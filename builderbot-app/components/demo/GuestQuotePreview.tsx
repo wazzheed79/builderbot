@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Clock, ShieldCheck, Wrench } from "lucide-react";
 import { formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
 import { GUEST_PLACEHOLDER_BUSINESS } from "@/lib/guest-demo.mjs";
+import { choiceHelp } from "@/lib/tier-differences.mjs";
+import TierChangeList from "@/components/quotes/TierChangeList";
 
 type PreviewItem = {
   id?: string;
@@ -22,6 +24,7 @@ type PreviewOption = {
   vat: number;
   total: number;
   deposit: number;
+  changes?: string[];
 };
 
 export type GuestPreviewQuote = {
@@ -114,8 +117,8 @@ export default function GuestQuotePreview({ quote }: { quote: GuestPreviewQuote 
             <h3 className="mb-1 text-xs font-extrabold uppercase tracking-widest text-stone-600">
               Choose a price
             </h3>
-            <p className="mb-3 text-sm text-stone-700">Pick one. The lines below match that choice.</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <p className="mb-3 text-sm text-stone-700">{choiceHelp(options)}</p>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               {options.map((option) => {
                 const selected = option.id === (chosen?.id || "");
                 return (
@@ -124,7 +127,7 @@ export default function GuestQuotePreview({ quote }: { quote: GuestPreviewQuote 
                     type="button"
                     aria-pressed={selected}
                     onClick={() => setPickedId(option.id)}
-                    className={`min-h-[4.5rem] rounded-2xl border-2 px-4 py-3 text-left ${
+                    className={`min-h-11 rounded-2xl border-2 px-4 py-3 text-left ${
                       selected ? "border-clay-700 bg-clay-50" : "border-stone-200 bg-white"
                     }`}
                   >
@@ -132,6 +135,7 @@ export default function GuestQuotePreview({ quote }: { quote: GuestPreviewQuote 
                     <span className="block text-xl font-black tabular-nums text-clay-800">
                       {formatGbp(option.total)}
                     </span>
+                    <TierChangeList label={option.label} changes={option.changes} />
                   </button>
                 );
               })}

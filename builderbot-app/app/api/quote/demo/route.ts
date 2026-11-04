@@ -3,6 +3,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { sanitizeGeneratedQuote } from "@/lib/quote-ai.mjs";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { brand } from "@/lib/brand.mjs";
+import { TIER_CHANGES_PROMPT, tierChangesSchema } from "@/lib/tier-differences.mjs";
 import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
 import {
   GUEST_DAILY_LIMIT,
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest) {
         "Materials at realistic trade supplier prices. " +
         "Recommend a deposit % between 10 and 30 (default 20). " +
         "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes. " +
-        "Do not invent a business name, bank, customer name, address, phone, or email.";
+        "Do not invent a business name, bank, customer name, address, phone, or email. " +
+        TIER_CHANGES_PROMPT;
 
       try {
         const responseText = await generateGeminiText({
@@ -131,8 +133,9 @@ export async function POST(request: NextRequest) {
                     required: ["type", "description", "quantity", "unit", "rate"],
                   },
                 },
+                tierChanges: tierChangesSchema,
               },
-              required: ["title", "scopeOfWork", "suggestedDepositPercent", "items"],
+              required: ["title", "scopeOfWork", "suggestedDepositPercent", "items", "tierChanges"],
             },
           },
         });
@@ -148,6 +151,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             guestQuotePayload({
               ...cleaned,
+              notes,
               aiPowered: true,
               notice:
                 "Suggested prices. Nothing is saved or sent. Create a free account to put your own business name on it.",
@@ -172,6 +176,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       guestQuotePayload({
         ...cleaned,
+        notes,
         aiPowered: false,
         notice: apiKey
           ? "Rough estimate. The helper was busy, so check every price. Nothing is saved or sent."
