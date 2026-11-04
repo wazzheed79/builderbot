@@ -165,6 +165,7 @@ Dates are the dates on the commits. The same history, in [Keep a Changelog](http
 ### 4 November 2026
 
 - Standard, Better, and Premium now say what is different. On the customer link and on the no-account try-it, each price has short plain points: what Standard includes, and what Better and Premium change (the material, the extra prep or coat, the finish, or an extra item). The AI is asked for those points, and a rough quote uses a list for that trade. The extra price is still 15% and 30% of the net. A quote saved before this still shows the prices, with no invented list. No database migration.
+- Better and Premium no longer list ordinary work as a change. Dust sheets, masking, a clean-up, and anything described as standard stay on Standard, where they belong. If the reply has too few real differences, the trade’s own list is used. The prices are unchanged.
 
 ### 1 November 2026
 
