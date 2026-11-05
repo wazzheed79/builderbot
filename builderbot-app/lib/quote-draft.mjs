@@ -24,9 +24,14 @@ export function quoteDraftForSave(draft) {
           items,
           tierChanges: tierChangesFromOptions(choices) || draft.tierChanges || null,
         })
-      : choices.map((option, optionIndex) =>
-          optionIndex === index ? { ...option, items, ...totals } : option
-        );
+      : choices.map((option, optionIndex) => {
+          const optionItems = optionIndex === index ? items : option.items || [];
+          return {
+            ...option,
+            items: optionItems,
+            ...recalculateQuoteTotals(optionItems, vatEnabled, depositPercent),
+          };
+        });
   }
   return { items, ...totals, options };
 }

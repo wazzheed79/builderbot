@@ -9,11 +9,11 @@ import { resolveTierChanges, tierUpgradeSummary } from "./tier-differences.mjs";
  * in short points. With no job to go on, the older general line is kept.
  * A quote with no options, or only one, stays a single price.
  * @param {Array<{ type?: string, description: string, quantity: number, unit: string, rate: number, id?: string, usualPrice?: boolean, rateSource?: string }>} items
- * @param {boolean} vatEnabled
+ * @param {boolean} [vatEnabled] True only when this quote charges VAT. The 15% and 30% extras are of the net, before VAT.
  * @param {number} depositPercent
  * @param {{ notes?: string, trade?: string, title?: string, items?: unknown[], tierChanges?: unknown } | null} [context]
  */
-export function buildChoiceOptions(items = [], vatEnabled = true, depositPercent = 20, context = null) {
+export function buildChoiceOptions(items = [], vatEnabled = false, depositPercent = 20, context = null) {
   const base = items.map((item, index) => ({
     id: item.id || `line-${index + 1}`,
     type: item.type || "material",

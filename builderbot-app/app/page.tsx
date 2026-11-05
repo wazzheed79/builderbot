@@ -281,12 +281,12 @@ export default function Home() {
 
                 <div className="flex flex-col items-start justify-between gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-end">
                   <div className="space-y-1 text-xs text-stone-700">
-                    <p>Net £850.00</p>
-                    <p>VAT at 20% £170.00</p>
+                    <p>Subtotal (ex VAT) £850.00</p>
+                    <p>VAT (20%) £170.00</p>
                     <p className="font-semibold text-ink">Deposit 20% £204.00</p>
                   </div>
                   <div className="text-left sm:text-right">
-                    <span className="text-xs font-semibold uppercase text-stone-500">Total inc. VAT</span>
+                    <span className="text-xs font-semibold uppercase text-stone-500">Total inc VAT</span>
                     <p className="text-3xl font-black tabular-nums text-ink">£1,020.00</p>
                   </div>
                 </div>

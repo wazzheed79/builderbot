@@ -1,6 +1,8 @@
 import { MapPin, Mail, Phone, Wrench } from "lucide-react";
 import { displayBusinessName } from "@/lib/business-name.mjs";
 import { formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
+import { vatRegLine } from "@/lib/vat.mjs";
+import VatTotals from "@/components/VatTotals";
 import { formatUkDate, paymentDetails, PAYMENT_DETAILS_TO_FOLLOW } from "@/lib/invoice-rules.mjs";
 import type { Invoice } from "@/lib/storage";
 
@@ -74,7 +76,9 @@ export default function InvoiceDocument({
             <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusTone}`}>{statusLabel}</p>
             <p className="mt-3 text-stone-600">Issued {formatUkDate(invoice.issueDate) || "—"}</p>
             <p className="text-stone-600">Due {formatUkDate(invoice.dueDate) || "—"}</p>
-            {invoice.vatNumber && <p className="mt-2 text-xs text-stone-500">VAT {invoice.vatNumber}</p>}
+            {invoice.vatEnabled && vatRegLine(invoice.vatNumber) && (
+              <p className="mt-2 text-xs font-semibold text-stone-700">{vatRegLine(invoice.vatNumber)}</p>
+            )}
           </div>
         </div>
 
@@ -144,18 +148,14 @@ export default function InvoiceDocument({
         </div>
 
         <div className="quote-totals ml-auto w-full max-w-sm space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-stone-600">Subtotal</span>
-            <span className="font-semibold tabular-nums">{formatGbp(invoice.subtotal)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-stone-600">{invoice.vatEnabled ? "VAT 20%" : "VAT"}</span>
-            <span className="font-semibold tabular-nums">{invoice.vatEnabled ? formatGbp(invoice.vat) : "Not charged"}</span>
-          </div>
-          <div className="flex items-center justify-between border-t border-stone-200 pt-2 text-base">
-            <span className="font-extrabold text-ink">Total</span>
-            <span className="text-2xl font-black tabular-nums text-ink">{formatGbp(invoice.total)}</span>
-          </div>
+          <VatTotals
+            subtotal={invoice.subtotal}
+            vat={invoice.vat}
+            total={invoice.total}
+            vatEnabled={invoice.vatEnabled}
+            vatNumber={invoice.vatNumber}
+            totalClassName="text-2xl font-black tabular-nums text-ink"
+          />
           <div className="flex items-center justify-between">
             <span className="font-bold text-ink">Balance due</span>
             <span className="font-black tabular-nums text-clay-800">{formatGbp(invoice.balanceDue)}</span>

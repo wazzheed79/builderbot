@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Clock, ShieldCheck, Wrench } from "lucide-react";
 import { formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
+import VatTotals from "@/components/VatTotals";
 import { GUEST_PLACEHOLDER_BUSINESS } from "@/lib/guest-demo.mjs";
 import { choiceHelp } from "@/lib/tier-differences.mjs";
 import TierChangeList from "@/components/quotes/TierChangeList";
@@ -51,7 +52,7 @@ export default function GuestQuotePreview({ quote }: { quote: GuestPreviewQuote 
   const items = chosen?.items || quote.items;
   const printable = preparePrintableQuote({
     items,
-    vatEnabled: true,
+    vatEnabled: false,
     depositPercent: quote.suggestedDepositPercent,
     totals: chosen
       ? {
@@ -181,18 +182,12 @@ export default function GuestQuotePreview({ quote }: { quote: GuestPreviewQuote 
             <p>No bank details are shown. Those are only added from your own settings, after a real quote is accepted.</p>
           </div>
           <div className="w-full space-y-2 rounded-xl border border-stone-300 bg-white p-4 text-sm sm:w-72">
-            <div className="flex justify-between gap-3 text-stone-700">
-              <span>Net</span>
-              <span className="font-medium tabular-nums text-ink">{printable.subtotal}</span>
-            </div>
-            <div className="flex justify-between gap-3 text-stone-700">
-              <span>VAT</span>
-              <span className="font-medium tabular-nums text-ink">{printable.vat}</span>
-            </div>
-            <div className="flex justify-between gap-3 border-t border-stone-200 pt-2 text-base font-black text-ink">
-              <span>Total</span>
-              <span className="tabular-nums">{printable.total}</span>
-            </div>
+            <VatTotals
+              subtotal={chosen?.subtotal ?? 0}
+              vat={chosen?.vat ?? 0}
+              total={chosen?.total ?? 0}
+              vatEnabled={false}
+            />
           </div>
         </div>
 

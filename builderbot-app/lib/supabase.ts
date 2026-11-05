@@ -11,6 +11,7 @@ import {
   newQuoteId,
 } from "./quote-rules.mjs";
 import { profileUpsertOptions } from "./profile-sync.mjs";
+import { chargesVat } from "./vat.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
@@ -65,7 +66,7 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
     notes: String(row.notes ?? ""),
     items: Array.isArray(row.items) ? (row.items as Quote["items"]) : [],
     subtotal: Number(row.subtotal ?? 0),
-    vatEnabled: Boolean(row.vat_enabled ?? true),
+    vatEnabled: chargesVat(row.vat_enabled),
     vat: Number(row.vat ?? 0),
     total: Number(row.total ?? 0),
     depositPercent: Number(row.deposit_percent ?? 20),

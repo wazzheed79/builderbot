@@ -37,6 +37,8 @@ import { displayBusinessName } from "@/lib/business-name.mjs";
 import { bankInstruction, formatGbp, preparePrintableQuote } from "@/lib/quote-print.mjs";
 import { choiceHelp } from "@/lib/tier-differences.mjs";
 import TierChangeList from "@/components/quotes/TierChangeList";
+import VatTotals from "@/components/VatTotals";
+import { tierPriceCaption, vatPresentation } from "@/lib/vat.mjs";
 import {
   useBusinessProfile,
   useClientReady,
@@ -341,6 +343,11 @@ export default function CustomerQuoteClient({
       total: shownTotal,
       deposit: shownDeposit,
     },
+  });
+  const vatView = vatPresentation({
+    vatEnabled: loadedQuote.vatEnabled,
+    vatNumber: activeProfile.vatNumber,
+    businessRegistered: activeProfile.vatRegistered,
   });
   const bank = bankInstruction(activeProfile);
   const contactPhone = activeProfile.phone || "";
@@ -669,9 +676,9 @@ export default function CustomerQuoteClient({
                       Direct Trade Quotation
                     </span>
                   )}
-                  {activeProfile.vatRegistered && activeProfile.vatNumber && (
+                  {vatView.regLine && (
                     <span className="inline-flex items-center gap-1 text-[11px] bg-stone-50 text-stone-800 px-2.5 py-1 rounded-md font-mono font-bold border border-stone-200">
-                      VAT: {activeProfile.vatNumber}
+                      {vatView.regLine}
                     </span>
                   )}
                 </div>
@@ -789,6 +796,9 @@ export default function CustomerQuoteClient({
                       >
                         <span className="block text-sm font-bold text-ink">{option.label}</span>
                         <span className="block text-xl font-black tabular-nums text-clay-800">{formatGbp(option.total)}</span>
+                        {tierPriceCaption(loadedQuote.vatEnabled) ? (
+                          <span className="block text-[11px] font-semibold text-stone-600">{tierPriceCaption(loadedQuote.vatEnabled)}</span>
+                        ) : null}
                         <TierChangeList label={option.label} changes={option.changes} />
                       </button>
                     );
@@ -834,18 +844,14 @@ export default function CustomerQuoteClient({
               </div>
 
               <div className="w-full space-y-2 rounded-xl border border-stone-300 bg-white p-4 text-sm sm:w-72">
-                <div className="flex justify-between gap-3 text-stone-700">
-                  <span>Net</span>
-                  <span className="font-medium tabular-nums text-ink">{printable.subtotal}</span>
-                </div>
-                <div className="flex justify-between gap-3 text-stone-700">
-                  <span>{loadedQuote.vatEnabled ? "VAT (20%)" : "VAT not added"}</span>
-                  <span className="font-medium tabular-nums text-ink">{printable.vat}</span>
-                </div>
-                <div className="flex items-baseline justify-between gap-3 border-t-2 border-ink pt-2 font-black">
-                  <span className="text-base text-ink">{loadedQuote.vatEnabled ? "Total inc. VAT" : "Total"}</span>
-                  <span className="text-2xl tabular-nums text-clay-800">{printable.total}</span>
-                </div>
+                <VatTotals
+                  subtotal={shownSubtotal}
+                  vat={shownVat}
+                  total={shownTotal}
+                  vatEnabled={loadedQuote.vatEnabled}
+                  vatNumber={activeProfile.vatNumber}
+                  businessRegistered={activeProfile.vatRegistered}
+                />
                 <div className="flex justify-between gap-3 pt-1 text-xs font-bold text-emerald-800">
                   <span>Deposit due if accepted</span>
                   <span className="tabular-nums">{printable.deposit}</span>
@@ -1036,7 +1042,7 @@ export default function CustomerQuoteClient({
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-stone-600">
-                {loadedQuote.vatEnabled ? "Total inc. VAT" : "Total"}
+                {vatView.totalLabel}
               </p>
               <p className="text-xl font-black tabular-nums text-ink">{printable.total}</p>
             </div>

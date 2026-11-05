@@ -3,6 +3,8 @@
  * It belongs to one tradesperson. Starter templates in the app are separate.
  */
 
+import { quoteChargesVat } from "./vat.mjs";
+
 /**
  * @param {unknown} value
  */
@@ -62,11 +64,11 @@ export function normalizeStoredTemplate(raw) {
       title: source.title,
       notes: source.notes,
       items: source.items,
-      vatEnabled: source.vatEnabled !== false && source.vat_enabled !== false,
+      vatEnabled: quoteChargesVat(source),
     },
     source.name || "Template"
   );
-  const template = built.ok ? built.template : { name: "Template", title: "Template", notes: "", items: [], vatEnabled: true };
+  const template = built.ok ? built.template : { name: "Template", title: "Template", notes: "", items: [], vatEnabled: false };
   return {
     id: clean(source.id) || "tpl-unsaved",
     name: template.name,

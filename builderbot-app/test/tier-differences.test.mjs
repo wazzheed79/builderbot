@@ -39,7 +39,7 @@ test("a quote with no job keeps the old upgrade line and the same prices", () =>
 
 test("the decorating example names the extra prep and does not change the price", () => {
   const estimate = estimateTradeJob(decoratingNotes, "", null, []);
-  const plain = buildChoiceOptions(estimate.items, true, estimate.suggestedDepositPercent);
+  const plain = buildChoiceOptions(estimate.items, false, estimate.suggestedDepositPercent);
   const payload = guestQuotePayload({
     ...estimate,
     notes: decoratingNotes,

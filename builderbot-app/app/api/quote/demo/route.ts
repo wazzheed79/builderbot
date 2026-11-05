@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
         "Use realistic UK market rates in GBP (£): skilled labour should be £40-£65/hr or £220-£350/day. " +
         "Materials at realistic trade supplier prices. " +
         "Recommend a deposit % between 10 and 30 (default 20). " +
+        "Every rate is the price before VAT. Do not add 20% VAT into the rate. " +
         "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes. " +
         "Do not invent a business name, bank, customer name, address, phone, or email. " +
         TIER_CHANGES_PROMPT;
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
                       description: { type: "string", description: "Clear description of the line" },
                       quantity: { type: "number", description: "Numeric quantity" },
                       unit: { type: "string", description: "Unit of measure" },
-                      rate: { type: "number", description: "Unit price in GBP" },
+                      rate: { type: "number", description: "Unit price in GBP, excluding VAT" },
                     },
                     required: ["type", "description", "quantity", "unit", "rate"],
                   },

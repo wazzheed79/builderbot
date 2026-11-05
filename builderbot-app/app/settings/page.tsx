@@ -30,6 +30,7 @@ import {
 } from "@/lib/storage";
 import NumberField from "@/components/NumberField";
 import { useAuth } from "@/components/AuthProvider";
+import { parseUkVatNumber } from "@/lib/vat.mjs";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile>(() => getBusinessProfile());
@@ -77,11 +78,23 @@ export default function SettingsPage() {
     triggerToast(success);
   };
 
+  const vatParsed = parseUkVatNumber(profile.vatNumber);
+  const vatNumberError = profile.vatRegistered && !vatParsed.ok ? vatParsed.error : "";
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (saving || authLoading) return;
+    if (profile.vatRegistered && !vatParsed.ok) {
+      showSaveFailure(vatParsed.error);
+      return;
+    }
+    const nextProfile = {
+      ...profile,
+      vatNumber: vatParsed.ok ? vatParsed.vatNumber : "",
+    };
+    setProfile(nextProfile);
     setSaving(true);
-    void saveBusinessProfile(profile)
+    void saveBusinessProfile(nextProfile)
       .then((result) => {
         finishSave(result, "Business profile & branding saved successfully!");
       })
@@ -392,6 +405,72 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* VAT. Off unless the tradesperson is registered. */}
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="pb-4 border-b border-slate-100">
+            <h2 className="font-bold text-lg text-slate-900">VAT</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Off unless you are registered for VAT. Prices you type, and AI prices, are excluding VAT. When this is on, 20% is added on the quote and the invoice.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="VAT registered">
+            <button
+              type="button"
+              aria-pressed={!profile.vatRegistered}
+              onClick={() => handleChange("vatRegistered", false)}
+              className={`min-h-11 rounded-xl border px-3 text-sm font-bold ${
+                !profile.vatRegistered
+                  ? "border-clay-700 bg-clay-50 text-ink"
+                  : "border-slate-300 bg-white text-slate-700"
+              }`}
+            >
+              No, not registered
+            </button>
+            <button
+              type="button"
+              aria-pressed={profile.vatRegistered}
+              onClick={() => handleChange("vatRegistered", true)}
+              className={`min-h-11 rounded-xl border px-3 text-sm font-bold ${
+                profile.vatRegistered
+                  ? "border-clay-700 bg-clay-50 text-ink"
+                  : "border-slate-300 bg-white text-slate-700"
+              }`}
+            >
+              Yes, VAT registered
+            </button>
+          </div>
+          {profile.vatRegistered && (
+            <div>
+              <label htmlFor="vatNumber" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                VAT number (optional)
+              </label>
+              <input
+                id="vatNumber"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                value={profile.vatNumber || ""}
+                onChange={(e) => handleChange("vatNumber", e.target.value)}
+                placeholder="GB123456789"
+                aria-invalid={Boolean(vatNumberError)}
+                aria-describedby={vatNumberError ? "vat-number-error" : "vat-number-hint"}
+                className={`w-full min-h-11 px-3.5 py-2.5 rounded-xl border text-sm font-mono font-medium focus:outline-none focus:ring-2 focus:ring-clay-600 ${
+                  vatNumberError ? "border-rose-400" : "border-slate-300"
+                }`}
+              />
+              {vatNumberError ? (
+                <p id="vat-number-error" role="alert" className="mt-1.5 text-xs font-semibold text-rose-700">
+                  {vatNumberError}
+                </p>
+              ) : (
+                <p id="vat-number-hint" className="mt-1.5 text-xs text-slate-500">
+                  9 digits, with or without GB. Shown on the quote as VAT reg no when you fill it in.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Section 3: Bank Details & Invoicing */}
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-6">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
@@ -445,33 +524,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* VAT Configuration */}
-          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="vatRegistered"
-                checked={profile.vatRegistered}
-                onChange={(e) => handleChange("vatRegistered", e.target.checked)}
-                className="w-4 h-4 text-clay-700 rounded focus:ring-clay-600"
-              />
-              <label htmlFor="vatRegistered" className="text-sm font-bold text-slate-900 cursor-pointer">
-                Business is VAT Registered (20% UK standard)
-              </label>
-            </div>
-
-            {profile.vatRegistered && (
-              <div className="w-full sm:w-64">
-                <input
-                  type="text"
-                  value={profile.vatNumber || ""}
-                  onChange={(e) => handleChange("vatNumber", e.target.value)}
-                  placeholder="VAT No: GB 123 4567 89"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono font-medium focus:ring-2 focus:ring-clay-600"
-                />
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Section 4: Verified Accreditations */}
