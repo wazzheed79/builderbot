@@ -56,6 +56,7 @@ const GenerateRequestSchema = z.object({
     })
     .optional(),
   tiers: z.boolean().optional(),
+  vatRegistered: z.boolean().optional(),
 });
 
 interface LineItemResponse {
@@ -129,7 +130,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { notes, trade, pricingMemory, tiers } = parseResult.data;
+    const { notes, trade, pricingMemory, tiers, vatRegistered } = parseResult.data;
+    const chargeVat = vatRegistered === true;
     const photosCheck = validateAiPhotos(parseResult.data.photos);
     if (!photosCheck.ok) {
       return NextResponse.json({ error: photosCheck.error }, { status: 422 });
@@ -161,6 +163,7 @@ export async function POST(request: NextRequest) {
           ? "When the tradesperson's own prices are listed, use those rates and units for matching materials and jobs, and choose the quantities. "
           : "Materials at realistic trade supplier prices. ") +
         "Recommend a deposit % between 10 and 30 (default 20). " +
+        "Every rate is the price before VAT. Do not add 20% VAT into the rate. " +
         "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes. " +
         TIER_CHANGES_PROMPT;
 
@@ -253,7 +256,7 @@ export async function POST(request: NextRequest) {
                       },
                       rate: {
                         type: "number",
-                        description: "Unit price or hourly/daily rate in GBP (£)",
+                        description: "Unit price or hourly/daily rate in GBP (£), excluding VAT",
                       },
                     },
                     required: ["type", "description", "quantity", "unit", "rate"],
@@ -286,7 +289,7 @@ export async function POST(request: NextRequest) {
             ...(cleaned.tierChanges ? { tierChanges: cleaned.tierChanges } : {}),
             ...(tiers
               ? {
-                  options: buildChoiceOptions(rememberedItems, true, cleaned.suggestedDepositPercent, {
+                  options: buildChoiceOptions(rememberedItems, chargeVat, cleaned.suggestedDepositPercent, {
                     notes,
                     trade,
                     title: cleaned.title,
@@ -315,7 +318,7 @@ export async function POST(request: NextRequest) {
       items: rememberedItems,
       ...(tiers
         ? {
-            options: buildChoiceOptions(rememberedItems, true, estimate.suggestedDepositPercent, {
+            options: buildChoiceOptions(rememberedItems, chargeVat, estimate.suggestedDepositPercent, {
               notes,
               trade,
               title: estimate.title,

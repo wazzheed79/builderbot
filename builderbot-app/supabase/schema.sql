@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS public.quotes (
   notes TEXT,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   subtotal NUMERIC NOT NULL CHECK (subtotal >= 0),
-  vat_enabled BOOLEAN DEFAULT true,
+  vat_enabled BOOLEAN DEFAULT false,
   vat NUMERIC NOT NULL CHECK (vat >= 0),
   total NUMERIC NOT NULL CHECK (total >= 0),
   deposit_percent NUMERIC DEFAULT 20 CHECK (deposit_percent >= 0 AND deposit_percent <= 100),
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   client_email TEXT,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   subtotal NUMERIC NOT NULL CHECK (subtotal >= 0),
-  vat_enabled BOOLEAN DEFAULT true,
+  vat_enabled BOOLEAN DEFAULT false,
   vat NUMERIC NOT NULL CHECK (vat >= 0),
   total NUMERIC NOT NULL CHECK (total >= 0),
   deposit_paid NUMERIC DEFAULT 0 CHECK (deposit_paid >= 0),
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.quote_templates (
   title TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
-  vat_enabled BOOLEAN NOT NULL DEFAULT true,
+  vat_enabled BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

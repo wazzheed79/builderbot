@@ -111,7 +111,7 @@ export function guestQuotePayload(input) {
   const notes = clipText(input?.notes, MAX_SCOPE) || scopeOfWork;
   const options =
     items.length > 0
-      ? buildChoiceOptions(items, true, suggestedDepositPercent, {
+      ? buildChoiceOptions(items, false, suggestedDepositPercent, {
           notes,
           trade: clipText(input?.trade, 100),
           title,
@@ -237,7 +237,7 @@ export function guestDemoToBuilderFields(record) {
     items: options[0]?.items || record?.items || [],
     choiceOptions: options.length > 1 ? options : null,
     choiceIndex: 0,
-    vatEnabled: true,
+    vatEnabled: false,
     depositPercent: clampDepositPercent(record?.suggestedDepositPercent),
     aiPowered: record?.aiPowered === true,
     estimateOnly: record?.estimateOnly === true || record?.aiPowered !== true,

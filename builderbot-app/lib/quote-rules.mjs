@@ -14,11 +14,13 @@ export function roundMoney(amount) {
 
 /**
  * Server-authoritative calculation of quote financials.
+ * Line rates are excluding VAT. VAT is 20% of that net, rounded to pennies.
+ * A missing flag means not VAT registered, so no VAT is added.
  * @param {Array<{ quantity: number, rate: number }>} items
- * @param {boolean} vatEnabled
+ * @param {boolean} [vatEnabled]
  * @param {number} depositPercent
  */
-export function recalculateQuoteTotals(items = [], vatEnabled = true, depositPercent = 20) {
+export function recalculateQuoteTotals(items = [], vatEnabled = false, depositPercent = 20) {
   const subtotal = roundMoney(
     items.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0)
   );

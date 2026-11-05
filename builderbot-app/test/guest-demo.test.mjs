@@ -128,7 +128,8 @@ test("the try-it quote survives in this browser and is ignored when it is too ol
 
   const fields = guestDemoToBuilderFields(saved);
   assert.equal(fields.quoteTitle, "Kitchen tap");
-  assert.equal(fields.vatEnabled, true);
+  assert.equal(fields.vatEnabled, false);
+  assert.equal(fields.choiceOptions[0].vat, 0);
   assert.equal(fields.depositPercent, 15);
   assert.equal(fields.choiceOptions.length, 3);
   assert.equal(fields.items.length, 2);

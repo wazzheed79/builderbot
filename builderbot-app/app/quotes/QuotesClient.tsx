@@ -94,6 +94,8 @@ import { BUSINESS_NAME_PROMPT, hasBusinessName } from "@/lib/business-name.mjs";
 import { captureEvent } from "@/lib/analytics";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
+import VatTotals from "@/components/VatTotals";
+import { tierPriceCaption, vatPresentation } from "@/lib/vat.mjs";
 
 function money(amount: number) {
   return amount.toLocaleString("en-GB", {
@@ -196,7 +198,7 @@ export default function QuotesClient() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [vatEnabled, setVatEnabled] = useState(DEFAULT_BUSINESS_PROFILE.vatRegistered ?? true);
+  const [vatEnabled, setVatEnabled] = useState(DEFAULT_BUSINESS_PROFILE.vatRegistered === true);
   const [depositPercent, setDepositPercent] = useState(DEFAULT_BUSINESS_PROFILE.defaultDepositPercent ?? 20);
   const [isAiDraft, setIsAiDraft] = useState(false);
   const [estimateOnly, setEstimateOnly] = useState(false);
@@ -505,8 +507,11 @@ export default function QuotesClient() {
   const rateStamp = `${profile.vatRegistered}:${profile.defaultDepositPercent}`;
   if (ratesReadyFor !== rateStamp) {
     setRatesReadyFor(rateStamp);
-    setVatEnabled(profile.vatRegistered ?? true);
-    setDepositPercent(profile.defaultDepositPercent ?? 20);
+    const editingSaved = Boolean(quoteParam || activeQuoteId);
+    if (!editingSaved) {
+      setVatEnabled(profile.vatRegistered === true);
+      setDepositPercent(profile.defaultDepositPercent ?? 20);
+    }
   }
 
   if (
@@ -530,7 +535,7 @@ export default function QuotesClient() {
       setItems(fields.items as LineItem[]);
       setChoiceOptions((fields.choiceOptions as QuoteOption[] | null) ?? null);
       setChoiceIndex(0);
-      setVatEnabled(fields.vatEnabled);
+      setVatEnabled(profile.vatRegistered === true);
       setDepositPercent(fields.depositPercent);
       setIsAiDraft(fields.aiPowered);
       setEstimateOnly(fields.estimateOnly);
@@ -673,7 +678,7 @@ export default function QuotesClient() {
     setQuoteTitle(template.title);
     setNotesInput(template.notes);
     setItems(template.items.map((item) => ({ ...item, id: `${item.id}-${Date.now()}` })));
-    if (typeof template.vatEnabled === "boolean") setVatEnabled(template.vatEnabled);
+    setVatEnabled(profile.vatRegistered === true && template.vatEnabled === true);
     setChoiceOptions(null);
     setChoiceIndex(0);
     tierChangesRef.current = null;
@@ -744,6 +749,7 @@ export default function QuotesClient() {
         body: JSON.stringify({
           notes: notesInput.trim(),
           trade: profile.trade,
+          vatRegistered: profile.vatRegistered === true,
           photos: photoCheck.photos.length > 0 ? photoCheck.photos : undefined,
           pricingMemory: pricingMemoryForQuote(getPricingMemory(), rememberedRows),
         }),
@@ -1693,6 +1699,7 @@ export default function QuotesClient() {
                         <span className="block text-sm font-bold">{option.label}</span>
                         <span className="text-xs text-stone-600">
                           £{money(recalculateQuoteTotals(index === choiceIndex ? items : option.items, vatEnabled, depositPercent).total)}
+                          {tierPriceCaption(vatEnabled) ? ` ${tierPriceCaption(vatEnabled)}` : ""}
                         </span>
                         <TierChangeList label={option.label} changes={option.changes} />
                       </button>
@@ -1751,25 +1758,27 @@ export default function QuotesClient() {
             {/* Financials & Toggles */}
             <div className="p-5 sm:p-6 space-y-4">
               <div className="space-y-2.5 text-sm text-slate-600 pb-4 border-b border-slate-200">
-                <div className="flex justify-between">
-                  <span>Subtotal (Net)</span>
-                  <span className="font-semibold tabular-nums text-slate-900">£{money(subtotal)}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 text-sm font-medium">
-                    <input
-                      type="checkbox"
-                      checked={vatEnabled}
-                      onChange={(e) => setVatEnabled(e.target.checked)}
-                      className="h-5 w-5 rounded text-clay-700 focus:ring-clay-600"
-                    />
-                    <span>Add 20% VAT</span>
-                  </label>
-                  <span className="font-semibold tabular-nums text-slate-900">
-                    {vatEnabled ? `£${money(vat)}` : "£0.00"}
-                  </span>
-                </div>
+                <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 text-sm font-medium text-ink">
+                  <input
+                    type="checkbox"
+                    checked={vatEnabled}
+                    onChange={(e) => setVatEnabled(e.target.checked)}
+                    className="h-5 w-5 rounded text-clay-700 focus:ring-clay-600"
+                  />
+                  <span>Charge 20% VAT</span>
+                </label>
+                <p className="text-xs text-slate-500">
+                  Line prices are excluding VAT. This follows VAT registered in Settings, and you can change it for this quote.
+                </p>
+                <VatTotals
+                  subtotal={subtotal}
+                  vat={vat}
+                  total={total}
+                  vatEnabled={vatEnabled}
+                  vatNumber={profile.vatNumber}
+                  businessRegistered={profile.vatRegistered}
+                  totalClassName="text-3xl font-black tabular-nums text-ink sm:text-4xl"
+                />
 
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-1.5 text-xs">
@@ -1788,19 +1797,6 @@ export default function QuotesClient() {
                     </select>
                   </div>
                   <span className="font-semibold tabular-nums text-emerald-800">£{money(deposit)}</span>
-                </div>
-              </div>
-
-              {/* Grand Total */}
-              <div className="flex items-baseline justify-between pt-1">
-                <div>
-                  <span className="text-xs font-extrabold uppercase text-slate-500">
-                    {vatEnabled ? "Total inc. VAT" : "Total"}
-                  </span>
-                  <p className="text-xs text-slate-600">Materials and labour</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-3xl font-black tabular-nums text-slate-900 sm:text-4xl">£{money(total)}</span>
                 </div>
               </div>
 
@@ -1973,7 +1969,7 @@ export default function QuotesClient() {
         <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-40 flex w-full max-w-[100vw] items-center justify-between gap-1 overflow-hidden border-t-2 border-slate-800 bg-slate-950/95 px-2.5 py-2 text-white shadow-[0_-8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md sm:gap-2 sm:px-3 sm:py-2.5 lg:hidden">
           <div className="flex shrink-0 flex-col justify-center pr-1">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
-              {vatEnabled ? "Total inc. VAT" : "Total"}
+              {vatPresentation({ vatEnabled, businessRegistered: profile.vatRegistered }).totalLabel}
             </span>
             <span className="text-lg font-black tabular-nums text-white sm:text-xl">£{money(total)}</span>
             <span className="text-[10px] font-bold text-amber-200 whitespace-nowrap sm:text-[11px]">

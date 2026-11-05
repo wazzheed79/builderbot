@@ -146,7 +146,7 @@ The live site is hosted on Vercel. Merging to `main` is what ships a new version
 
 **New Supabase project:** in the SQL editor, run the whole of `builderbot-app/supabase/schema.sql`. That file is the current database, including quotes, invoices, templates, rate limits, and view counting.
 
-**Database that already exists:** run any file in `builderbot-app/supabase/migrations/` that has not been applied yet, in filename order. Those files are safe to run more than once. A fresh project that has just run `schema.sql` does not need them again. The typed-acceptance migration is `builderbot-app/supabase/migrations/20261030120000_typed_acceptance_record.sql`. Apply it in the Supabase SQL editor when you are ready. Until then, accepting a quote still works. After it is applied, each acceptance is also stored as a row that cannot be edited or deleted.
+**Database that already exists:** run any file in `builderbot-app/supabase/migrations/` that has not been applied yet, in filename order. Those files are safe to run more than once. A fresh project that has just run `schema.sql` does not need them again. The typed-acceptance migration is `builderbot-app/supabase/migrations/20261030120000_typed_acceptance_record.sql`. Apply it in the Supabase SQL editor when you are ready. Until then, accepting a quote still works. After it is applied, each acceptance is also stored as a row that cannot be edited or deleted. The VAT default migration is `builderbot-app/supabase/migrations/20261105143000_vat_default_not_registered.sql`. It is optional. Quotes and invoices work if you leave it. It does not change prices already saved.
 
 Set the environment variable names from the table above in Vercel. Leave every Stripe variable blank. Sign-in emails are sent from `hello@chuffedquotes.co.uk`. The privacy notice names Resend as the sender. That mail setup is in Supabase, not in this repository.
 
@@ -161,6 +161,10 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 ## Progress / Changelog
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
+
+### 5 November 2026
+
+- Settings has a VAT registered switch. It starts as no. You can add a VAT number (9 digits, with or without GB). Prices you type, and the AI prices, are before VAT. If you are registered, the quote, the customer’s link, the WhatsApp card, and the invoice show Subtotal (ex VAT), VAT at 20%, and Total inc VAT, plus the VAT number when you have entered one. Standard, Better, and Premium are still 15% and 30% extra on the price before VAT. If you are not registered, the customer sees the total and the line “Not VAT registered - no VAT charged”. An older quote that never recorded VAT is shown that way too. A quote that was already saved with VAT on still shows VAT, so a price you already sent does not change. There is a migration at `builderbot-app/supabase/migrations/20261105143000_vat_default_not_registered.sql`. You do not have to run it. It does not change existing quotes. The app works either way.
 
 ### 4 November 2026
 

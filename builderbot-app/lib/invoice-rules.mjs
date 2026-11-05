@@ -1,4 +1,5 @@
 import { recalculateQuoteTotals, roundMoney, generateToken } from "./quote-rules.mjs";
+import { quoteChargesVat } from "./vat.mjs";
 
 export const DEFAULT_DUE_DAYS = 14;
 export const PAYMENT_DETAILS_TO_FOLLOW = "Payment details to follow";
@@ -249,7 +250,7 @@ export function buildInvoiceFromQuote(input) {
   const profile = input.profile || {};
   const pack = quoteLinesForInvoice(quote);
   let items = pack.items;
-  const vatEnabled = Boolean(quote.vatEnabled);
+  const vatEnabled = quoteChargesVat(quote);
   if (input.depositOnly) {
     const deposit = roundMoney(Math.max(0, Number(quote.deposit) || 0));
     const rate = vatEnabled ? roundMoney(deposit / 1.2) : deposit;
@@ -323,7 +324,7 @@ export function normalizeStoredInvoice(raw) {
       ? id.toUpperCase().replace(/^INV-(\d+)$/i, (_, digits) => `INV-${digits.padStart(4, "0")}`)
       : explicitNumber || id;
   const items = Array.isArray(source.items) ? source.items.map(copyLine) : [];
-  const vatEnabled = source.vatEnabled !== false && source.vat_enabled !== false;
+  const vatEnabled = quoteChargesVat(source);
   const status = normalizeStoredStatus(source.status);
   const totals = invoiceTotals(
     items,
