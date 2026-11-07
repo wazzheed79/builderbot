@@ -118,6 +118,26 @@ export function calculateQuoteExpiry(createdAtIso, validityDays = 30, currentTim
   };
 }
 
+/**
+ * The line printed on a quote so a customer knows when prices were set and how long they hold.
+ * Uses the date the quote was created, not today, so it never changes after it is sent.
+ * @param {string} createdAtIso
+ * @param {number} [validityDays]
+ * @returns {string} Empty when the date is not usable.
+ */
+export function pricedOnLine(createdAtIso, validityDays = 30) {
+  const created = new Date(createdAtIso);
+  if (isNaN(created.getTime())) return "";
+  const days = Math.max(1, Math.round(Number(validityDays) || 30));
+  const date = created.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
+  return `Materials priced on ${date}. Prices valid for ${days} ${days === 1 ? "day" : "days"}.`;
+}
+
 /** Letters and digits that are not easy to mix up. Eight of these is the quote ref. */
 const QUOTE_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -189,3 +209,4 @@ export function reassignQuoteReferences(records, fromId, toId) {
     ),
   };
 }
+

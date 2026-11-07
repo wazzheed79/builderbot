@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { Download, Receipt } from "lucide-react";
 import { displayInvoiceStatus, formatUkDate } from "@/lib/invoice-rules.mjs";
 import { formatGbp } from "@/lib/quote-print.mjs";
 import { useClientReady, useInvoiceList } from "@/lib/live-store";
 import { useTodayIso } from "@/components/invoices/useTodayIso";
+import { buildXeroInvoiceCsv, xeroFileName } from "@/lib/xero-export.mjs";
 
 function tone(status: string) {
   if (status === "Paid") return "bg-emerald-100 text-emerald-800";
@@ -18,6 +19,19 @@ export default function InvoicesClient() {
   const ready = useClientReady();
   const invoices = useInvoiceList();
   const today = useTodayIso();
+
+  const downloadXeroCsv = () => {
+    const csv = buildXeroInvoiceCsv(invoices);
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = xeroFileName(today);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   if (!ready) {
     return <div className="mx-auto max-w-3xl px-4 py-12 text-sm text-stone-600">Loading invoices…</div>;
@@ -34,6 +48,22 @@ export default function InvoicesClient() {
         </div>
         <Receipt className="h-8 w-8 shrink-0 text-clay-700" />
       </div>
+
+      {invoices.length > 0 && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={downloadXeroCsv}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 text-sm font-bold text-ink transition hover:border-clay-300"
+          >
+            <Download className="h-4 w-4" />
+            Download CSV for Xero
+          </button>
+          <p className="mt-1.5 text-xs text-stone-500">
+            In Xero, go to Invoices, then Import. Account code 200 (Sales) is used. Check it matches your Xero chart of accounts.
+          </p>
+        </div>
+      )}
 
       {invoices.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 text-center">
@@ -82,3 +112,4 @@ export default function InvoicesClient() {
     </div>
   );
 }
+
