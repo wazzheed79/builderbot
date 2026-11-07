@@ -27,6 +27,7 @@ import {
   BusinessProfile,
   calculateQuoteExpiry,
 } from "@/lib/storage";
+import { pricedOnLine } from "@/lib/quote-rules.mjs";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 import { getWhatsAppShareUrl } from "@/lib/share";
 import { getAuthHeaders } from "@/lib/supabase";
@@ -357,6 +358,7 @@ export default function CustomerQuoteClient({
     loadedQuote.createdAt,
     activeProfile.quoteValidityDays || 30
   );
+  const pricedOn = pricedOnLine(loadedQuote.createdAt, activeProfile.quoteValidityDays || 30);
   const quoteLiveUrl = `${siteOrigin}/q/${loadedQuote.token || loadedQuote.id}`;
 
   const rememberLocalDecision = (signed: Quote): boolean => {
@@ -841,6 +843,7 @@ export default function CustomerQuoteClient({
                 <p className="font-semibold text-slate-700">Payment & Deposit Terms:</p>
                 <p>• {loadedQuote.depositPercent ?? 20}% deposit ({printable.deposit}) required upon quote acceptance.</p>
                 <p>• Remaining balance due upon completion of works.</p>
+                {pricedOn && <p>• {pricedOn}</p>}
               </div>
 
               <div className="w-full space-y-2 rounded-xl border border-stone-300 bg-white p-4 text-sm sm:w-72">
@@ -1263,3 +1266,4 @@ export default function CustomerQuoteClient({
     </div>
   );
 }
+
