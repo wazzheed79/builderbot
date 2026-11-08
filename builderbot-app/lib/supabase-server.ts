@@ -327,7 +327,8 @@ export async function submitPublicDecision(
   decision: "Accepted" | "Rejected",
   metadata: { signatureName?: string; reason?: string; clientIp?: string; selectedOptionId?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  const sb = getServerSupabase();
+  // The SQL function is service-role only, so this never uses the anon client.
+  const sb = getServiceRoleSupabase();
   if (!sb) {
     return { success: false, error: "Database service unavailable." };
   }

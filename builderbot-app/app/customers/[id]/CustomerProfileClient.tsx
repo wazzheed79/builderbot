@@ -31,7 +31,7 @@ import {
   saveInvoice,
   convertQuoteToInvoice,
 } from "@/lib/storage";
-import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl } from "@/lib/share";
+import { getWhatsAppShareUrl, getWhatsAppInvoiceShareUrl, normalizePhoneNumber } from "@/lib/share";
 import { hasBusinessName } from "@/lib/business-name.mjs";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
@@ -132,7 +132,7 @@ export default function CustomerProfileClient({
     );
   }
 
-  const cleanPhone = customer.phone.replace(/[^0-9]/g, "");
+  const cleanPhone = normalizePhoneNumber(customer.phone);
   const waUrl = cleanPhone
     ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Hi ${customer.name}, `)}`
     : `https://wa.me/?text=${encodeURIComponent(`Hi ${customer.name}, `)}`;
@@ -366,7 +366,7 @@ export default function CustomerProfileClient({
                 </span>
                 <p className="text-slate-900 font-semibold flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  <span>{customer.address}</span>
+                  <span>{customer.address || "Not provided"}</span>
                 </p>
               </div>
 

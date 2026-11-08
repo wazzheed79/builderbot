@@ -29,7 +29,7 @@ import {
 } from "@/lib/storage";
 import { pricedOnLine } from "@/lib/quote-rules.mjs";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
-import { getWhatsAppShareUrl } from "@/lib/share";
+import { getWhatsAppShareUrl, normalizePhoneNumber } from "@/lib/share";
 import { getAuthHeaders } from "@/lib/supabase";
 import { brand } from "@/lib/brand.mjs";
 import { captureEvent } from "@/lib/analytics";
@@ -511,12 +511,12 @@ export default function CustomerQuoteClient({
 
   const handleRequestChanges = () => {
     if (!loadedQuote) return;
-    const cleanPhone = contactPhone.replace(/[^0-9+]/g, "");
+    const cleanPhone = normalizePhoneNumber(contactPhone);
     const message = encodeURIComponent(
       `Hi ${contractorName}, I am reviewing quotation #${loadedQuote.id} (${loadedQuote.title || "Trade Work"}). Could we discuss a small question or adjustment to the scope?`
     );
     if (cleanPhone) {
-      window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
+      window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank", "noopener,noreferrer");
     } else if (contactEmail) {
       window.location.href = `mailto:${contactEmail}?subject=${encodeURIComponent(`Question regarding Quote #${loadedQuote.id}`)}&body=${message}`;
     }
