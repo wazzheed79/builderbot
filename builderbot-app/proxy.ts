@@ -13,7 +13,15 @@ export async function proxy(request: NextRequest) {
   const match = request.nextUrl.pathname.match(/^\/q\/([^/]+)$/);
   if (!match) return NextResponse.next();
 
-  const token = decodeURIComponent(match[1]);
+  let token: string;
+  try {
+    token = decodeURIComponent(match[1]);
+  } catch {
+    // A broken percent sequence is not a real quote link.
+    const bad = request.nextUrl.clone();
+    bad.pathname = "/quote-missing";
+    return NextResponse.rewrite(bad, { status: 404 });
+  }
   if (!(await isMissingPublicQuote(token))) return NextResponse.next();
 
   const url = request.nextUrl.clone();

@@ -80,9 +80,9 @@ export default function CustomersPage() {
       ...(editingCustomer ? { id: editingCustomer.id, createdAt: editingCustomer.createdAt } : {}),
       name: name.trim(),
       company: company.trim() || undefined,
-      phone: phone.trim() || "+44 7000 000000",
-      email: email.trim() || `${name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-      address: address.trim() || "Bristol, UK",
+      phone: phone.trim(),
+      email: email.trim(),
+      address: address.trim(),
       notes: notes.trim() || undefined,
     });
 
@@ -211,15 +211,15 @@ export default function CustomersPage() {
                 <div className="mt-3.5 space-y-2 text-xs text-slate-600">
                   <p className="flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{customer.address}</span>
+                    <span className="truncate">{customer.address || "No address yet"}</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{customer.phone}</span>
+                    <span>{customer.phone || "No phone yet"}</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{customer.email}</span>
+                    <span className="truncate">{customer.email || "No email yet"}</span>
                   </p>
                 </div>
 

@@ -235,7 +235,7 @@ CREATE POLICY "Quote templates are private to owner"
 REVOKE ALL ON TABLE public.quote_templates FROM anon;
 
 -- ==============================================================================
--- SECURE PUBLIC FUNCTIONS (Called exclusively via server-side service role)
+-- SECURE PUBLIC FUNCTIONS (quote/invoice reads are anon-callable by token; decisions are service role only)
 -- ==============================================================================
 
 -- Function 1: Get sanitized public quote by unguessable token
@@ -412,7 +412,7 @@ BEGIN
   END IF;
 
   -- Lookup quote
-  SELECT * INTO v_quote FROM public.quotes WHERE token = lookup_token;
+  SELECT * INTO v_quote FROM public.quotes WHERE token = lookup_token FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Quote not found.');
   END IF;
@@ -499,7 +499,7 @@ BEGIN
     SET status = 'Rejected',
         rejected_reason = substr(COALESCE(trim(p_decline_reason), ''), 1, 1000),
         rejected_at = now(),
-        rejected_ip = p_client_ip,
+        rejected_ip = NULLIF(substr(COALESCE(p_client_ip, ''), 1, 64), ''),
         updated_at = now()
     WHERE token = lookup_token;
   END IF;
@@ -528,7 +528,9 @@ REVOKE ALL ON FUNCTION public.get_public_quote(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_public_quote(TEXT) TO anon, authenticated, service_role;
 
 REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM anon;
+REVOKE ALL ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_public_quote_decision(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO service_role;
 
 -- One public invoice by unguessable token. Bank details are whatever was copied
 -- onto the invoice. Blank details stay blank.
