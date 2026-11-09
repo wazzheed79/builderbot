@@ -7,11 +7,13 @@ import { Check, Copy, Printer, Send, Trash2 } from "lucide-react";
 import InvoiceDocument from "@/components/invoices/InvoiceDocument";
 import { useTodayIso } from "@/components/invoices/useTodayIso";
 import LineItemEditor from "@/components/quotes/LineItemEditor";
+import { callOutLine } from "@/lib/call-out.mjs";
 import { displayInvoiceStatus, invoiceTotals, paymentDetails } from "@/lib/invoice-rules.mjs";
 import { getWhatsAppInvoiceShareUrl } from "@/lib/share";
 import {
   deleteInvoice,
   getBusinessProfile,
+  getPricingMemory,
   saveInvoice,
   type Invoice,
   type LineItem,
@@ -259,6 +261,23 @@ export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }
                 items: [...draft.items, { ...line, id: `line-${Date.now()}` }],
               })
             }
+            onAddCallOut={() => {
+              const line = callOutLine(getPricingMemory());
+              if (!line) return;
+              const item: LineItem = {
+                id: `line-${Date.now()}`,
+                type: "labor",
+                description: line.description,
+                quantity: line.quantity,
+                unit: line.unit,
+                rate: line.rate,
+                rateSource: "settings",
+              };
+              setDraft({
+                ...draft,
+                items: [...draft.items, item],
+              });
+            }}
             onAddItem={(type) =>
               setDraft({
                 ...draft,

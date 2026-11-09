@@ -246,6 +246,8 @@ export interface PricingMemory {
   laborDayRate: number; // e.g. £280/day
   laborHourlyRate: number; // e.g. £50/hr
   preferredMarkupPercent: number; // e.g. 20%
+  /** Optional visit charge in pounds. 0 means none. Not added to a quote until the trade taps it. */
+  callOutFee?: number;
   totalQuotesLearned?: number;
   updatedAt?: string;
 }
@@ -254,6 +256,7 @@ export const DEFAULT_PRICING_MEMORY: PricingMemory = {
   laborDayRate: 280,
   laborHourlyRate: 50,
   preferredMarkupPercent: 20,
+  callOutFee: 0,
   totalQuotesLearned: 0,
   updatedAt: "2026-10-18T12:00:00Z",
 };
@@ -281,7 +284,9 @@ export function savePricingMemory(memory: PricingMemory): PricingMemory {
 
 export function learnPricingFromQuote(items: LineItem[]): PricingMemory {
   const current = getPricingMemory();
-  const laborItems = items.filter((it) => it.type === "labor" && it.rate > 0);
+  const laborItems = items.filter(
+    (it) => it.type === "labor" && it.rate > 0 && !isSettingsCallOutLine(it)
+  );
   if (laborItems.length === 0) return current;
 
   const hourlyItems = laborItems.filter((it) => it.unit === "hrs" || it.rate <= 120);
@@ -314,6 +319,7 @@ export function learnPricingFromQuote(items: LineItem[]): PricingMemory {
   return updated;
 }
 
+import { isSettingsCallOutLine } from "./call-out.mjs";
 import {
   roundMoney,
   recalculateQuoteTotals,

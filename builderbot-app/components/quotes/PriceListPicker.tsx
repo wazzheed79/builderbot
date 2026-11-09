@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useCallOutFee } from "@/components/quotes/useCallOutFee";
 import { lineFromPriceList, linesFromPriceList, unitLabel } from "@/lib/price-memory.mjs";
+import { formatGbp } from "@/lib/quote-print.mjs";
 import { loadPriceList, type RememberedPrice } from "@/lib/price-memory";
 
 export interface PickedPriceLine {
@@ -36,6 +38,7 @@ export default function PriceListPicker({
   onAddLines: (lines: PickedPriceLine[]) => void;
   onClose: () => void;
 }) {
+  const callOutFee = useCallOutFee();
   const [priceRows, setPriceRows] = useState<RememberedPrice[] | null>(null);
   const [pickerError, setPickerError] = useState("");
   const [pickerQuery, setPickerQuery] = useState("");
@@ -99,6 +102,26 @@ export default function PriceListPicker({
       <p className="mt-1 text-sm text-stone-600">
         Tick the prices you want, or tap Add. This stays on the quote. It does not change your saved list.
       </p>
+      {callOutFee > 0 ? (
+        <button
+          type="button"
+          onClick={() =>
+            onAddLines([
+              {
+                type: "labor",
+                description: "Call-out fee",
+                quantity: 1,
+                unit: "visit",
+                rate: callOutFee,
+                rateSource: "settings",
+              },
+            ])
+          }
+          className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-clay-700 bg-white px-3 text-base font-bold text-clay-800"
+        >
+          Add call-out fee · {formatGbp(callOutFee)}
+        </button>
+      ) : null}
       <label className="mt-3 block text-sm font-bold text-ink" htmlFor="price-list-search">
         Search
         <input

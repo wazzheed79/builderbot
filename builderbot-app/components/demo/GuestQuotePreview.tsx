@@ -183,6 +183,7 @@ export default function GuestQuotePreview({ quote }: { quote: GuestPreviewQuote 
           </div>
           <div className="w-full space-y-2 rounded-xl border border-stone-300 bg-white p-4 text-sm sm:w-72">
             <VatTotals
+              items={items}
               subtotal={chosen?.subtotal ?? 0}
               vat={chosen?.vat ?? 0}
               total={chosen?.total ?? 0}
