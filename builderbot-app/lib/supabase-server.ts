@@ -5,6 +5,7 @@ import { isPublicInvoiceToken, normalizeStoredInvoice } from "./invoice-rules.mj
 import { hashVisitorId, QUOTE_VIEW_WINDOW_SECONDS } from "./quote-view.mjs";
 import { displayBusinessName, hasBusinessName } from "./business-name.mjs";
 import { isSupabaseConfigured, mapRowToQuote } from "./supabase";
+import { linesForQuoteTotal, splitCostTotals } from "./cost-split.mjs";
 import { chargesVat } from "./vat.mjs";
 
 let serverInstance: SupabaseClient | null = null;
@@ -143,8 +144,10 @@ export async function fetchPublicQuoteCard(token: string): Promise<{
   company: string;
   jobTitle: string;
   total: number;
+  vat: number;
   heading: string;
   vatEnabled: boolean;
+  costRows: { label: string; amount: number }[];
 } | null> {
   if (!isPublicQuoteToken(token)) return null;
   try {
@@ -162,12 +165,17 @@ export async function fetchPublicQuoteCard(token: string): Promise<{
         : jobTitle
           ? `Quote: ${jobTitle}`
           : "Your quote";
+    const vatEnabled = chargesVat(payload.quote.vatEnabled);
+    const subtotal = Number(payload.quote.subtotal);
+    const split = splitCostTotals(linesForQuoteTotal(payload.quote), subtotal);
     return {
       company,
       jobTitle,
       total: Number(payload.quote.total) || 0,
+      vat: Number(payload.quote.vat) || 0,
       heading,
-      vatEnabled: chargesVat(payload.quote.vatEnabled),
+      vatEnabled,
+      costRows: split.rows.map((row) => ({ label: row.label, amount: row.amount })),
     };
   } catch {
     return null;

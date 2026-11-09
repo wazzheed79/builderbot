@@ -1,3 +1,4 @@
+import { splitCostTotals } from "./cost-split.mjs";
 import { recalculateQuoteTotals, roundMoney } from "./quote-rules.mjs";
 
 /** Printable body height on A4 after the page margins in globals.css. */
@@ -170,11 +171,20 @@ export function preparePrintableQuote(input) {
   );
   const totals = input?.totals || calculated;
   const logo = String(input?.logoUrl || "").trim();
+  const split = splitCostTotals(
+    source,
+    totals.subtotal ?? calculated.subtotal
+  );
   return {
     hasLogo: logo.length > 0,
     lines,
     pages,
     pageCount: pages.length,
+    costRows: split.rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      amount: formatGbp(row.amount),
+    })),
     subtotal: formatGbp(totals.subtotal ?? calculated.subtotal),
     vat: formatGbp(totals.vat ?? calculated.vat),
     total: formatGbp(totals.total ?? calculated.total),

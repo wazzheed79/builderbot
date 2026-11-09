@@ -4,11 +4,14 @@ import { useState } from "react";
 import { ListPlus, Plus, Sparkles, Trash2, Wrench } from "lucide-react";
 import NumberField from "@/components/NumberField";
 import PriceListPicker, { type PickedPriceLine } from "@/components/quotes/PriceListPicker";
+import { useCallOutFee } from "@/components/quotes/useCallOutFee";
+import { formatGbp } from "@/lib/quote-print.mjs";
 import { LineItem, roundMoney } from "@/lib/storage";
 
 interface LineItemEditorProps {
   items: LineItem[];
   onAddItem: (type: "material" | "labor") => void;
+  onAddCallOut?: () => void;
   onAddPrice?: (item: PickedPriceLine) => void;
   /** When set, the price button opens the picker on the quote page instead of a second one here. */
   onBrowsePrices?: () => void;
@@ -23,6 +26,7 @@ interface LineItemEditorProps {
 export default function LineItemEditor({
   items,
   onAddItem,
+  onAddCallOut,
   onAddPrice,
   onBrowsePrices,
   onUpdateItem,
@@ -33,6 +37,7 @@ export default function LineItemEditor({
   heading = "Quote Line Items",
 }: LineItemEditorProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const callOutFee = useCallOutFee();
   const fromList = items.filter((item) => item.usualPrice).length;
 
   const openPicker = () => {
@@ -67,6 +72,16 @@ export default function LineItemEditor({
           </button>
         </div>
       </div>
+
+      {callOutFee > 0 && onAddCallOut ? (
+        <button
+          type="button"
+          onClick={onAddCallOut}
+          className="mb-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-clay-700 bg-white px-3.5 text-base font-bold text-clay-800 shadow-sm transition hover:bg-clay-50 active:scale-[0.99]"
+        >
+          Add call-out fee · {formatGbp(callOutFee)}
+        </button>
+      ) : null}
 
       {onAddPrice ? (
         <div className="mb-4">

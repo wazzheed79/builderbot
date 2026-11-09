@@ -26,6 +26,7 @@ import {
   saveBusinessProfile,
   PricingMemory,
   getPricingMemory,
+  roundMoney,
   savePricingMemory,
 } from "@/lib/storage";
 import NumberField from "@/components/NumberField";
@@ -685,16 +686,19 @@ export default function SettingsPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Baseline Day Rate (£/day)
+              <label htmlFor="day-rate" className="mb-1 block text-sm font-bold text-slate-900">
+                Day rate (£)
               </label>
+              <p className="mb-1.5 text-xs text-slate-500">What you charge for a day on site.</p>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">£</span>
                 <NumberField
+                  id="day-rate"
                   min={50}
                   value={pricingMemory.laborDayRate}
+                  aria-label="Day rate in pounds"
                   onValue={(next) => {
                     const laborDayRate = next ?? 0;
                     setPricingMemory((prev) => {
@@ -709,14 +713,43 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Baseline Hourly Rate (£/hr)
+              <label htmlFor="call-out-fee" className="mb-1 block text-sm font-bold text-slate-900">
+                Call-out fee (£)
+              </label>
+              <p className="mb-1.5 text-xs text-slate-500">
+                Optional. Leave this at 0 if you do not charge one. It is added to a quote only when you tap Add call-out fee.
+              </p>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">£</span>
+                <NumberField
+                  id="call-out-fee"
+                  min={0}
+                  value={pricingMemory.callOutFee ?? 0}
+                  aria-label="Call-out fee in pounds"
+                  onValue={(next) => {
+                    const callOutFee = roundMoney(Math.max(0, next ?? 0));
+                    setPricingMemory((prev) => {
+                      const updated = { ...prev, callOutFee };
+                      savePricingMemory(updated);
+                      return updated;
+                    });
+                  }}
+                  className="min-h-12 w-full rounded-xl border border-slate-300 pl-8 pr-3.5 text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="hourly-rate" className="mb-1.5 block text-sm font-bold text-slate-900">
+                Hourly rate (£)
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">£</span>
                 <NumberField
+                  id="hourly-rate"
                   min={10}
                   value={pricingMemory.laborHourlyRate}
+                  aria-label="Hourly rate in pounds"
                   onValue={(next) => {
                     const laborHourlyRate = next ?? 0;
                     setPricingMemory((prev) => {
@@ -731,15 +764,17 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Default Material Markup (%)
+              <label htmlFor="material-markup" className="mb-1.5 block text-sm font-bold text-slate-900">
+                Material markup (%)
               </label>
               <div className="relative">
                 <NumberField
+                  id="material-markup"
                   decimal={false}
                   min={0}
                   max={100}
                   value={pricingMemory.preferredMarkupPercent}
+                  aria-label="Material markup percent"
                   onValue={(next) => {
                     const preferredMarkupPercent = next ?? 0;
                     setPricingMemory((prev) => {
@@ -767,7 +802,8 @@ export default function SettingsPage() {
 
           <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/60 rounded-xl flex items-center justify-between text-xs text-indigo-900">
             <span>
-              💡 <strong>Your usual rates:</strong> New quotes and the margin calculator use your £{pricingMemory.laborHourlyRate}/hr rate and {pricingMemory.preferredMarkupPercent}% markup.
+              💡 <strong>Your usual rates:</strong> New quotes use your £{pricingMemory.laborDayRate}/day rate, £{pricingMemory.laborHourlyRate}/hr rate, and {pricingMemory.preferredMarkupPercent}% markup.
+              {pricingMemory.callOutFee ? ` Call-out fee £${pricingMemory.callOutFee}. Add it on a quote when you want it.` : ""}
             </span>
             {pricingMemory.totalQuotesLearned ? (
               <span className="text-[11px] font-bold text-indigo-700 shrink-0">

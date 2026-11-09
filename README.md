@@ -162,6 +162,11 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
 
+### 9 November 2026
+
+- The customer’s quote, the printout, the WhatsApp card, the try-it preview, and the invoice show a Materials total and a Labour total above the usual subtotal, VAT, and total. Services or other work is listed only when the quote has that kind of line. A total of £0 is left off. VAT is unchanged: prices are before VAT, and a registered quote still shows VAT at 20%. Standard, Better, and Premium still add up to the same prices. An older quote still opens. No database migration.
+- Settings has an optional Call-out fee (£), next to the day rate. It saves on this phone as you type. It is not put on a quote until you tap Add call-out fee, which adds one labour line. The same button is in Add from my price list. No database migration.
+
 ### 5 November 2026
 
 - Settings has a VAT registered switch. It starts as no. You can add a VAT number (9 digits, with or without GB). Prices you type, and the AI prices, are before VAT. If you are registered, the quote, the customer’s link, the WhatsApp card, and the invoice show Subtotal (ex VAT), VAT at 20%, and Total inc VAT, plus the VAT number when you have entered one. Standard, Better, and Premium are still 15% and 30% extra on the price before VAT. If you are not registered, the customer sees the total and the line “Not VAT registered - no VAT charged”. An older quote that never recorded VAT is shown that way too. A quote that was already saved with VAT on still shows VAT, so a price you already sent does not change. There is a migration at `builderbot-app/supabase/migrations/20261105143000_vat_default_not_registered.sql`. You do not have to run it. It does not change existing quotes. The app works either way.

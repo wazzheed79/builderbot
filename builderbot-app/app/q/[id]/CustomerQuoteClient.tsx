@@ -848,6 +848,7 @@ export default function CustomerQuoteClient({
 
               <div className="w-full space-y-2 rounded-xl border border-stone-300 bg-white p-4 text-sm sm:w-72">
                 <VatTotals
+                  items={shownItems}
                   subtotal={shownSubtotal}
                   vat={shownVat}
                   total={shownTotal}

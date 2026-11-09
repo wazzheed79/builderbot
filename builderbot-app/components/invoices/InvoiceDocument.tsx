@@ -149,6 +149,7 @@ export default function InvoiceDocument({
 
         <div className="quote-totals ml-auto w-full max-w-sm space-y-2 text-sm">
           <VatTotals
+            items={invoice.items}
             subtotal={invoice.subtotal}
             vat={invoice.vat}
             total={invoice.total}

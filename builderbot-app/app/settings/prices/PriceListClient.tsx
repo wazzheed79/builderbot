@@ -215,7 +215,7 @@ export default function PriceListClient() {
         Add materials and jobs you price often. Prices you type on a quote are kept here too. You still check every line before you send it.
       </p>
       <p className="mt-2 text-sm leading-relaxed text-stone-600">
-        Your day rate, hourly rate, and material markup stay in{" "}
+        Your day rate, hourly rate, call-out fee, and material markup stay in{" "}
         <Link href="/settings" className="font-bold text-clay-800 underline">
           Settings
         </Link>

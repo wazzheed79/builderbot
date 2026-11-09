@@ -57,6 +57,7 @@ import QuoteTemplatesBar, {
   DEFAULT_QUOTE_TEMPLATES,
 } from "@/components/quotes/QuoteTemplatesBar";
 import MarginCalculator from "@/components/quotes/MarginCalculator";
+import { callOutLine } from "@/lib/call-out.mjs";
 import LineItemEditor from "@/components/quotes/LineItemEditor";
 import PriceListPicker from "@/components/quotes/PriceListPicker";
 import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
@@ -832,6 +833,23 @@ export default function QuotesClient() {
     setItems((current) => [...current, newItem]);
   };
 
+  const handleAddCallOut = () => {
+    const line = callOutLine(getPricingMemory());
+    if (!line) return;
+    markDraftEdited();
+    const item: LineItem = {
+      id: `line-${++lineSerial.current}`,
+      type: "labor",
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      rate: line.rate,
+      rateSource: "settings",
+    };
+    setItems((current) => [...current, item]);
+    triggerToast("Call-out fee added as a labour line.");
+  };
+
   const handleUpdateItem = (id: string, field: keyof LineItem, value: string | number) => {
     setItems((current) =>
       current.map((item) => {
@@ -1465,9 +1483,11 @@ export default function QuotesClient() {
               ]);
               setActiveTab("items");
               triggerToast(
-                lines.length === 1
-                  ? `Added ${lines[0].description} from your price list.`
-                  : `Added ${lines.length} prices from your price list.`
+                lines.length === 1 && lines[0].rateSource === "settings"
+                  ? "Call-out fee added as a labour line."
+                  : lines.length === 1
+                    ? `Added ${lines[0].description} from your price list.`
+                    : `Added ${lines.length} prices from your price list.`
               );
             }}
           />
@@ -1712,6 +1732,7 @@ export default function QuotesClient() {
               <LineItemEditor
                 items={items}
                 onAddItem={handleAddItem}
+                onAddCallOut={handleAddCallOut}
                 onAddPrice={(line) => {
                   markDraftEdited();
                   setItems((current) => [...current, { ...line, id: `line-${++lineSerial.current}` }]);
@@ -1771,6 +1792,7 @@ export default function QuotesClient() {
                   Line prices are excluding VAT. This follows VAT registered in Settings, and you can change it for this quote.
                 </p>
                 <VatTotals
+                  items={items}
                   subtotal={subtotal}
                   vat={vat}
                   total={total}
