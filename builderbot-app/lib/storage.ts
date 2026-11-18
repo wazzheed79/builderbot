@@ -301,6 +301,18 @@ export function getPricingMemory(): PricingMemory {
   }
 }
 
+/** The rates this browser saved, or null when it has never saved any. */
+export function getSavedPricingMemory(): PricingMemory | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PRICING_MEMORY_KEY);
+    if (!raw) return null;
+    return { ...DEFAULT_PRICING_MEMORY, ...JSON.parse(raw) };
+  } catch {
+    return null;
+  }
+}
+
 export function savePricingMemory(memory: PricingMemory): PricingMemory {
   if (typeof window !== "undefined") {
     localStorage.setItem(PRICING_MEMORY_KEY, JSON.stringify(memory));

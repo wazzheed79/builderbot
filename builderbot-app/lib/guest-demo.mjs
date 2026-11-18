@@ -278,3 +278,46 @@ export function pathAfterAuth(requested, storage) {
   if (readGuestDemoQuote(storage)) return "/quotes";
   return next;
 }
+
+const GUEST_DAY_RATE_RANGE = [50, 5000];
+const GUEST_HOUR_RATE_RANGE = [5, 500];
+
+function boundedRate(value, [lo, hi]) {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < lo || n > hi) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * The visitor's own labour rates, sent by the try-out when they saved some
+ * (for example from the day rate calculator). Anything odd is ignored.
+ * @param {unknown} raw
+ * @returns {{ laborDayRate: number, laborHourlyRate: number } | null}
+ */
+export function guestRatesFromBody(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const src = /** @type {Record<string, unknown>} */ (raw);
+  const laborDayRate = boundedRate(src.laborDayRate, GUEST_DAY_RATE_RANGE);
+  const laborHourlyRate = boundedRate(src.laborHourlyRate, GUEST_HOUR_RATE_RANGE);
+  if (!laborDayRate && !laborHourlyRate) return null;
+  return { laborDayRate, laborHourlyRate };
+}
+
+/**
+ * Put the visitor's own rates on labour lines priced by the hour or the day.
+ * Other lines are left alone.
+ * @template {{ type: string, unit: string, rate: number }} T
+ * @param {T[]} items
+ * @param {{ laborDayRate: number, laborHourlyRate: number } | null} rates
+ * @returns {T[]}
+ */
+export function applyGuestRates(items, rates) {
+  if (!rates || !Array.isArray(items)) return items;
+  return items.map((item) => {
+    if (item?.type !== "labor") return item;
+    const unit = String(item.unit || "").trim().toLowerCase();
+    if (rates.laborHourlyRate && /^(hr|hrs|hour|hours)$/.test(unit)) return { ...item, rate: rates.laborHourlyRate };
+    if (rates.laborDayRate && /^(day|days)$/.test(unit)) return { ...item, rate: rates.laborDayRate };
+    return item;
+  });
+}

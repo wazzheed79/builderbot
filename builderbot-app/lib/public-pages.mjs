@@ -18,6 +18,8 @@ const GUEST_PUBLIC_PATHS = new Set([
   "/feedback",
   "/flyer",
   "/pricing",
+  "/day-rate-calculator",
+  "/day-rate-calculator/rate-card",
   "/quote-missing",
   "/auth/callback",
   "/auth/confirm",
