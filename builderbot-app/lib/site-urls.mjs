@@ -8,6 +8,7 @@ import { CANONICAL_ORIGIN } from "./domain-redirect.mjs";
 export const PUBLIC_SITEMAP_PATHS = [
   "/",
   "/try",
+  "/day-rate-calculator",
   "/walkthrough",
   "/pricing",
   "/login",

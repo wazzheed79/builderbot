@@ -19,6 +19,8 @@ const EVENT_PROPERTIES = {
   demo_quote_generated: ["ai_used", "used_example"],
   demo_build_failed: ["reason", "used_example"],
   demo_signup_clicked: [],
+  day_rate_used: ["signed_in"],
+  day_rate_card_made: [],
 };
 
 /** The only words a failure event may carry. Job notes never qualify. */

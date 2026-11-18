@@ -15,6 +15,7 @@ import {
 } from "@/lib/guest-demo.mjs";
 import SpeechGhostField from "@/components/SpeechGhostField";
 import { HOME_NOTES_KEY } from "@/lib/home-notes";
+import { getSavedPricingMemory } from "@/lib/storage";
 import { OWN_PRICES_LINE, TRY_PRICES_NOTE } from "@/lib/price-memory.mjs";
 import { appendSpokenText, applyRecognitionResults } from "@/lib/speech-draft.mjs";
 
@@ -65,6 +66,7 @@ export default function TryClient() {
   const [error, setError] = useState("");
   const [quote, setQuote] = useState<GuestPreviewQuote | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [ownRates, setOwnRates] = useState<{ laborDayRate: number; laborHourlyRate: number } | null>(null);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -74,6 +76,10 @@ export default function TryClient() {
   if (mounted && !hydrated) {
     setHydrated(true);
     try {
+      const rates = getSavedPricingMemory();
+      if (rates && (rates.laborDayRate > 0 || rates.laborHourlyRate > 0)) {
+        setOwnRates({ laborDayRate: rates.laborDayRate, laborHourlyRate: rates.laborHourlyRate });
+      }
       const saved = readGuestDemoQuote(window.localStorage);
       if (isPreviewQuote(saved)) setQuote(saved);
       const pending = sessionStorage.getItem(HOME_NOTES_KEY);
@@ -173,7 +179,7 @@ export default function TryClient() {
       const response = await fetch("/api/quote/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: notesText }),
+        body: JSON.stringify(ownRates ? { notes: notesText, rates: ownRates } : { notes: notesText }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !isPreviewQuote(data)) {
@@ -274,8 +280,24 @@ export default function TryClient() {
           included, or what changes from the one below. You also see a preview of the page your
           customer would open.
         </p>
-        <p className="text-stone-700">{OWN_PRICES_LINE}</p>
-        <p>{TRY_PRICES_NOTE}</p>
+        {ownRates ? (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-950">
+            Using your rates: £{ownRates.laborDayRate} a day, £{ownRates.laborHourlyRate} an hour.{" "}
+            <Link href="/day-rate-calculator" className="underline">
+              Change them
+            </Link>
+          </p>
+        ) : (
+          <>
+            <p className="text-stone-700">{OWN_PRICES_LINE}</p>
+            <p>
+              {TRY_PRICES_NOTE}{" "}
+              <Link href="/day-rate-calculator" className="font-bold text-clay-700 underline">
+                Work out your day rate
+              </Link>
+            </p>
+          </>
+        )}
         <p>
           A few free tries a day from this phone. Prices are a suggestion. You check them before
           anyone else sees them.

@@ -43,7 +43,7 @@ export default function DemoBanner() {
   };
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs sm:text-sm text-stone-800">
+    <div className="no-print bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs sm:text-sm text-stone-800">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex items-start gap-2 min-w-0">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">

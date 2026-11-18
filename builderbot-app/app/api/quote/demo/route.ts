@@ -19,7 +19,9 @@ import {
   GUEST_PLACEHOLDER_BUSINESS,
   GUEST_WINDOW_MS,
   guestDemoRateId,
+  applyGuestRates,
   guestQuotePayload,
+  guestRatesFromBody,
   validateGuestNotes,
 } from "@/lib/guest-demo.mjs";
 import { MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG, checkBodySize } from "@/lib/image-payload.mjs";
@@ -87,6 +89,18 @@ export async function POST(request: NextRequest) {
     }
 
     const notes = notesCheck.notes;
+    // Optional rates the visitor saved, e.g. from the day rate calculator.
+    const ownRates = guestRatesFromBody((rawBody as { rates?: unknown }).rates);
+    const ownRatesLine = ownRates
+      ? "The tradesperson has set their own labour rates. Price labour at exactly " +
+        [
+          ownRates.laborHourlyRate ? `£${ownRates.laborHourlyRate}/hr` : "",
+          ownRates.laborDayRate ? `£${ownRates.laborDayRate}/day` : "",
+        ]
+          .filter(Boolean)
+          .join(" or ") +
+        " and do not change it. "
+      : "";
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     // Shared daily cap for every visitor together. Past it, the rough estimate below is used.
     const globalCheck = apiKey
@@ -102,7 +116,8 @@ export async function POST(request: NextRequest) {
         `You are the quoting assistant for ${brand.name}, helping UK builders, electricians, plumbers, roofers, landscapers, painters, and carpenters. ` +
         "Given tradesperson notes, return realistic UK trade itemised breakdowns in JSON format. " +
         "Write descriptions in British spelling (labour, colour, metre). " +
-        "Use realistic UK market rates in GBP (£): skilled labour should be £40-£65/hr or £220-£350/day. " +
+        (ownRatesLine ||
+          "Use realistic UK market rates in GBP (£): skilled labour should be £40-£65/hr or £220-£350/day. ") +
         "Materials at realistic trade supplier prices. " +
         "Recommend a deposit % between 10 and 30 (default 20). " +
         "Every rate is the price before VAT. Do not add 20% VAT into the rate. " +
@@ -168,6 +183,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             guestQuotePayload({
               ...cleaned,
+              items: applyGuestRates(cleaned.items, ownRates),
               notes,
               aiPowered: true,
               notice:
@@ -181,7 +197,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const estimate = estimateTradeJob(notes, "", null, []);
+    const estimate = estimateTradeJob(notes, "", ownRates, []);
     const cleaned = sanitizeGeneratedQuote(estimate, { notes });
     if (!cleaned.ok) {
       return NextResponse.json(
@@ -193,6 +209,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       guestQuotePayload({
         ...cleaned,
+        items: applyGuestRates(cleaned.items, ownRates),
         notes,
         aiPowered: false,
         notice: apiKey
