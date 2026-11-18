@@ -1,5 +1,6 @@
 import { recalculateQuoteTotals, roundMoney, generateToken } from "./quote-rules.mjs";
 import { quoteChargesVat } from "./vat.mjs";
+import { todayInLondon } from "./london-date.mjs";
 
 export const DEFAULT_DUE_DAYS = 14;
 export const PAYMENT_DETAILS_TO_FOLLOW = "Payment details to follow";
@@ -85,19 +86,11 @@ export function displayInvoiceStatus(status, dueDate, today) {
 
 /**
  * London calendar date. A late evening in the UK must not jump to tomorrow's UTC date.
+ * Kept for existing callers; the shared helper is todayInLondon in london-date.mjs.
  * @param {Date} [now]
  */
 export function todayIso(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const year = parts.find((part) => part.type === "year")?.value || "1970";
-  const month = parts.find((part) => part.type === "month")?.value || "01";
-  const day = parts.find((part) => part.type === "day")?.value || "01";
-  return `${year}-${month}-${day}`;
+  return todayInLondon(now);
 }
 
 /**

@@ -4,9 +4,17 @@ import { sanitizeGeneratedQuote } from "@/lib/quote-ai.mjs";
 import { estimateTradeJob } from "@/lib/trade-estimator.mjs";
 import { brand } from "@/lib/brand.mjs";
 import { TIER_CHANGES_PROMPT, tierChangesSchema } from "@/lib/tier-differences.mjs";
-import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
+import {
+  geminiFailureCode,
+  generateGeminiText,
+  parseGeminiJson,
+  shouldUseRoughEstimate,
+} from "@/lib/gemini";
+import { reportAiFallback } from "@/lib/server-fault";
 import {
   GUEST_DAILY_LIMIT,
+  GUEST_GLOBAL_DAILY_LIMIT,
+  GUEST_GLOBAL_RATE_ID,
   GUEST_NOTES_MAX,
   GUEST_PLACEHOLDER_BUSINESS,
   GUEST_WINDOW_MS,
@@ -15,6 +23,8 @@ import {
   validateGuestNotes,
 } from "@/lib/guest-demo.mjs";
 import { MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG, checkBodySize } from "@/lib/image-payload.mjs";
+
+let globalCapReported = false;
 
 const LIMIT_MESSAGE =
   "That's all the free tries from this phone today. Create a free account to keep going.";
@@ -78,7 +88,16 @@ export async function POST(request: NextRequest) {
 
     const notes = notesCheck.notes;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (apiKey) {
+    // Shared daily cap for every visitor together. Past it, the rough estimate below is used.
+    const globalCheck = apiKey
+      ? await checkRateLimit(GUEST_GLOBAL_RATE_ID, GUEST_GLOBAL_DAILY_LIMIT, GUEST_WINDOW_MS)
+      : null;
+    if (globalCheck && !globalCheck.allowed && !globalCapReported) {
+      // Once per server, so a busy day does not fill Sentry with the same message.
+      globalCapReported = true;
+      reportAiFallback("demo", "global_daily_cap");
+    }
+    if (apiKey && globalCheck?.allowed) {
       const systemInstruction =
         `You are the quoting assistant for ${brand.name}, helping UK builders, electricians, plumbers, roofers, landscapers, painters, and carpenters. ` +
         "Given tradesperson notes, return realistic UK trade itemised breakdowns in JSON format. " +
@@ -144,10 +163,7 @@ export async function POST(request: NextRequest) {
         const parsed = parseGeminiJson(responseText);
         const cleaned = sanitizeGeneratedQuote(parsed, { notes });
         if (!cleaned.ok) {
-          console.error(
-            "Guest Gemini quote did not match the expected shape. Using the rough estimate.",
-            cleaned.reason
-          );
+          reportAiFallback("demo", "bad_shape");
         } else {
           return NextResponse.json(
             guestQuotePayload({
@@ -161,7 +177,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         if (!shouldUseRoughEstimate(error)) throw error;
-        console.error("Guest Gemini quote failed. Using the rough estimate.", error);
+        reportAiFallback("demo", geminiFailureCode(error));
       }
     }
 

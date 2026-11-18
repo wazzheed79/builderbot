@@ -7,9 +7,15 @@ import { applyQuotePrices, rememberedPricesPrompt } from "@/lib/price-memory.mjs
 import { buildChoiceOptions } from "@/lib/quote-options.mjs";
 import { TIER_CHANGES_PROMPT, tierChangesSchema } from "@/lib/tier-differences.mjs";
 import { getSignedInUserId } from "@/lib/ai-access";
-import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
+import { quotaMessage, refundAiTurn, takeAiTurn, type AiTurn } from "@/lib/ai-quota";
+import { reportAiFallback } from "@/lib/server-fault";
 import { brand } from "@/lib/brand.mjs";
-import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
+import {
+  geminiFailureCode,
+  generateGeminiText,
+  parseGeminiJson,
+  shouldUseRoughEstimate,
+} from "@/lib/gemini";
 import {
   MAX_AI_BODY_CHARS,
   MAX_AI_PHOTOS,
@@ -86,6 +92,8 @@ interface GenerateResponse {
 }
 
 export async function POST(request: NextRequest) {
+  // Set once an hourly AI request is taken, cleared when Gemini gives a usable quote.
+  let takenTurn: { userId: string; turn: AiTurn } | null = null;
   try {
     const declaredLength = request.headers.get("content-length");
     const declaredSize = checkBodySize(declaredLength, "", MAX_AI_BODY_CHARS, REQUEST_TOO_LARGE);
@@ -93,9 +101,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: declaredSize.error }, { status: declaredSize.status });
     }
 
-    // 1. Rate Limiting Check (15 requests/min per IP)
-    const clientIp = getClientIp(request);
-    const rateCheck = await checkRateLimit(`ai-generate:${clientIp}`, 15, 60000);
+    // 1. Rate Limiting Check (15 requests/min per account when signed in, otherwise per address).
+    // Many phones on one mobile network can share an address, so accounts are not counted by it.
+    const userId = await getSignedInUserId(request);
+    const rateSubject = userId ? `user:${userId}` : getClientIp(request);
+    const rateCheck = await checkRateLimit(`ai-generate:${rateSubject}`, 15, 60000);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Too many AI generation requests. Please wait a moment before trying again." },
@@ -139,7 +149,6 @@ export async function POST(request: NextRequest) {
     const photos = photosCheck.photos;
     const remembered = pricingMemory?.remembered || [];
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    const userId = await getSignedInUserId(request);
 
     if (apiKey && userId) {
       const userLimit = await takeAiTurn(userId, "generate");
@@ -149,6 +158,7 @@ export async function POST(request: NextRequest) {
           { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
         );
       }
+      takenTurn = { userId, turn: userLimit };
 
       const hasOwnLabour = Boolean(pricingMemory?.laborHourlyRate || pricingMemory?.laborDayRate);
       const rememberedPrices = rememberedPricesPrompt(remembered);
@@ -274,11 +284,9 @@ export async function POST(request: NextRequest) {
         const cleaned = sanitizeGeneratedQuote(parsed, { notes });
         // A reply that is missing lines, or is not an object, uses the rough estimate.
         if (!cleaned.ok) {
-          console.error(
-            "Gemini quote did not match the expected shape. Using the rough estimate.",
-            cleaned.reason
-          );
+          reportAiFallback("generate", "bad_shape");
         } else {
+          takenTurn = null;
           const rememberedItems = applyQuotePrices(cleaned.items, remembered, pricingMemory) as LineItemResponse[];
           const result: GenerateResponse = {
             title: cleaned.title,
@@ -303,8 +311,14 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         if (!shouldUseRoughEstimate(error)) throw error;
-        console.error("Gemini quote generation failed. Using the rough estimate.", error);
+        reportAiFallback("generate", geminiFailureCode(error));
       }
+    }
+
+    // No usable AI answer, so this request does not count towards the hourly allowance.
+    if (takenTurn) {
+      await refundAiTurn(takenTurn.userId, "generate", takenTurn.turn);
+      takenTurn = null;
     }
 
     // Smart Trade Heuristic Engine (Covers all major UK trades offline or when GEMINI_API_KEY is pending)
@@ -335,6 +349,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error generating quote:", error);
+    if (takenTurn) {
+      reportAiFallback("generate", geminiFailureCode(error));
+      await refundAiTurn(takenTurn.userId, "generate", takenTurn.turn);
+    }
     return NextResponse.json(
       { error: "Failed to generate quote. Please verify input and try again." },
       { status: 500 }

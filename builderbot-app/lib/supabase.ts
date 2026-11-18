@@ -12,6 +12,7 @@ import {
 } from "./quote-rules.mjs";
 import { profileUpsertOptions } from "./profile-sync.mjs";
 import { chargesVat } from "./vat.mjs";
+import { londonDateOf, todayInLondon } from "./london-date.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
@@ -23,6 +24,25 @@ export const isSupabaseConfigured = (): boolean => {
 };
 
 let clientInstance: SupabaseClient | null = null;
+
+/**
+ * Result of saving one record online. "skipped" means there is nothing to
+ * save to (Supabase not configured, or nobody signed in), which is normal.
+ * "failed" carries a short code only, never customer text.
+ */
+export type CloudSyncResult =
+  | { status: "saved" }
+  | { status: "skipped" }
+  | { status: "failed"; code: string };
+
+const CLOUD_SAVED: CloudSyncResult = { status: "saved" };
+const CLOUD_SKIPPED: CloudSyncResult = { status: "skipped" };
+
+function cloudFailed(error: unknown): CloudSyncResult {
+  const row = (error && typeof error === "object" ? error : {}) as { code?: unknown; name?: unknown };
+  const code = String(row.code || row.name || "unknown").slice(0, 60);
+  return { status: "failed", code };
+}
 
 // Browser / Authenticated Client
 export function getSupabase(): SupabaseClient | null {
@@ -84,7 +104,7 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
     acceptedAt: row.accepted_at ? String(row.accepted_at) : undefined,
     rejectedReason: row.rejected_reason ? String(row.rejected_reason) : undefined,
     rejectedAt: row.rejected_at ? String(row.rejected_at) : undefined,
-    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+    createdAt: row.created_at ? londonDateOf(String(row.created_at)) || String(row.created_at).slice(0, 10) : todayInLondon(),
     photos: Array.isArray(row.photos) ? (row.photos as string[]).slice(0, 6) : undefined,
   };
 }
@@ -99,7 +119,7 @@ export function mapRowToCustomer(row: Record<string, unknown>): Customer {
     email: String(row.email ?? ""),
     address: String(row.address ?? ""),
     notes: row.notes ? String(row.notes) : undefined,
-    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+    createdAt: row.created_at ? londonDateOf(String(row.created_at)) || String(row.created_at).slice(0, 10) : todayInLondon(),
   };
 }
 
@@ -138,7 +158,7 @@ export function mapRowToJob(row: Record<string, unknown>): Job {
     status: (row.status as Job["status"]) || "Quoted",
     notes: row.notes ? String(row.notes) : undefined,
     quoteId: row.quote_id ? String(row.quote_id) : undefined,
-    createdAt: row.created_at ? String(row.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+    createdAt: row.created_at ? londonDateOf(String(row.created_at)) || String(row.created_at).slice(0, 10) : todayInLondon(),
   };
 }
 
@@ -291,14 +311,14 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
 }
 
 
-export async function syncCustomerToCloud(customer: Customer): Promise<boolean> {
+export async function syncCustomerToCloud(customer: Customer): Promise<CloudSyncResult> {
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) return CLOUD_SKIPPED;
 
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return false;
+    if (!ownerId) return CLOUD_SKIPPED;
 
     const { error } = await sb.from("customers").upsert({
       id: customer.id,
@@ -311,9 +331,9 @@ export async function syncCustomerToCloud(customer: Customer): Promise<boolean> 
       notes: customer.notes || null,
       created_at: customer.createdAt,
     });
-    return !error;
-  } catch {
-    return false;
+    return error ? cloudFailed(error) : CLOUD_SAVED;
+  } catch (caught) {
+    return cloudFailed(caught);
   }
 }
 
@@ -543,13 +563,13 @@ export async function deleteCloudQuote(id: string): Promise<boolean> {
 }
 
 // Jobs Cloud Sync
-export async function syncJobToCloud(job: Job): Promise<boolean> {
+export async function syncJobToCloud(job: Job): Promise<CloudSyncResult> {
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) return CLOUD_SKIPPED;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return false;
+    if (!ownerId) return CLOUD_SKIPPED;
 
     const { error } = await sb.from("jobs").upsert({
       id: job.id,
@@ -562,9 +582,9 @@ export async function syncJobToCloud(job: Job): Promise<boolean> {
       quote_id: job.quoteId || null,
       created_at: job.createdAt,
     });
-    return !error;
-  } catch {
-    return false;
+    return error ? cloudFailed(error) : CLOUD_SAVED;
+  } catch (caught) {
+    return cloudFailed(caught);
   }
 }
 
@@ -605,13 +625,13 @@ export async function fetchCloudJobs(): Promise<Job[] | null> {
 }
 
 // Invoices Cloud Sync
-export async function syncInvoiceToCloud(invoice: Invoice): Promise<boolean> {
+export async function syncInvoiceToCloud(invoice: Invoice): Promise<CloudSyncResult> {
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) return CLOUD_SKIPPED;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return false;
+    if (!ownerId) return CLOUD_SKIPPED;
 
     const { error } = await sb.from("invoices").upsert({
       id: invoice.id,
@@ -656,9 +676,9 @@ export async function syncInvoiceToCloud(invoice: Invoice): Promise<boolean> {
       terms_and_conditions: invoice.termsAndConditions || null,
       created_at: invoice.createdAt,
     });
-    return !error;
-  } catch {
-    return false;
+    return error ? cloudFailed(error) : CLOUD_SAVED;
+  } catch (caught) {
+    return cloudFailed(caught);
   }
 }
 
@@ -698,13 +718,13 @@ export async function fetchCloudInvoices(): Promise<Invoice[] | null> {
   }
 }
 
-export async function syncQuoteTemplateToCloud(template: SavedQuoteTemplate): Promise<boolean> {
+export async function syncQuoteTemplateToCloud(template: SavedQuoteTemplate): Promise<CloudSyncResult> {
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) return CLOUD_SKIPPED;
   try {
     const { data: userData } = await sb.auth.getSession();
     const ownerId = userData.session?.user?.id;
-    if (!ownerId) return false;
+    if (!ownerId) return CLOUD_SKIPPED;
     const { error } = await sb.from("quote_templates").upsert({
       id: template.id,
       owner_id: ownerId,
@@ -715,9 +735,9 @@ export async function syncQuoteTemplateToCloud(template: SavedQuoteTemplate): Pr
       vat_enabled: template.vatEnabled,
       created_at: template.createdAt,
     });
-    return !error;
-  } catch {
-    return false;
+    return error ? cloudFailed(error) : CLOUD_SAVED;
+  } catch (caught) {
+    return cloudFailed(caught);
   }
 }
 

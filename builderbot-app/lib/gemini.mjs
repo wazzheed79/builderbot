@@ -134,3 +134,23 @@ export function parseGeminiJson(text) {
   const body = fenced ? fenced[1].trim() : trimmed;
   return JSON.parse(body);
 }
+
+/**
+ * Short code for why a Gemini call did not give a usable quote, for Sentry.
+ * "http_429" means Google's own limit or quota was hit. Never includes notes.
+ * @param {unknown} error
+ * @returns {string}
+ */
+export function geminiFailureCode(error) {
+  if (typeof error === "string") return error.slice(0, 60);
+  const status = readStatus(error);
+  if (status !== undefined) return `http_${status}`;
+  const name = readName(error);
+  if (name === "GeminiEmptyResponseError") return "empty_response";
+  if (name === "SyntaxError") return "bad_json";
+  if (name === "AbortError" || name === "TimeoutError") return "timeout";
+  const message = readMessage(error).toLowerCase();
+  if (message.includes("timeout") || message.includes("timed out")) return "timeout";
+  if (message.includes("fetch failed") || message.includes("network")) return "network";
+  return name ? name.slice(0, 60) : "unknown";
+}

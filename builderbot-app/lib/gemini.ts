@@ -13,6 +13,7 @@ import {
 export {
   DEFAULT_GEMINI_MODEL,
   GEMINI_REQUEST_TIMEOUT_MS,
+  geminiFailureCode,
   modelUsesThinkingLevel,
   parseGeminiJson,
   resolveGeminiModel,
