@@ -145,5 +145,7 @@ The dated record of what shipped is `CHANGELOG.md`, with a shorter copy in `READ
 - [ ] Show a short per-account quote number on the paperwork (BB-1042 for that tradesperson) while the stored id stays unique across accounts.
 - [ ] Turn on Supabase leaked-password protection. It is off, and the login page still offers a password. Dashboard setting only.
 - [ ] Set `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` on Vercel so source maps upload. The token stays out of git.
-- [ ] Fix React hydration warning #418 on `/quotes`. The quote summary renders `new Date()` during render.
+- [x] Fix React hydration warning #418 on `/quotes`. The quote summary date is now filled in after the page loads (`useTodayIso`). Check Sentry to confirm the warning has stopped.
+- [ ] If #418 still shows: `components/quotes/MarginCalculator.tsx` reads saved prices from this browser in its first render. Read them after load instead.
+- [ ] Give invoice numbers out from the database, per account. Today the next INV number comes from the invoices on this phone, so a new phone can repeat INV-0001.
 - [ ] Rename the quote-builder toggle from “Good, Better, Best” to “Standard, Better, Premium” so it matches the option labels.

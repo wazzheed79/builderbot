@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getSignedInUserId } from "@/lib/ai-access";
-import { quotaMessage, takeAiTurn } from "@/lib/ai-quota";
+import { quotaMessage, refundAiTurn, takeAiTurn, type AiTurn } from "@/lib/ai-quota";
 import { brand } from "@/lib/brand.mjs";
-import { generateGeminiText, parseGeminiJson, shouldUseRoughEstimate } from "@/lib/gemini";
+import {
+  geminiFailureCode,
+  generateGeminiText,
+  parseGeminiJson,
+  shouldUseRoughEstimate,
+} from "@/lib/gemini";
+import { reportAiFallback } from "@/lib/server-fault";
 import { sanitizeExpandedScope } from "@/lib/quote-ai.mjs";
 import { MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG, checkBodySize } from "@/lib/image-payload.mjs";
 
@@ -34,6 +40,7 @@ interface ExpandResponse {
 }
 
 export async function POST(request: NextRequest) {
+  let takenTurn: { userId: string; turn: AiTurn } | null = null;
   try {
     const declaredLength = request.headers.get("content-length");
     const declaredSize = checkBodySize(declaredLength, "", MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG);
@@ -41,9 +48,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: declaredSize.error }, { status: declaredSize.status });
     }
 
-    // 1. Rate Limiting Check (15 requests/min per IP)
-    const clientIp = getClientIp(request);
-    const rateCheck = await checkRateLimit(`ai-expand:${clientIp}`, 15, 60000);
+    // 1. Rate Limiting Check (15 requests/min per account when signed in, otherwise per address)
+    const userId = await getSignedInUserId(request);
+    const rateSubject = userId ? `user:${userId}` : getClientIp(request);
+    const rateCheck = await checkRateLimit(`ai-expand:${rateSubject}`, 15, 60000);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Too many AI requests. Please wait a moment before trying again." },
@@ -80,7 +88,6 @@ export async function POST(request: NextRequest) {
 
     const { notes, title: initialTitle, trade } = parseResult.data;
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    const userId = await getSignedInUserId(request);
 
     if (apiKey && userId) {
       const userLimit = await takeAiTurn(userId, "expand");
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
           { status: 429, headers: { "Retry-After": String(userLimit.retryAfterSec || 3600) } }
         );
       }
+      takenTurn = { userId, turn: userLimit };
 
       // Pass user notes securely as content parts, not prompt interpolation.
       // A failed Gemini call falls through to the kept-notes response below.
@@ -136,8 +144,9 @@ export async function POST(request: NextRequest) {
         const cleaned = sanitizeExpandedScope(parsed, { notes, title: initialTitle });
         // A reply with no usable scope keeps the tradesperson's own notes.
         if (!cleaned.ok) {
-          console.error("Gemini scope did not match the expected shape. Keeping the original notes.", cleaned.reason);
+          reportAiFallback("expand", "bad_shape");
         } else {
+          takenTurn = null;
           const result: ExpandResponse = {
             title: cleaned.title,
             scopeOfWork: cleaned.scopeOfWork,
@@ -147,8 +156,14 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         if (!shouldUseRoughEstimate(error)) throw error;
-        console.error("Gemini scope expansion failed. Keeping the original notes.", error);
+        reportAiFallback("expand", geminiFailureCode(error));
       }
+    }
+
+    // No usable AI answer, so this request does not count towards the hourly allowance.
+    if (takenTurn) {
+      await refundAiTurn(takenTurn.userId, "expand", takenTurn.turn);
+      takenTurn = null;
     }
 
     return NextResponse.json({
@@ -161,6 +176,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error expanding scope:", error);
+    if (takenTurn) {
+      reportAiFallback("expand", geminiFailureCode(error));
+      await refundAiTurn(takenTurn.userId, "expand", takenTurn.turn);
+    }
     return NextResponse.json(
       { error: "Failed to expand scope. Please try again." },
       { status: 500 }

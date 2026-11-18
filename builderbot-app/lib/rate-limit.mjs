@@ -54,6 +54,18 @@ export function checkMemoryRateLimit(identifier, maxRequests = 15, windowMs = 60
 }
 
 /**
+ * Gives back the most recent request taken with checkMemoryRateLimit, for
+ * example when the AI call it paid for failed.
+ * @param {string} identifier
+ */
+export function refundMemoryRateLimit(identifier) {
+  const record = rateLimitMap.get(identifier);
+  if (!record || record.timestamps.length === 0) return false;
+  record.timestamps.pop();
+  return true;
+}
+
+/**
  * @param {string} identifier
  */
 export function bucketFromIdentifier(identifier) {
@@ -194,4 +206,40 @@ function firstAddress(value) {
   if (/^(\d{1,3}\.){3}\d{1,3}$/.test(first)) return first;
   if (/^[0-9a-f:]+$/i.test(first) && first.includes(":")) return first;
   return "";
+}
+
+/**
+ * The /64 block an IPv6 address belongs to. One home or phone connection is
+ * normally given a whole /64, so limiting each full address would let one
+ * person rotate through millions of them. Returns "" for anything else.
+ * @param {string} address
+ */
+export function ipv6Block64(address) {
+  const value = String(address || "").trim().toLowerCase();
+  if (!value.includes(":") || !/^[0-9a-f:]+$/.test(value)) return "";
+  const halves = value.split("::");
+  if (halves.length > 2) return "";
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 1 ? missing !== 0 : missing < 1) return "";
+  const groups = [...head, ...Array(halves.length === 2 ? missing : 0).fill("0"), ...tail];
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return "";
+  return `${groups
+    .slice(0, 4)
+    .map((g) => g.replace(/^0+(?=.)/, ""))
+    .join(":")}::/64`;
+}
+
+/**
+ * The key a limit is counted against. "bucket:2001:db8:1:2:aaaa::1" becomes
+ * "bucket:2001:db8:1:2::/64". IPv4 addresses and account ids are unchanged.
+ * @param {string} identifier
+ */
+export function rateLimitKey(identifier) {
+  const text = String(identifier || "");
+  const cut = text.indexOf(":");
+  if (cut < 0) return text;
+  const block = ipv6Block64(text.slice(cut + 1));
+  return block ? `${text.slice(0, cut)}:${block}` : text;
 }

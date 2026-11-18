@@ -19,6 +19,14 @@ export const GUEST_DEMO_STORAGE_KEY = "chuffed_guest_demo_v1";
 export const GUEST_PLACEHOLDER_BUSINESS = "Your Business Name";
 export const GUEST_DAILY_LIMIT = 5;
 export const GUEST_WINDOW_MS = 24 * 60 * 60 * 1000;
+/**
+ * AI try-it quotes allowed for all visitors together in one day. Past this,
+ * visitors still get a rough estimate, just without a Gemini call. Change
+ * this one number to raise or lower the daily AI spend on the try-it page.
+ */
+export const GUEST_GLOBAL_DAILY_LIMIT = 500;
+/** Rate-limit id for the shared daily cap. */
+export const GUEST_GLOBAL_RATE_ID = "guest-demo-all:everyone";
 export const GUEST_NOTES_MIN = 3;
 export const GUEST_NOTES_MAX = 800;
 export const GUEST_DEMO_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

@@ -8,6 +8,7 @@ import {
   hashRateSubject,
   isMissingRateLimitFunction,
   isServiceRoleKey,
+  rateLimitKey,
 } from "./rate-limit.mjs";
 
 export { getClientIp };
@@ -33,10 +34,12 @@ function memoryLimit(identifier: string, maxRequests: number, windowMs: number):
  * SQL function is not installed yet.
  */
 export async function checkRateLimit(
-  identifier: string,
+  rawIdentifier: string,
   maxRequests = 15,
   windowMs = 60000
 ): Promise<RateLimitResult> {
+  // IPv6 visitors are counted per /64 block, not per single address.
+  const identifier = rateLimitKey(rawIdentifier);
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const serviceRoleConfigured = Boolean(serviceKey);
 

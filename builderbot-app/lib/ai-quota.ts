@@ -1,5 +1,5 @@
 import { getServiceRoleSupabase } from "@/lib/supabase-server";
-import { checkMemoryRateLimit, isServiceRoleKey } from "@/lib/rate-limit.mjs";
+import { checkMemoryRateLimit, isServiceRoleKey, refundMemoryRateLimit } from "@/lib/rate-limit.mjs";
 import { reportServerFault } from "@/lib/server-fault";
 import {
   AI_LIMIT,
@@ -76,4 +76,40 @@ export async function takeAiTurn(userId: string, kind: "generate" | "expand"): P
   });
   const source = turn.source === "database" || turn.source === "blocked" ? turn.source : "memory";
   return { allowed: turn.allowed, retryAfterSec: turn.retryAfterSec, source };
+}
+
+/**
+ * Gives back one AI request that was taken with takeAiTurn but did not get a
+ * usable AI answer, so a Gemini outage does not use up the hourly allowance.
+ * The database copy is lowered by one only if nobody changed it meanwhile;
+ * if it did change, the refund is skipped rather than risk a wrong count.
+ * Never throws.
+ */
+export async function refundAiTurn(userId: string, kind: "generate" | "expand", turn: AiTurn): Promise<void> {
+  try {
+    if (!turn.allowed) return;
+    if (turn.source === "memory") {
+      refundMemoryRateLimit(`ai-${kind}:user:${userId}`);
+      return;
+    }
+    if (turn.source !== "database") return;
+    const sb = getServiceRoleSupabase();
+    if (!sb) return;
+    const current = await sb
+      .from("ai_usage")
+      .select("request_count")
+      .eq("owner_id", userId)
+      .eq("kind", kind)
+      .maybeSingle();
+    const count = Number((current.data as { request_count?: unknown } | null)?.request_count);
+    if (current.error || !Number.isFinite(count) || count <= 0) return;
+    await sb
+      .from("ai_usage")
+      .update({ request_count: count - 1 })
+      .eq("owner_id", userId)
+      .eq("kind", kind)
+      .eq("request_count", count);
+  } catch {
+    // A refund that fails just leaves the request counted.
+  }
 }

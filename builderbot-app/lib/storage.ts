@@ -12,6 +12,10 @@ import {
   syncQuoteTemplateToCloud,
   deleteCloudQuoteTemplate,
 } from "./supabase";
+import * as Sentry from "@sentry/nextjs";
+import { CLOUD_SAVE_FAILED_EVENT, saveOnlineWithRetry, type CloudSyncResult } from "./cloud-retry.mjs";
+import { newRecordId } from "./record-id.mjs";
+import { todayInLondon } from "./london-date.mjs";
 import { cloudListsToStore } from "./cloud-hydrate.mjs";
 import { clearWorkingDraft } from "./quote-autosave.mjs";
 import { GUEST_DEMO_STORAGE_KEY } from "./guest-demo.mjs";
@@ -217,6 +221,29 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
 };
 
 const PROFILE_KEY = "builderbot_business_profile";
+
+
+type OnlineKind = "customer" | "job" | "invoice" | "template";
+
+/**
+ * Saves the online copy in the background. The record is already on this
+ * device. After a few tries a failure goes to Sentry (a short code only, no
+ * customer details) and the "not saved online" notice is shown.
+ */
+function saveOnline(kind: OnlineKind, attempt: () => Promise<CloudSyncResult>): void {
+  void saveOnlineWithRetry(attempt, {
+    onFailed: ({ code, attempts }) => {
+      Sentry.captureMessage(`Online save failed for a ${kind}`, {
+        level: "warning",
+        tags: { area: "cloud-sync", kind, code },
+        extra: { attempts },
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(CLOUD_SAVE_FAILED_EVENT, { detail: { kind } }));
+      }
+    },
+  });
+}
 
 export function getBusinessProfile(): BusinessProfile {
   if (typeof window === "undefined") return DEFAULT_BUSINESS_PROFILE;
@@ -651,7 +678,7 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
   if (customer.id) {
     saved = {
       ...(customer as Customer),
-      createdAt: (customer as Customer).createdAt || new Date().toISOString().split("T")[0],
+      createdAt: (customer as Customer).createdAt || todayInLondon(),
     };
     const updated = current.map((c) => (c.id === customer.id ? saved : c));
     if (typeof window !== "undefined") {
@@ -661,8 +688,8 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
   } else {
     saved = {
       ...customer,
-      id: `cust-${Date.now()}`,
-      createdAt: new Date().toISOString().split("T")[0],
+      id: newRecordId("cust-"),
+      createdAt: todayInLondon(),
     };
     const updated = [saved, ...current];
     if (typeof window !== "undefined") {
@@ -671,7 +698,7 @@ export function saveCustomer(customer: Omit<Customer, "id" | "createdAt"> & { id
     }
   }
 
-  syncCustomerToCloud(saved).catch(() => {});
+  saveOnline("customer", () => syncCustomerToCloud(saved));
   return saved;
 }
 
@@ -747,7 +774,7 @@ export function saveQuote(
       vat,
       total,
       deposit,
-      createdAt: quote.createdAt || new Date().toISOString().split("T")[0],
+      createdAt: quote.createdAt || todayInLondon(),
     };
     const updated = current.map((q) => (q.id === quote.id ? saved : q));
     if (typeof window !== "undefined") {
@@ -770,7 +797,7 @@ export function saveQuote(
       vat,
       total,
       deposit,
-      createdAt: new Date().toISOString().split("T")[0],
+      createdAt: todayInLondon(),
     };
     const updated = [saved, ...current];
     if (typeof window !== "undefined") {
@@ -900,7 +927,7 @@ export function saveJob(job: Omit<Job, "id" | "createdAt"> & { id?: string; crea
   if (job.id) {
     saved = {
       ...(job as Job),
-      createdAt: (job as Job).createdAt || new Date().toISOString().split("T")[0],
+      createdAt: (job as Job).createdAt || todayInLondon(),
     };
     const updated = current.map((j) => (j.id === job.id ? saved : j));
     if (typeof window !== "undefined") {
@@ -910,8 +937,8 @@ export function saveJob(job: Omit<Job, "id" | "createdAt"> & { id?: string; crea
   } else {
     saved = {
       ...job,
-      id: `job-${Date.now()}`,
-      createdAt: new Date().toISOString().split("T")[0],
+      id: newRecordId("job-"),
+      createdAt: todayInLondon(),
     };
     const updated = [saved, ...current];
     if (typeof window !== "undefined") {
@@ -920,7 +947,7 @@ export function saveJob(job: Omit<Job, "id" | "createdAt"> & { id?: string; crea
     }
   }
 
-  syncJobToCloud(saved).catch(() => {});
+  saveOnline("job", () => syncJobToCloud(saved));
   return saved;
 }
 
@@ -962,7 +989,7 @@ export function saveInvoice(
   }
 ): Invoice {
   const current = getInvoices();
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayInLondon();
   const existing = invoice.id ? current.find((row) => row.id === invoice.id) : undefined;
   const numbers = current.filter((row) => row.id !== invoice.id).flatMap((row) => [row.number, row.id]);
   const normalized = normalizeStoredInvoice({
@@ -986,7 +1013,7 @@ export function saveInvoice(
     localStorage.setItem(INVOICES_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event("builderbot_storage_updated"));
   }
-  syncInvoiceToCloud(saved).catch(() => {});
+  saveOnline("invoice", () => syncInvoiceToCloud(saved));
   return saved;
 }
 
@@ -1030,10 +1057,10 @@ export function saveQuoteTemplate(
   template: Omit<SavedQuoteTemplate, "id" | "createdAt"> & { id?: string; createdAt?: string }
 ): SavedQuoteTemplate {
   const current = getQuoteTemplates();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInLondon();
   const saved = normalizeStoredTemplate({
     ...template,
-    id: template.id || `tpl_${Date.now()}`,
+    id: template.id || newRecordId("tpl_"),
     createdAt: template.createdAt || today,
   }) as SavedQuoteTemplate;
   const updated = current.some((row) => row.id === saved.id)
@@ -1043,7 +1070,7 @@ export function saveQuoteTemplate(
     localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
     window.dispatchEvent(new Event("builderbot_storage_updated"));
   }
-  syncQuoteTemplateToCloud(saved).catch(() => {});
+  saveOnline("template", () => syncQuoteTemplateToCloud(saved));
   return saved;
 }
 

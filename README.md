@@ -162,6 +162,16 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
 
+### 18 November 2026
+
+- Next.js and Sentry are updated to fix known security advisories.
+- If a customer, job, invoice, or template does not save to the account, the app tries again, then shows a short "saved on this device, but not online yet" notice and tells Sentry. Before, it failed silently.
+- New customers, jobs, and templates get random ids, so two accounts cannot clash.
+- A failed AI quote is reported to Sentry with a short code (for example http_429) and does not use up the hourly AI allowance.
+- AI limits for signed-in users are per account, IPv6 visitors are grouped per /64, and the try-it page has a shared cap of 500 AI quotes a day.
+- New records and quote expiry dates use the London date, so nothing is dated yesterday just after midnight in summer.
+- No database migration.
+
 ### 9 November 2026
 
 - The customer’s quote, the printout, the WhatsApp card, the try-it preview, and the invoice show a Materials total and a Labour total above the usual subtotal, VAT, and total. Services or other work is listed only when the quote has that kind of line. A total of £0 is left off. VAT is unchanged: prices are before VAT, and a registered quote still shows VAT at 20%. Standard, Better, and Premium still add up to the same prices. An older quote still opens. No database migration.

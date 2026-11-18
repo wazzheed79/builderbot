@@ -7,6 +7,7 @@ import AppNav from "@/components/AppNav";
 import { AuthProvider } from "@/components/AuthProvider";
 import AuthReturn from "@/components/AuthReturn";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
+import CloudSaveNotice from "@/components/CloudSaveNotice";
 import { brand, configuredSiteUrl } from "@/lib/brand.mjs";
 
 const geistSans = Geist({
@@ -85,6 +86,7 @@ export default function RootLayout({
             <AuthReturn />
           </Suspense>
           <ClientErrorReporter />
+          <CloudSaveNotice />
           <Suspense fallback={<div className="h-16 border-b border-stone-200 bg-white" />}>
             <AppNav />
           </Suspense>

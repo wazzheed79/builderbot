@@ -96,6 +96,8 @@ import { captureEvent } from "@/lib/analytics";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import VatTotals from "@/components/VatTotals";
+import { todayInLondon } from "@/lib/london-date.mjs";
+import { useTodayIso } from "@/components/invoices/useTodayIso";
 import { tierPriceCaption, vatPresentation } from "@/lib/vat.mjs";
 
 function money(amount: number) {
@@ -155,6 +157,8 @@ function draftFingerprint(snapshot: Record<string, unknown>) {
 }
 
 export default function QuotesClient() {
+  // London date, filled in after the page loads so the server and phone render the same thing.
+  const todayLondon = useTodayIso();
   const router = useRouter();
   const searchParams = useSearchParams();
   const customerIdParam = searchParams.get("customerId");
@@ -373,7 +377,7 @@ export default function QuotesClient() {
         cloudDraftToken: cloudIdentity.current.token || null,
       };
       writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
-      const quote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+      const quote = toCloudDraftQuote(withId, todayInLondon());
       syncQuoteToCloud(quote as Quote).then((result) => {
         cloudPending.current = !result.ok;
       }).catch(() => {
@@ -429,7 +433,7 @@ export default function QuotesClient() {
         cloudDraftToken: cloudIdentity.current.token || null,
       };
       writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
-      const quote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+      const quote = toCloudDraftQuote(withId, todayInLondon());
       syncQuoteToCloud(quote as Quote).then((result) => {
         cloudPending.current = !result.ok;
       }).catch(() => {
@@ -468,7 +472,7 @@ export default function QuotesClient() {
       cloudDraftToken: cloudIdentity.current.token || null,
     };
     writeWorkingDraft(window.localStorage, draftRef.current, new Date().toISOString());
-    const quote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+    const quote = toCloudDraftQuote(withId, todayInLondon());
     syncQuoteToCloud(quote as Quote).then((result) => {
       cloudPending.current = !result.ok;
     }).catch(() => {
@@ -1173,7 +1177,7 @@ export default function QuotesClient() {
       });
       if (plan === "sync") {
         const withId = ensureCloudIdentity(draft);
-        const cloudQuote = toCloudDraftQuote(withId, new Date().toISOString().slice(0, 10));
+        const cloudQuote = toCloudDraftQuote(withId, todayInLondon());
         syncQuoteToCloud(cloudQuote as Quote).catch(() => {
           cloudPending.current = true;
         });
@@ -1767,7 +1771,7 @@ export default function QuotesClient() {
                   Quote Summary
                 </span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                  {new Date().toISOString().split("T")[0]}
+                  {todayLondon}
                 </span>
               </div>
               <h3 className="text-xl font-black mt-1 text-white">{quoteTitle || "Untitled Quote"}</h3>

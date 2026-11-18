@@ -3,6 +3,8 @@
  * Ground truth logic imported across backend API routes, client UI, and unit tests.
  */
 
+import { formatLondonDate, londonDateOf } from "./london-date.mjs";
+
 /**
  * Rounds monetary amounts to exactly two decimal places (pence/cents) to avoid floating point drift.
  * @param {number} amount
@@ -103,12 +105,8 @@ export function calculateQuoteExpiry(createdAtIso, validityDays = 30, currentTim
   const msRemaining = Math.max(0, expiryMs - currentTimestampMs);
   const daysLeft = Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
   const expiryDate = new Date(expiryMs);
-  const expiryDateIso = expiryDate.toISOString().split("T")[0];
-  const expiryFormatted = expiryDate.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const expiryDateIso = londonDateOf(expiryDate);
+  const expiryFormatted = formatLondonDate(expiryDate);
 
   return {
     isExpired,
