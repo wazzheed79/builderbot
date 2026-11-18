@@ -707,7 +707,7 @@ export default function SettingsPage() {
                   onValue={(next) => {
                     const laborDayRate = next ?? 0;
                     setPricingMemory((prev) => {
-                      const updated = { ...prev, laborDayRate };
+                      const updated = { ...prev, laborDayRate, ratesSetByHand: true };
                       savePricingMemory(updated);
                       return updated;
                     });
@@ -758,7 +758,7 @@ export default function SettingsPage() {
                   onValue={(next) => {
                     const laborHourlyRate = next ?? 0;
                     setPricingMemory((prev) => {
-                      const updated = { ...prev, laborHourlyRate };
+                      const updated = { ...prev, laborHourlyRate, ratesSetByHand: true };
                       savePricingMemory(updated);
                       return updated;
                     });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Calculator, ArrowRight } from "lucide-react";
 import NumberField from "@/components/NumberField";
 import { LineItem, roundMoney, getPricingMemory, savePricingMemory } from "@/lib/storage";
@@ -141,6 +142,9 @@ export default function MarginCalculator({ onApply }: MarginCalculatorProps) {
           <label htmlFor="day-rate" className="block text-xs font-bold text-slate-700">
             Day Rate per Operative (£)
           </label>
+          <Link href="/day-rate-calculator" className="inline-flex min-h-6 items-center text-xs font-semibold text-clay-700 underline">
+            Not sure? Work out your day rate
+          </Link>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">£</span>
             <NumberField

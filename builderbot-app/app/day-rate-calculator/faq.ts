@@ -14,7 +14,7 @@ export const DAY_RATE_FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Is the day rate before or after VAT?",
-    a: "Before VAT. If you are VAT registered you add VAT on top. You must register once your taxable turnover for the last 12 months goes over £90,000, and the calculator warns you when the turnover your rate needs gets close to that.",
+    a: "Before VAT. If you are VAT registered you add VAT on top. You must register once your taxable turnover for the last 12 months goes over £90,000, and the calculator warns you when the turnover your rate needs gets close to that. Materials you supply count towards that £90,000 as well as your labour.",
   },
   {
     q: "What does Use this rate do?",

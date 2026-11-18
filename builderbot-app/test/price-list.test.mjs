@@ -293,3 +293,14 @@ test("a saved boiler price replaces a combi boiler line, and the hourly rate com
   assert.equal(payload.remembered[0].key.length, 160);
   assert.equal(payload.remembered[0].description.length, 200);
 });
+
+test("saving a quote does not move a rate the trade chose on purpose", async () => {
+  const { keepChosenRates } = await import("../lib/price-memory.mjs");
+  const learned = { laborDayRate: 200, laborHourlyRate: 25, totalQuotesLearned: 1 };
+  const chosen = { laborDayRate: 299, laborHourlyRate: 38, ratesSetByHand: true };
+  const kept = keepChosenRates(chosen, { ...learned, ratesSetByHand: true });
+  assert.equal(kept.laborDayRate, 299);
+  assert.equal(kept.laborHourlyRate, 38);
+  assert.equal(kept.totalQuotesLearned, 1);
+  assert.equal(keepChosenRates({ laborDayRate: 280, laborHourlyRate: 50 }, learned).laborDayRate, 200);
+});

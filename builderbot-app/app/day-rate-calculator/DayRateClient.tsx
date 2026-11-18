@@ -232,13 +232,14 @@ function VatNotice({ result }: { result: Result }) {
         VAT check
       </h2>
       <p className="mt-2 text-sm leading-relaxed">
-        At this rate your turnover would be about <strong>{gbp(vat.turnover)}</strong> a year.{" "}
+        At this rate your labour alone would bring in about <strong>{gbp(vat.turnover)}</strong> a year.{" "}
         {vat.status === "under" &&
           `That is ${gbp(vat.gap)} under the ${gbp(vat.threshold)} VAT registration threshold.`}
         {vat.status === "close" &&
           `That is within ${gbp(VAT_NEAR_MARGIN)} of the ${gbp(vat.threshold)} VAT threshold. Keep an eye on your turnover for the last 12 months: once it goes over, you must register within 30 days of the end of that month.`}
         {vat.status === "over" &&
-          `That is over the ${gbp(vat.threshold)} VAT threshold, so you would need to register for VAT and add VAT on top of this rate for most customers. Plan for that before you get there.`}
+          `That is over the ${gbp(vat.threshold)} VAT threshold, so you would need to register for VAT and add VAT on top of this rate for most customers. Plan for that before you get there.`}{" "}
+        Materials you charge customers for count towards the threshold too, so add those on.
       </p>
       <a
         href="https://www.gov.uk/register-for-vat"
@@ -326,10 +327,11 @@ function JobPricer({ result, onQuote }: { result: Result; onQuote: () => void })
       <button
         type="button"
         onClick={onQuote}
+        disabled={result.days.tooFew}
         className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 font-bold text-ink hover:bg-paper"
       >
         <Sparkles className="h-5 w-5 text-clay-700" aria-hidden="true" />
-        Turn it into a proper quote
+        Use this rate in a quote
       </button>
     </section>
   );
@@ -345,6 +347,7 @@ function PriceRise({ result }: { result: Result }) {
   const target = newRate ?? result.dayRate;
   const message = priceRiseMessage({ oldRate, newRate: target, startDate, customerName: customer, businessName: from });
   const gap = result.dayRate - oldRate;
+  const isRise = target > oldRate;
   return (
     <section className={cardClass} aria-labelledby="rise-heading">
       <h2 id="rise-heading" className="flex items-center gap-2 text-lg font-black text-ink">
@@ -376,7 +379,14 @@ function PriceRise({ result }: { result: Result }) {
           {gbp(gap * result.days.billable)} a year.
         </p>
       )}
-      {oldRate > 0 && (
+      {oldRate > 0 && !isRise && (
+        <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-950" role="status">
+          {newRate === null
+            ? "You already charge what your figures need, so there is no rise to announce."
+            : "Put in a new day rate higher than what you charge now to get your message."}
+        </p>
+      )}
+      {oldRate > 0 && isRise && (
         <>
           <label htmlFor="rise-message" className="mt-4 block text-sm font-bold text-ink">Your message</label>
           <textarea id="rise-message" readOnly value={message} rows={10} className={`${fieldClass} text-sm leading-relaxed`} />
@@ -420,6 +430,7 @@ export default function DayRateClient() {
   const [saved, setSaved] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -432,6 +443,7 @@ export default function DayRateClient() {
   }
 
   const result = useMemo(() => calculateDayRate(inputs), [inputs]);
+  const tooFew = result.days.tooFew;
 
   useEffect(() => {
     if (!loaded) return;
@@ -460,8 +472,10 @@ export default function DayRateClient() {
   const shareCard = async () => {
     captureEvent("day_rate_card_made");
     setSharing(true);
+    setShareFailed(false);
     try {
       const response = await fetch(cardImageUrl);
+      if (!response.ok) throw new Error("card");
       const blob = await response.blob();
       const file = new File([blob], "rate-card.png", { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
@@ -472,10 +486,11 @@ export default function DayRateClient() {
         a.href = href;
         a.download = "rate-card.png";
         a.click();
-        URL.revokeObjectURL(href);
+        window.setTimeout(() => URL.revokeObjectURL(href), 1000);
       }
-    } catch {
-      // Cancelled share sheets land here too. Nothing to tell the user.
+    } catch (error) {
+      // Closing the phone's share sheet is not a fault.
+      if (!(error instanceof DOMException && error.name === "AbortError")) setShareFailed(true);
     } finally {
       setSharing(false);
     }
@@ -500,9 +515,14 @@ export default function DayRateClient() {
               onChange={(e) => {
                 const preset = TRADE_PRESETS.find((t) => t.id === e.target.value);
                 setInputs((prev) => {
-                  const reset: Record<string, unknown> = {};
-                  for (const key of PRESET_KEYS) reset[key] = DEFAULT_INPUTS[key];
-                  return normaliseInputs({ ...prev, ...reset, ...(preset?.patch || {}), trade: e.target.value });
+                  // Only swap figures still on the old example. Anything typed in stays.
+                  const oldPatch: Record<string, number | undefined> = TRADE_PRESETS.find((t) => t.id === prev.trade)?.patch || {};
+                  const newPatch: Record<string, number | undefined> = preset?.patch || {};
+                  const next: Record<string, unknown> = { ...prev, trade: e.target.value };
+                  for (const key of PRESET_KEYS) {
+                    if (prev[key] === (oldPatch[key] ?? DEFAULT_INPUTS[key])) next[key] = newPatch[key] ?? DEFAULT_INPUTS[key];
+                  }
+                  return normaliseInputs(next);
                 });
               }}
               className={fieldClass}
@@ -583,6 +603,12 @@ export default function DayRateClient() {
               className="mt-3 w-full accent-clay-700"
             />
           </div>
+          {tooFew && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-950 sm:col-span-2" role="alert">
+              Your days off add up to {result.days.lostTotal}, but you only work {result.days.workingDays} days a year.
+              Lower them to see a day rate.
+            </p>
+          )}
         </Step>
 
         <Step n={4} title="Extras on top">
@@ -593,7 +619,7 @@ export default function DayRateClient() {
           <Count id="emergency" label="Emergency extra" value={inputs.emergencyUplift} onValue={set("emergencyUplift")} suffix="%" max={500} />
         </Step>
 
-        <YearPicture result={result} />
+        {!tooFew && <YearPicture result={result} />}
         <VatNotice result={result} />
         <JobCheck result={result} />
         <JobPricer result={result} onQuote={applyRate} />
@@ -607,8 +633,10 @@ export default function DayRateClient() {
             <h2 id="result-heading" className="text-xs font-bold uppercase tracking-widest text-clay-200">
               Your day rate
             </h2>
-            <p className="mt-1 text-5xl font-black tabular-nums tracking-tight sm:text-6xl">{gbp(result.dayRate)}</p>
-            <p className="mt-1 text-sm text-white/70">before VAT · break-even is {gbp(result.floorDayRate)}</p>
+            <p className="mt-1 text-5xl font-black tabular-nums tracking-tight sm:text-6xl">{tooFew ? "–" : gbp(result.dayRate)}</p>
+            <p className="mt-1 text-sm text-white/70">
+              {tooFew ? "Check the days in step 3" : `before VAT · break-even is ${gbp(result.floorDayRate)}`}
+            </p>
             <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
               {[
                 ["Half day", gbp(result.halfDayRate)],
@@ -632,7 +660,8 @@ export default function DayRateClient() {
             <button
               type="button"
               onClick={applyRate}
-              className="mt-5 hidden min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 text-base font-extrabold text-white hover:bg-clay-700 lg:inline-flex"
+              disabled={tooFew}
+              className="mt-5 hidden min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 text-base font-extrabold text-white hover:bg-clay-700 disabled:opacity-50 lg:inline-flex"
             >
               {saved ? <Check className="h-5 w-5" aria-hidden="true" /> : <Sparkles className="h-5 w-5" aria-hidden="true" />}
               Use this rate in a quote
@@ -669,6 +698,11 @@ export default function DayRateClient() {
               <Share2 className="h-5 w-5" aria-hidden="true" />
               Share or save the picture
             </button>
+            {shareFailed && (
+              <p className="text-sm font-semibold text-red-800" role="alert">
+                That did not work. Check your signal and try again.
+              </p>
+            )}
             <a
               href={`/day-rate-calculator/rate-card?${cardQuery}`}
               target="_blank"
@@ -710,12 +744,13 @@ export default function DayRateClient() {
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="min-w-0 shrink-0 text-white">
             <p className="text-[11px] font-bold uppercase tracking-wider text-clay-200">Day rate</p>
-            <p className="text-2xl font-black tabular-nums leading-none">{gbp(result.dayRate)}</p>
+            <p className="text-2xl font-black tabular-nums leading-none">{tooFew ? "–" : gbp(result.dayRate)}</p>
           </div>
           <button
             type="button"
             onClick={applyRate}
-            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-clay-600 px-3 text-base font-extrabold text-white"
+            disabled={tooFew}
+            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-clay-600 px-3 text-base font-extrabold text-white disabled:opacity-50"
           >
             <Sparkles className="h-5 w-5" aria-hidden="true" />
             Use this rate

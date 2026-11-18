@@ -275,6 +275,8 @@ export interface PricingMemory {
   preferredMarkupPercent: number; // e.g. 20%
   /** Optional visit charge in pounds. 0 means none. Not added to a quote until the trade taps it. */
   callOutFee?: number;
+  /** True once the day or hourly rate was chosen in the calculator or Settings. */
+  ratesSetByHand?: boolean;
   totalQuotesLearned?: number;
   updatedAt?: string;
 }
@@ -346,19 +348,20 @@ export function learnPricingFromQuote(items: LineItem[]): PricingMemory {
     newDay = roundMoney(newHourly * 8);
   }
 
-  const updated: PricingMemory = {
+  const updated: PricingMemory = keepChosenRates(current, {
     ...current,
     laborHourlyRate: newHourly,
     laborDayRate: newDay,
     totalQuotesLearned: (current.totalQuotesLearned || 0) + 1,
     updatedAt: new Date().toISOString(),
-  };
+  });
 
   savePricingMemory(updated);
   return updated;
 }
 
 import { isSettingsCallOutLine } from "./call-out.mjs";
+import { keepChosenRates } from "./price-memory.mjs";
 import {
   roundMoney,
   recalculateQuoteTotals,
