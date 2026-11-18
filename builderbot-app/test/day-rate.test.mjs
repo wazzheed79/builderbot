@@ -262,3 +262,13 @@ test("the page carries WebApplication and FAQPage data and a guidance note", asy
   assert.match(page, /guidance, not tax advice/i);
   assert.doesNotMatch(page, /average day rate/i);
 });
+
+test("the calculator is linked from the menu, the home page, its footer and Settings", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const file of ["../components/AppNav.tsx", "../app/page.tsx", "../app/settings/page.tsx"]) {
+    const src = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(src, /href="\/day-rate-calculator"/, file);
+  }
+  const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.equal(home.match(/href="\/day-rate-calculator"/g).length, 2);
+});

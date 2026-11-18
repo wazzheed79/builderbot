@@ -15,6 +15,7 @@ import {
   LogOut,
   CloudCheck,
   CreditCard,
+  Calculator,
 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import DemoBanner from "./DemoBanner";
@@ -99,6 +100,21 @@ export default function AppNav() {
 
           {/* Action CTAs & Auth Controls */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* The free calculator. The menu row and the bottom bar are full, so it is a small button here.
+                The words hide on narrow phones and on small laptops, where the header is tight. */}
+            <Link
+              href="/day-rate-calculator"
+              aria-label="Free day rate calculator"
+              title="Free day rate calculator"
+              className={`inline-flex h-9 shrink-0 items-center whitespace-nowrap gap-1.5 rounded-lg border px-2 text-xs font-semibold transition ${
+                pathname.startsWith("/day-rate-calculator")
+                  ? "border-clay-200 bg-clay-50 text-clay-800"
+                  : "border-stone-200 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <Calculator className="w-4 h-4 text-clay-700" aria-hidden="true" />
+              <span className="hidden sm:inline lg:hidden 2xl:inline">Day rate</span>
+            </Link>
             {user ? (
               <div className="flex items-center gap-2">
                 <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -123,7 +139,7 @@ export default function AppNav() {
               <div className="flex items-center gap-1.5">
                 <Link
                   href="/login"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition"
+                  className="hidden sm:inline-flex lg:hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <span>Demo Mode</span>

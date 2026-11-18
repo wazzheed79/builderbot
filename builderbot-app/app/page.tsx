@@ -16,6 +16,7 @@ import {
   MessageCircle,
   ListChecks,
   Layers,
+  Calculator,
 } from "lucide-react";
 
 const site = configuredSiteUrl() || "https://www.chuffedquotes.co.uk";
@@ -350,6 +351,31 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="border-t border-stone-200 bg-white px-4 py-12 sm:px-6 lg:px-8" aria-labelledby="day-rate-heading">
+        <div className="mx-auto flex max-w-3xl flex-col gap-5 rounded-3xl border border-clay-200 bg-clay-50 p-6 sm:flex-row sm:items-center sm:p-8">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-clay-700 text-white">
+            <Calculator className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-clay-700">Free tool · no sign-up</p>
+            <h2 id="day-rate-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">
+              What should your day rate be?
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-stone-700">
+              Start with what you want to take home. The calculator adds tax, NI, the van and tools, and the
+              days you cannot charge, then puts the rate straight into your quotes.
+            </p>
+          </div>
+          <Link
+            href="/day-rate-calculator"
+            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-700 px-5 font-bold text-white hover:bg-clay-800"
+          >
+            Free day rate calculator
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </section>
+
       <section className="border-t border-stone-200 bg-paper px-4 py-16 sm:px-6 lg:px-8" aria-labelledby="features-heading">
         <div className="mx-auto max-w-6xl">
           <h2 id="features-heading" className="text-3xl font-black tracking-tight text-ink">
@@ -450,6 +476,9 @@ export default function Home() {
             <span>— {brand.tagline}</span>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-medium" aria-label="Footer">
+            <Link href="/day-rate-calculator" className="inline-flex min-h-11 items-center hover:text-clay-800">
+              Day rate calculator
+            </Link>
             <Link href="/walkthrough" className="inline-flex min-h-11 items-center hover:text-clay-800">
               Van demo
             </Link>

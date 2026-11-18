@@ -691,7 +691,12 @@ export default function SettingsPage() {
               <label htmlFor="day-rate" className="mb-1 block text-sm font-bold text-slate-900">
                 Day rate (£)
               </label>
-              <p className="mb-1.5 text-xs text-slate-500">What you charge for a day on site.</p>
+              <p className="mb-1.5 text-xs text-slate-500">
+                What you charge for a day on site. Not sure?{" "}
+                <Link href="/day-rate-calculator" className="font-semibold text-clay-700 underline">
+                  Use the free day rate calculator
+                </Link>
+              </p>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">£</span>
                 <NumberField
