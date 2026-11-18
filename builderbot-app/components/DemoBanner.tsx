@@ -46,13 +46,13 @@ export default function DemoBanner() {
     <div className="no-print bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs sm:text-sm text-stone-800">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex items-start gap-2 min-w-0">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
             <CloudOff className="w-3 h-3" />
             This browser only
           </span>
           <p className="text-stone-700 min-w-0">
             <span className="font-semibold text-ink">Quotes are not backed up until you sign in.</span>{" "}
-            Clearing this browser deletes them. {brand.name} is free during the beta.
+            <span className="hidden sm:inline">Clearing this browser deletes them. {brand.name} is free during the beta.</span>
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default function DemoBanner() {
           <button
             onClick={handleShowExample}
             disabled={resetting}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 transition"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 transition"
           >
             <RefreshCw className={`w-3 h-3 ${resetting ? "animate-spin" : ""}`} />
             <span>Show example quotes</span>

@@ -216,7 +216,7 @@ test("price-rise note is a plain fixed template", () => {
 test("Use this rate saves the same keys as the app's pricing memory", () => {
   const r = calculateDayRate(DEFAULT_INPUTS);
   const patch = pricingMemoryPatch(r, "2026-11-18T00:00:00Z");
-  assert.deepEqual(Object.keys(patch).sort(), ["callOutFee", "laborDayRate", "laborHourlyRate", "preferredMarkupPercent", "updatedAt"]);
+  assert.deepEqual(Object.keys(patch).sort(), ["callOutFee", "laborDayRate", "laborHourlyRate", "preferredMarkupPercent", "ratesSetByHand", "updatedAt"]);
   assert.equal(patch.laborDayRate, r.dayRate);
   const storage = new URL("../lib/storage.ts", import.meta.url);
   return import("node:fs").then(({ readFileSync }) => {
@@ -271,4 +271,19 @@ test("the calculator is linked from the menu, the home page, its footer and Sett
   }
   const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.equal(home.match(/href="\/day-rate-calculator"/g).length, 2);
+});
+
+test("days off that use up the whole working year are flagged", () => {
+  assert.equal(yearDays({ daysPerWeek: 1 }).tooFew, true);
+  assert.equal(yearDays({}).tooFew, false);
+});
+
+test("the price rise note thanks the customer for their custom", () => {
+  const note = priceRiseMessage({ oldRate: 200, newRate: 250 });
+  assert.match(note, /Thanks for your custom/);
+  assert.doesNotMatch(note, /your work/);
+});
+
+test("Use this rate marks the rates as chosen on purpose", () => {
+  assert.equal(pricingMemoryPatch(calculateDayRate({})).ratesSetByHand, true);
 });

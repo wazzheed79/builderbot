@@ -24,6 +24,19 @@ export const PRICE_UNITS = [
   { id: "lot", label: "per job", aliases: ["lot", "job", "jobs", "per job"] },
 ];
 
+/**
+ * A rate the tradesperson chose (calculator or Settings) stays as chosen.
+ * Saving a quote may only adjust rates that were never set on purpose.
+ * @template {{ laborDayRate: number, laborHourlyRate: number, ratesSetByHand?: boolean }} T
+ * @param {T} current
+ * @param {T} learned
+ * @returns {T}
+ */
+export function keepChosenRates(current, learned) {
+  if (!current.ratesSetByHand) return learned;
+  return { ...learned, laborDayRate: current.laborDayRate, laborHourlyRate: current.laborHourlyRate };
+}
+
 function squashUnit(unit) {
   return String(unit || "")
     .toLowerCase()

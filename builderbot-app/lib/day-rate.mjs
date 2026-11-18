@@ -325,7 +325,9 @@ export function yearDays(inputs) {
   };
   const lostTotal = Object.values(lost).reduce((a, b) => a + b, 0);
   const billable = Math.max(1, workingDays - lostTotal);
-  return { workingDays, daysOffWeek, lost, lostTotal, billable };
+  // Days off can add up to more than the working year. The rate is meaningless then.
+  const tooFew = lostTotal >= workingDays;
+  return { workingDays, daysOffWeek, lost, lostTotal, billable, tooFew };
 }
 
 export function annualCosts(inputs) {
@@ -506,7 +508,7 @@ export function priceRiseMessage(p) {
   const lines = [
     who ? `Hi ${who},` : "Hi,",
     "",
-    `Thanks for your work over the past year. I wanted to let you know in good time that from ${when} my day rate will go from ${money(oldRate)} to ${money(newRate)}.`,
+    `Thanks for your custom over the past year. I wanted to let you know in good time that from ${when} my day rate will go from ${money(oldRate)} to ${money(newRate)}.`,
     "",
     "Running costs like fuel, insurance and materials have gone up, and this keeps me able to do the job properly. Any work already quoted stays at the price agreed.",
     "",
@@ -625,6 +627,7 @@ export function pricingMemoryPatch(result, nowIso = new Date().toISOString()) {
     laborHourlyRate: result.hourlyRate,
     preferredMarkupPercent: result.markupPercent,
     callOutFee: result.callOut,
+    ratesSetByHand: true,
     updatedAt: nowIso,
   };
 }

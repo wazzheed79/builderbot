@@ -25,8 +25,9 @@ import {
   Send,
   Activity,
   Printer,
+  Calculator,
 } from "lucide-react";
-import { loadDemoSampleData } from "@/lib/storage";
+import { getSavedPricingMemory, loadDemoSampleData } from "@/lib/storage";
 import { brand } from "@/lib/brand.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
@@ -50,9 +51,12 @@ export default function DashboardPage() {
     );
   }
 
+  const savedRates = getSavedPricingMemory();
+  const chosenDayRate = savedRates?.ratesSetByHand ? savedRates.laborDayRate : 0;
+
   const stats = [
     {
-      title: "Quotes Sent",
+      title: "Quotes sent",
       value: (metrics.sentQuotesCount + metrics.viewedQuotesCount).toString(),
       change:
         metrics.viewedQuotesCount > 0
@@ -62,31 +66,31 @@ export default function DashboardPage() {
       color: "text-clay-700 bg-clay-50 border-clay-200",
     },
     {
-      title: "Accepted Won",
+      title: "Quotes won",
       value: `£${metrics.totalAcceptedValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       change: `${metrics.winRate}% win rate`,
       icon: CheckCircle,
       color: "text-emerald-600 bg-emerald-50 border-emerald-200",
     },
     {
-      title: "Active Jobs",
+      title: "Active jobs",
       value: activeJobsCount.toString(),
-      change: "On site / scheduled",
+      change: "On site or booked in",
       icon: TrendingUp,
       color: "text-amber-600 bg-amber-50 border-amber-200",
     },
     {
-      title: "Invoices Due",
+      title: "Invoices due",
       value: `£${outstandingBalance.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: "Awaiting settlement",
+      change: "Waiting to be paid",
       icon: Clock,
       color: "text-purple-600 bg-purple-50 border-purple-200",
       href: "/invoices",
     },
     {
-      title: "Active Customers",
+      title: "Customers",
       value: customerCount.toString(),
-      change: "Directory synced",
+      change: "Saved in your list",
       icon: Users,
       color: "text-indigo-600 bg-indigo-50 border-indigo-200",
     },
@@ -98,10 +102,10 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Trades Dashboard
+            Dashboard
           </h1>
           <p className="text-slate-600 text-sm mt-1">
-            Real-time overview of active quotes, won contract value, and live customer activity.
+            Your quotes, jobs, and money owed at a glance.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
@@ -124,36 +128,51 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <Link
+        href="/day-rate-calculator"
+        className="mt-6 flex min-h-16 items-center gap-3 rounded-2xl border border-clay-200 bg-white p-4 shadow-xs transition hover:border-clay-600"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-clay-50 text-clay-700">
+          <Calculator className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-ink">
+            {chosenDayRate > 0 ? `Your day rate: £${chosenDayRate.toLocaleString("en-GB")}` : "What should your day rate be?"}
+          </span>
+          <span className="block text-xs text-stone-600">
+            {chosenDayRate > 0 ? "Costs gone up? Check it still pays." : "Work it out after tax, van, and tools."}
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-clay-700" aria-hidden="true" />
+      </Link>
+
       {/* Metrics Grid */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
+      <div className="mt-5 grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5">
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           const card = (
             <div
-              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between"
+              className="h-full bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-2"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {stat.title}
                 </p>
-                <p className="text-2xl font-black text-slate-900 mt-1">{stat.value}</p>
-                <p className="text-xs font-medium text-emerald-600 mt-1 flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" />
-                  {stat.change}
-                </p>
+                <p className="text-xl sm:text-2xl font-black tabular-nums text-slate-900 mt-1">{stat.value}</p>
+                <p className="text-xs font-medium text-stone-600 mt-1">{stat.change}</p>
               </div>
-              <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${stat.color}`}>
+              <div className={`hidden sm:flex w-12 h-12 shrink-0 rounded-xl border items-center justify-center ${stat.color}`}>
                 <Icon className="w-6 h-6" />
               </div>
             </div>
           );
           const href = "href" in stat ? stat.href : "";
           return href ? (
-            <Link key={idx} href={href} className="block min-h-12">
+            <Link key={idx} href={href} className="block min-h-12 last:col-span-2 lg:last:col-span-1">
               {card}
             </Link>
           ) : (
-            <div key={idx}>{card}</div>
+            <div key={idx} className="last:col-span-2 lg:last:col-span-1">{card}</div>
           );
         })}
       </div>
@@ -164,8 +183,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Recent Quotes & Pipeline</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Real-time status updates from client acceptance links.</p>
+              <h2 className="text-lg font-bold text-slate-900">Recent quotes</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Updates when a customer opens or accepts a quote.</p>
             </div>
             <Link
               href="/quotes"
@@ -242,17 +261,13 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Activity className="w-4 h-4 text-clay-700" />
-              <span>Live Trade Feed</span>
+              <span>Recent activity</span>
             </h2>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live
-            </span>
           </div>
 
           <div className="space-y-4">
             {activities.length === 0 ? (
-              <p className="text-xs text-slate-400 py-4 text-center">No recent activity recorded yet.</p>
+              <p className="text-xs text-slate-400 py-4 text-center">Nothing yet. Activity shows here once quotes go out.</p>
             ) : (
               activities.map((item) => {
                 let Icon = Send;

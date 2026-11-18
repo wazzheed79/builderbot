@@ -164,6 +164,8 @@ Dates are the dates on the commits. The same history, in [Keep a Changelog](http
 
 ### 18 November 2026
 
+- The day rate calculator is a main tab on every screen size, with a short card on the dashboard and a link in the quote builder. Pricing moved out of the tab bar.
+- A day or hourly rate you choose is no longer changed by saving a quote. The calculator also has clearer checks for price rises, impossible days off, and VAT on materials.
 - Next.js and Sentry are updated to fix known security advisories.
 - If a customer, job, invoice, or template does not save to the account, the app tries again, then shows a short "saved on this device, but not online yet" notice and tells Sentry. Before, it failed silently.
 - New customers, jobs, and templates get random ids, so two accounts cannot clash.
