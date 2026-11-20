@@ -31,6 +31,7 @@ import { getSavedPricingMemory, loadDemoSampleData } from "@/lib/storage";
 import { brand } from "@/lib/brand.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
+import ExpiringSoon from "@/components/dashboard/ExpiringSoon";
 
 export default function DashboardPage() {
   const ready = useClientReady();
@@ -127,6 +128,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <ExpiringSoon />
 
       <Link
         href="/day-rate-calculator"

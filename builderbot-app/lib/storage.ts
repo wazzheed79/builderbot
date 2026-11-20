@@ -81,6 +81,8 @@ export interface Quote {
   lastViewedAt?: string;
   sentAt?: string;
   reminderAfterDays?: number;
+  /** Days this quote's prices hold. Copied from Settings when the quote is first saved. Missing on older quotes. */
+  validityDays?: number;
   options?: QuoteOption[];
   selectedOptionId?: string;
   acceptedSignatureName?: string;
@@ -368,6 +370,8 @@ import {
   validateStatusTransition,
   generateToken,
   calculateQuoteExpiry,
+  clampValidityDays,
+  effectiveValidityDays,
   newQuoteId,
   reassignQuoteReferences,
 } from "./quote-rules.mjs";
@@ -778,6 +782,9 @@ export function saveQuote(
   const vat = roundMoney(quote.vat);
   const total = roundMoney(quote.total);
   const deposit = roundMoney(quote.deposit);
+  // Each quote keeps its own validity, so changing Settings later does not move old quotes.
+  const validityDays =
+    clampValidityDays(quote.validityDays) ?? effectiveValidityDays(null, getBusinessProfile().quoteValidityDays);
 
   if (quote.id) {
     // Updating existing quote
@@ -789,6 +796,7 @@ export function saveQuote(
       vat,
       total,
       deposit,
+      validityDays,
       createdAt: quote.createdAt || todayInLondon(),
     };
     const updated = current.map((q) => (q.id === quote.id ? saved : q));
@@ -812,6 +820,7 @@ export function saveQuote(
       vat,
       total,
       deposit,
+      validityDays,
       createdAt: todayInLondon(),
     };
     const updated = [saved, ...current];
@@ -845,7 +854,10 @@ export function updateQuoteStatus(
     );
     if (!existing) return undefined;
     const profile = getBusinessProfile();
-    const expiry = calculateQuoteExpiry(existing.createdAt, profile.quoteValidityDays || 30);
+    const expiry = calculateQuoteExpiry(
+      existing.createdAt,
+      effectiveValidityDays(existing, profile.quoteValidityDays)
+    );
     const check = validateStatusTransition(
       existing.status,
       status,

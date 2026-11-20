@@ -96,7 +96,7 @@ export function calculateQuoteExpiry(createdAtIso, validityDays = 30, currentTim
       isExpired: false,
       daysLeft: validityDays,
       expiryDateIso: "",
-      expiryFormatted: "30 days from issue",
+      expiryFormatted: `${validityDays} days from issue`,
     };
   }
 
@@ -208,3 +208,59 @@ export function reassignQuoteReferences(records, fromId, toId) {
   };
 }
 
+
+/** How long a quote's prices hold. The same limits are in the database CHECK. */
+export const QUOTE_VALIDITY_MIN_DAYS = 1;
+export const QUOTE_VALIDITY_MAX_DAYS = 365;
+export const QUOTE_VALIDITY_FALLBACK_DAYS = 30;
+
+/**
+ * A whole number of days between 1 and 365, or null when there is no usable value.
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+export function clampValidityDays(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n) || n < QUOTE_VALIDITY_MIN_DAYS) return null;
+  return Math.min(QUOTE_VALIDITY_MAX_DAYS, n);
+}
+
+/**
+ * The days a quote is valid for. The quote's own figure wins. Older quotes
+ * saved before quotes had their own figure fall back to the business default.
+ * @param {{ validityDays?: unknown } | null | undefined} quote
+ * @param {unknown} [profileDefault]
+ * @returns {number}
+ */
+export function effectiveValidityDays(quote, profileDefault) {
+  return (
+    clampValidityDays(quote?.validityDays) ??
+    clampValidityDays(profileDefault) ??
+    QUOTE_VALIDITY_FALLBACK_DAYS
+  );
+}
+
+/**
+ * Sent quotes the customer has not decided on that run out within `withinDays`.
+ * Expired ones are left out. Soonest first.
+ * @template {{ id: string, status: string, createdAt: string, validityDays?: unknown, total?: number, clientName?: string, title?: string }} Q
+ * @param {Q[]} quotes
+ * @param {unknown} profileDefault
+ * @param {number} [nowMs]
+ * @param {number} [withinDays]
+ * @returns {Array<{ quote: Q, daysLeft: number, expiryFormatted: string, validityDays: number }>}
+ */
+export function quotesExpiringSoon(quotes, profileDefault, nowMs = Date.now(), withinDays = 3) {
+  if (!Array.isArray(quotes)) return [];
+  const rows = [];
+  for (const quote of quotes) {
+    if (!quote || (quote.status !== "Sent" && quote.status !== "Viewed")) continue;
+    const validityDays = effectiveValidityDays(quote, profileDefault);
+    const expiry = calculateQuoteExpiry(quote.createdAt, validityDays, nowMs);
+    if (!expiry.expiryDateIso || expiry.isExpired) continue;
+    if (expiry.daysLeft > withinDays) continue;
+    rows.push({ quote, daysLeft: expiry.daysLeft, expiryFormatted: expiry.expiryFormatted, validityDays });
+  }
+  return rows.sort((a, b) => a.daysLeft - b.daysLeft);
+}

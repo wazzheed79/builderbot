@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS public.quotes (
   last_viewed_at TIMESTAMP WITH TIME ZONE,
   sent_at TIMESTAMP WITH TIME ZONE,
   reminder_after_days INTEGER NOT NULL DEFAULT 3,
+  -- Days this quote's prices hold, copied from profiles.quote_validity_days when saved. NULL on older quotes.
+  validity_days INT CONSTRAINT quotes_validity_days_range CHECK (validity_days IS NULL OR (validity_days >= 1 AND validity_days <= 365)),
   options JSONB,
   selected_option_id TEXT,
   viewed_ip TEXT,
@@ -263,7 +265,10 @@ BEGIN
 
   -- Get contractor profile
   SELECT * INTO v_profile FROM public.profiles WHERE owner_id = v_quote.owner_id;
-  IF FOUND AND v_profile.quote_validity_days IS NOT NULL THEN
+  -- The quote's own validity wins. Older quotes without one use the business default.
+  IF v_quote.validity_days IS NOT NULL THEN
+    v_validity_days := v_quote.validity_days;
+  ELSIF FOUND AND v_profile.quote_validity_days IS NOT NULL THEN
     v_validity_days := v_profile.quote_validity_days;
   END IF;
 
@@ -427,7 +432,10 @@ BEGIN
 
   -- Validate expiry
   SELECT * INTO v_profile FROM public.profiles WHERE owner_id = v_quote.owner_id;
-  IF FOUND AND v_profile.quote_validity_days IS NOT NULL THEN
+  -- The quote's own validity wins. Older quotes without one use the business default.
+  IF v_quote.validity_days IS NOT NULL THEN
+    v_validity_days := v_quote.validity_days;
+  ELSIF FOUND AND v_profile.quote_validity_days IS NOT NULL THEN
     v_validity_days := v_profile.quote_validity_days;
   END IF;
 
@@ -510,6 +518,7 @@ $$;
 
 -- Photos on quotes. Safe to run again on a database that already exists.
 ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS photos JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS validity_days INT;
 
 -- Feedback from the free beta. No public policies: only the server service role can write.
 CREATE TABLE IF NOT EXISTS public.feedback (

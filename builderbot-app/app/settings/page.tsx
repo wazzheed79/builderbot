@@ -645,10 +645,14 @@ export default function SettingsPage() {
               <NumberField
                 decimal={false}
                 min={1}
+                max={365}
                 value={profile.quoteValidityDays}
                 onValue={(next) => handleChange("quoteValidityDays", next ?? 1)}
                 className="min-h-12 w-full rounded-xl border border-slate-300 px-3.5 text-base font-medium focus:outline-none focus:ring-2 focus:ring-clay-600"
               />
+              <p className="mt-1.5 text-xs text-slate-500">
+                Used for new quotes. Quotes already sent keep the days they were sent with.
+              </p>
             </div>
 
             <div className="sm:col-span-3">

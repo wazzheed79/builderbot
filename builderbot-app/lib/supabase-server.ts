@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { BusinessProfile, Invoice, Quote } from "./storage";
 import { isPublicQuoteToken } from "./public-quote.mjs";
@@ -90,6 +91,7 @@ function quoteFromPublicPayload(payload: PublicPayload): {
     rejected_reason: raw.rejectedReason,
     rejected_at: raw.rejectedAt,
     created_at: raw.createdAt,
+    validity_days: raw.validityDays,
   });
   const contractorRaw = payload.contractor || {};
   const rawCompany = contractorRaw.companyName ? String(contractorRaw.companyName) : "";
@@ -122,21 +124,28 @@ function quoteFromPublicPayload(payload: PublicPayload): {
   };
 }
 
-async function readPublicQuote(token: string): Promise<PublicPayload | null> {
+/**
+ * One get_public_quote call per token per page render. The page, its metadata
+ * and its share card all ask for the same quote, so this saves round trips.
+ */
+const lookupPublicQuote = cache(async (token: string) => {
   const sb = getServerSupabase();
-  if (!sb) return null;
+  if (!sb) return { configured: false, data: null as unknown, failed: false };
   const { data, error } = await sb.rpc("get_public_quote", { lookup_token: token });
-  if (error || data == null || typeof data !== "object") return null;
+  return { configured: true, data: data as unknown, failed: Boolean(error) };
+});
+
+async function readPublicQuote(token: string): Promise<PublicPayload | null> {
+  const { data, failed } = await lookupPublicQuote(token);
+  if (failed || data == null || typeof data !== "object") return null;
   return data as PublicPayload;
 }
 
 /** True when this address is not a real customer quote. A database outage does not count. */
 export async function isMissingPublicQuote(token: string): Promise<boolean> {
   if (!isPublicQuoteToken(token)) return true;
-  const sb = getServerSupabase();
-  if (!sb) return false;
-  const { data, error } = await sb.rpc("get_public_quote", { lookup_token: token });
-  if (error) return false;
+  const { configured, data, failed } = await lookupPublicQuote(token);
+  if (!configured || failed) return false;
   return data == null;
 }
 

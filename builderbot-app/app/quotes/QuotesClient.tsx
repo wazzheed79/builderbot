@@ -96,7 +96,14 @@ import { captureEvent } from "@/lib/analytics";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import VatTotals from "@/components/VatTotals";
+import NumberField from "@/components/NumberField";
 import { todayInLondon } from "@/lib/london-date.mjs";
+import {
+  QUOTE_VALIDITY_MAX_DAYS,
+  QUOTE_VALIDITY_MIN_DAYS,
+  clampValidityDays,
+  effectiveValidityDays,
+} from "@/lib/quote-rules.mjs";
 import { useTodayIso } from "@/components/invoices/useTodayIso";
 import { tierPriceCaption, vatPresentation } from "@/lib/vat.mjs";
 
@@ -150,6 +157,7 @@ function draftFingerprint(snapshot: Record<string, unknown>) {
     choiceIndex: snapshot.choiceIndex,
     vatEnabled: snapshot.vatEnabled,
     depositPercent: snapshot.depositPercent,
+    validityDays: snapshot.validityDays,
     selectedCustomerId: snapshot.selectedCustomerId,
     activeQuoteId: snapshot.activeQuoteId,
     activeToken: snapshot.activeToken,
@@ -205,6 +213,9 @@ export default function QuotesClient() {
   const [isExpanding, setIsExpanding] = useState(false);
   const [vatEnabled, setVatEnabled] = useState(DEFAULT_BUSINESS_PROFILE.vatRegistered === true);
   const [depositPercent, setDepositPercent] = useState(DEFAULT_BUSINESS_PROFILE.defaultDepositPercent ?? 20);
+  const [validityDays, setValidityDays] = useState(
+    effectiveValidityDays(null, DEFAULT_BUSINESS_PROFILE.quoteValidityDays)
+  );
   const [isAiDraft, setIsAiDraft] = useState(false);
   const [estimateOnly, setEstimateOnly] = useState(false);
   const [homeNotesApplied, setHomeNotesApplied] = useState(false);
@@ -241,6 +252,7 @@ export default function QuotesClient() {
     choiceIndex,
     vatEnabled,
     depositPercent,
+    validityDays,
     clientName,
     clientCompany,
     clientAddress,
@@ -316,6 +328,7 @@ export default function QuotesClient() {
       choiceIndex,
       vatEnabled,
       depositPercent,
+      validityDays,
       clientName,
       clientCompany,
       clientAddress,
@@ -393,6 +406,7 @@ export default function QuotesClient() {
     choiceIndex,
     vatEnabled,
     depositPercent,
+    validityDays,
     clientName,
     clientCompany,
     clientAddress,
@@ -497,6 +511,7 @@ export default function QuotesClient() {
       setNotesInput(quote.notes || "");
       setVatEnabled(quote.vatEnabled);
       setDepositPercent(quote.depositPercent);
+      setValidityDays(effectiveValidityDays(quote, profile.quoteValidityDays));
       setPhotos(quote.photos || []);
       if (quote.options && quote.options.length > 1) {
         setChoiceOptions(quote.options);
@@ -509,13 +524,14 @@ export default function QuotesClient() {
     }
   }
 
-  const rateStamp = `${profile.vatRegistered}:${profile.defaultDepositPercent}`;
+  const rateStamp = `${profile.vatRegistered}:${profile.defaultDepositPercent}:${profile.quoteValidityDays}`;
   if (ratesReadyFor !== rateStamp) {
     setRatesReadyFor(rateStamp);
     const editingSaved = Boolean(quoteParam || activeQuoteId);
     if (!editingSaved) {
       setVatEnabled(profile.vatRegistered === true);
       setDepositPercent(profile.defaultDepositPercent ?? 20);
+      setValidityDays(effectiveValidityDays(null, profile.quoteValidityDays));
     }
   }
 
@@ -980,6 +996,7 @@ export default function QuotesClient() {
       total: priced.total,
       depositPercent: draft.depositPercent,
       deposit: priced.deposit,
+      validityDays: clampValidityDays(draft.validityDays) ?? undefined,
       status,
     });
     if (created) captureEvent("quote_created", { ai_used: isAiDraft && !estimateOnly });
@@ -1161,6 +1178,7 @@ export default function QuotesClient() {
     setChoiceIndex(Number(draft.choiceIndex) || 0);
     setVatEnabled(Boolean(draft.vatEnabled));
     setDepositPercent(Number(draft.depositPercent) || 0);
+    setValidityDays(effectiveValidityDays(draft, profile.quoteValidityDays));
     if (draft.activeQuoteId) {
       setActiveQuoteId(String(draft.activeQuoteId));
       setActiveToken(draft.activeToken ? String(draft.activeToken) : null);
@@ -1206,6 +1224,7 @@ export default function QuotesClient() {
       choiceIndex: 0,
       vatEnabled,
       depositPercent,
+      validityDays,
       clientName: "",
       clientCompany: "",
       clientAddress: "",
@@ -1823,6 +1842,28 @@ export default function QuotesClient() {
                     </select>
                   </div>
                   <span className="font-semibold tabular-nums text-emerald-800">£{money(deposit)}</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <label htmlFor="quote-validity-days" className="text-xs">
+                    Prices valid for
+                  </label>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <NumberField
+                      id="quote-validity-days"
+                      decimal={false}
+                      value={validityDays}
+                      min={QUOTE_VALIDITY_MIN_DAYS}
+                      max={QUOTE_VALIDITY_MAX_DAYS}
+                      emptyAs={effectiveValidityDays(null, profile.quoteValidityDays)}
+                      onValue={(next) => {
+                        const days = clampValidityDays(next);
+                        if (days !== null) setValidityDays(days);
+                      }}
+                      className="min-h-11 w-16 rounded-lg bg-slate-100 px-2 text-center text-sm font-semibold tabular-nums"
+                    />
+                    <span>days</span>
+                  </div>
                 </div>
               </div>
 
