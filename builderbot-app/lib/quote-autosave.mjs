@@ -1,4 +1,4 @@
-import { generateToken, recalculateQuoteTotals } from "./quote-rules.mjs";
+import { clampValidityDays, generateToken, recalculateQuoteTotals } from "./quote-rules.mjs";
 
 /** Separate from the saved-quote list, so a refresh cannot wipe a half-written quote. */
 export const WORKING_DRAFT_KEY = "chuffed_quote_working_draft_v1";
@@ -47,6 +47,7 @@ export function trimWorkingDraft(draft, nowIso) {
     choiceIndex: Number(draft.choiceIndex) || 0,
     vatEnabled: Boolean(draft.vatEnabled),
     depositPercent: Number(draft.depositPercent) || 0,
+    validityDays: clampValidityDays(draft.validityDays),
     selectedCustomerId: String(draft.selectedCustomerId || ""),
     activeQuoteId: draft.activeQuoteId ? String(draft.activeQuoteId) : null,
     activeToken: draft.activeToken ? String(draft.activeToken) : null,
@@ -221,6 +222,7 @@ export function toCloudDraftQuote(snapshot, createdAt) {
     total: totals.total,
     depositPercent,
     deposit: totals.deposit,
+    validityDays: clampValidityDays(snapshot.validityDays) ?? undefined,
     status: "Draft",
     createdAt,
     options: choices.length > 1 ? choices : undefined,

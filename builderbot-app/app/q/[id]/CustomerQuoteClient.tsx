@@ -27,7 +27,7 @@ import {
   BusinessProfile,
   calculateQuoteExpiry,
 } from "@/lib/storage";
-import { pricedOnLine } from "@/lib/quote-rules.mjs";
+import { effectiveValidityDays, pricedOnLine } from "@/lib/quote-rules.mjs";
 import QuoteQrCode from "@/components/quotes/QuoteQrCode";
 import { getWhatsAppShareUrl, normalizePhoneNumber } from "@/lib/share";
 import { getAuthHeaders } from "@/lib/supabase";
@@ -177,6 +177,18 @@ function ProgressStep({
       <span className="hidden text-[10px] text-slate-400 sm:block">{detail}</span>
     </div>
   );
+}
+
+/** "23 October 2026" rather than the stored ISO value. */
+function formatIssuedDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
 }
 
 export default function CustomerQuoteClient({
@@ -354,11 +366,10 @@ export default function CustomerQuoteClient({
   const contactPhone = activeProfile.phone || "";
   const contactEmail = activeProfile.email || "";
 
-  const expiry = calculateQuoteExpiry(
-    loadedQuote.createdAt,
-    activeProfile.quoteValidityDays || 30
-  );
-  const pricedOn = pricedOnLine(loadedQuote.createdAt, activeProfile.quoteValidityDays || 30);
+  // The quote's own validity. Older quotes without one use the business default.
+  const validityDays = effectiveValidityDays(loadedQuote, activeProfile.quoteValidityDays);
+  const expiry = calculateQuoteExpiry(loadedQuote.createdAt, validityDays);
+  const pricedOn = pricedOnLine(loadedQuote.createdAt, validityDays);
   const quoteLiveUrl = `${siteOrigin}/q/${loadedQuote.token || loadedQuote.id}`;
 
   const rememberLocalDecision = (signed: Quote): boolean => {
@@ -586,7 +597,7 @@ export default function CustomerQuoteClient({
             <div>
               <h2 className="text-lg font-bold">Quotation Expired</h2>
               <p className="text-amber-100 text-sm mt-1">
-                This quotation was valid for {activeProfile.quoteValidityDays || 30} days and has expired. Please contact {contractorName} to request updated pricing.
+                This quotation was valid for {validityDays} {validityDays === 1 ? "day" : "days"} and has expired. Please contact {contractorName} to request updated pricing.
               </p>
             </div>
           </div>
@@ -601,13 +612,15 @@ export default function CustomerQuoteClient({
             </div>
           </div>
         ) : (
-          <div className="bg-clay-700 text-white px-5 py-3 rounded-xl shadow-md flex items-center justify-between text-xs sm:text-sm font-semibold">
-            <span className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-clay-100" />
-              Official Trade Quotation #{loadedQuote.id}
+          <div className="bg-clay-700 text-white px-5 py-3 rounded-xl shadow-md flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold">
+            <span className="flex min-w-0 items-center gap-2">
+              <Sparkles className="w-4 h-4 shrink-0 text-clay-100" />
+              <span>
+                Official Trade Quotation <span className="whitespace-nowrap">#{loadedQuote.id}</span>
+              </span>
             </span>
-            <span className="bg-clay-800 px-2.5 py-1 rounded text-xs">
-              Valid for {activeProfile.quoteValidityDays || 30} Days
+            <span className="shrink-0 whitespace-nowrap bg-clay-800 px-2.5 py-1 rounded text-xs">
+              Valid for {validityDays} {validityDays === 1 ? "Day" : "Days"}
             </span>
           </div>
         )}
@@ -753,7 +766,7 @@ export default function CustomerQuoteClient({
               <div>
                 <span className="text-stone-500 uppercase font-bold tracking-wider">Project Specification</span>
                 <p className="text-sm font-bold text-ink mt-0.5">{loadedQuote.title}</p>
-                <p className="text-stone-600 mt-0.5">Date Issued: {loadedQuote.createdAt}</p>
+                <p className="text-stone-600 mt-0.5">Date Issued: {formatIssuedDate(loadedQuote.createdAt)}</p>
                 {activeProfile.ownerName && (
                   <p className="text-stone-600 mt-0.5 text-[11px]">Estimator: {activeProfile.ownerName}</p>
                 )}
@@ -1029,14 +1042,16 @@ export default function CustomerQuoteClient({
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-stone-600 shadow-2xs hover:border-clay-400 hover:text-clay-800 transition"
+            className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-2xl sm:rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-stone-600 shadow-2xs hover:border-clay-400 hover:text-clay-800 transition"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay-700 text-white font-black text-[10px]">
-              CQ
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay-700 text-white font-black text-[10px]">
+                CQ
+              </span>
+              <span>Created with <strong className="font-bold text-ink">{brand.name}</strong></span>
             </span>
-            <span>Created with <strong className="font-bold text-ink">{brand.name}</strong></span>
-            <span className="text-stone-300">·</span>
-            <span className="text-clay-700 hover:underline">Free for UK trades →</span>
+            <span className="hidden sm:inline text-stone-300">·</span>
+            <span className="whitespace-nowrap text-clay-700 hover:underline">Free for UK trades →</span>
           </Link>
         </div>
       </div>

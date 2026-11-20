@@ -9,6 +9,7 @@ import {
   isQuoteIdConflict,
   isSharedSequentialQuoteId,
   newQuoteId,
+  clampValidityDays,
 } from "./quote-rules.mjs";
 import { profileUpsertOptions } from "./profile-sync.mjs";
 import { chargesVat } from "./vat.mjs";
@@ -98,6 +99,7 @@ export function mapRowToQuote(row: Record<string, unknown>): Quote {
     lastViewedAt: row.last_viewed_at ? String(row.last_viewed_at) : undefined,
     sentAt: row.sent_at ? String(row.sent_at) : undefined,
     reminderAfterDays: Number(row.reminder_after_days) || 3,
+    validityDays: clampValidityDays(row.validity_days) ?? undefined,
     options: Array.isArray(row.options) ? (row.options as Quote["options"]) : undefined,
     selectedOptionId: row.selected_option_id ? String(row.selected_option_id) : undefined,
     acceptedSignatureName: row.accepted_signature_name ? String(row.accepted_signature_name) : undefined,
@@ -192,17 +194,30 @@ function plainCloudError(message: string): string {
 // and send again while the first request is still in flight.
 let quoteCloudSerial = 0;
 
-const OPTIONAL_QUOTE_COLUMNS = ["photos", "options", "selected_option_id", "sent_at", "reminder_after_days"];
+const OPTIONAL_QUOTE_COLUMNS = [
+  "photos",
+  "options",
+  "selected_option_id",
+  "sent_at",
+  "reminder_after_days",
+  // Added by 20261120120000_quote_validity_days.sql. Until that runs, quotes save without it.
+  "validity_days",
+];
 
 async function writeQuoteRow(sb: SupabaseClient, row: Record<string, unknown>) {
   const first = await sb.from("quotes").upsert(row);
-  if (first.error && /photo|option|sent_at|reminder/i.test(first.error.message || "")) {
+  if (first.error && isMissingOptionalQuoteColumn(first.error.message || "")) {
     const withoutExtras = Object.fromEntries(
       Object.entries(row).filter(([key]) => !OPTIONAL_QUOTE_COLUMNS.includes(key))
     );
     return sb.from("quotes").upsert(withoutExtras);
   }
   return first;
+}
+
+/** True when the save failed only because an optional column is not in the database yet. */
+export function isMissingOptionalQuoteColumn(message: string): boolean {
+  return /photo|option|sent_at|reminder|validity_days/i.test(message);
 }
 
 // Background sync helpers (authenticated)
@@ -281,6 +296,7 @@ export async function syncQuoteToCloud(quote: Quote): Promise<CloudSaveResult> {
       selected_option_id: quote.selectedOptionId || null,
       sent_at: quote.sentAt || null,
       reminder_after_days: quote.reminderAfterDays || 3,
+      validity_days: clampValidityDays(quote.validityDays),
       subtotal: recalculated.subtotal,
       vat_enabled: quote.vatEnabled,
       vat: recalculated.vat,

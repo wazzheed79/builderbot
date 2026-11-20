@@ -31,7 +31,14 @@ export async function generateMetadata({
   return {
     title: heading,
     description,
+    // Quote links are private: keep them out of search results.
+    robots: { index: false, follow: false },
+    alternates: { canonical: `/q/${id}` },
     openGraph: {
+      type: "website",
+      siteName: brand.name,
+      locale: "en_GB",
+      url: `/q/${id}`,
       title: socialTitle,
       description,
       images: [{ url: imageUrl, width: 1200, height: 630, alt: socialTitle }],
