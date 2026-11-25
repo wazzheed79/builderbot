@@ -27,6 +27,9 @@ import {
   validateAiPhotos,
 } from "@/lib/image-payload.mjs";
 
+// Above the 30 second Gemini wait, and within the usual function limit.
+export const maxDuration = 60;
+
 const GenerateRequestSchema = z.object({
   notes: z
     .string()
