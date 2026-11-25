@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { buildAiFallbackReport } from "./ai-fallback-report.mjs";
 
 /** Log a server fault. Sent to Sentry only when a DSN is configured. No customer text. */
 export function reportServerFault(message: string): void {
@@ -13,11 +14,14 @@ export function reportServerFault(message: string): void {
  * Sent to Sentry with the route and a short code (e.g. http_429). No customer text.
  */
 export function reportAiFallback(route: "generate" | "expand" | "demo", code: string): void {
-  const safeCode = String(code || "unknown").slice(0, 60);
-  console.error(`Gemini ${route} failed (${safeCode}). Fallback used.`);
+  const report = buildAiFallbackReport(route, code);
+  console.error(report.log);
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
-  Sentry.captureMessage(`Gemini ${route} failed, fallback used`, {
+  Sentry.captureEvent({
+    message: report.event.message,
     level: "warning",
-    tags: { area: "ai-fallback", route, code: safeCode },
+    fingerprint: report.event.fingerprint,
+    tags: report.event.tags,
+    exception: report.event.exception,
   });
 }

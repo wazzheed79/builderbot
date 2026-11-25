@@ -1,10 +1,11 @@
 import {
   GoogleGenAI,
-  ThinkingLevel,
+  type ThinkingLevel,
   type ContentListUnion,
   type GenerateContentConfig,
 } from "@google/genai";
 import {
+  GEMINI_QUOTE_THINKING_LEVEL,
   GEMINI_REQUEST_TIMEOUT_MS,
   modelUsesThinkingLevel,
   resolveGeminiModel,
@@ -12,7 +13,9 @@ import {
 
 export {
   DEFAULT_GEMINI_MODEL,
+  GEMINI_QUOTE_THINKING_LEVEL,
   GEMINI_REQUEST_TIMEOUT_MS,
+  GEMINI_ROUTE_MAX_DURATION_SECONDS,
   geminiFailureCode,
   modelUsesThinkingLevel,
   parseGeminiJson,
@@ -27,9 +30,13 @@ export {
  * in responseJsonSchema (lowercase types such as "object", not the older
  * OpenAPI "OBJECT"). Temperature is left at the model default: Gemini 3 is
  * tuned for 1.0, and a lower value can loop. thinkingBudget is the Gemini 2.5
- * control and must not be sent with thinkingLevel. Gemini 3 models think at
- * "medium" or "high" unless told otherwise, which is what made slower Flash
- * models run past 40 seconds. "low" keeps a structured quote fast.
+ * control and must not be sent with thinkingLevel.
+ *
+ * Gemini 3.6 Flash thinks at medium unless told otherwise. A quote is one
+ * turn, so these calls send thinkingConfig.thinkingLevel MINIMAL, the lowest
+ * level that model accepts in @google/genai. The request timeout is also sent
+ * to Google as X-Server-Timeout. A deadline that is too short comes back as
+ * http_504 and the route uses the rough estimate.
  */
 export async function generateGeminiText(options: {
   apiKey: string;
@@ -41,7 +48,7 @@ export async function generateGeminiText(options: {
     apiKey: options.apiKey,
     httpOptions: {
       timeout: GEMINI_REQUEST_TIMEOUT_MS,
-      // One attempt. A 429 or 503 should fall back to the rough estimate
+      // One attempt. A 429, 503, or 504 should fall back to the rough estimate
       // instead of waiting through the SDK's default retry delays.
       retryOptions: { attempts: 1 },
     },
@@ -53,7 +60,7 @@ export async function generateGeminiText(options: {
     config: {
       ...options.config,
       ...(modelUsesThinkingLevel(model)
-        ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+        ? { thinkingConfig: { thinkingLevel: GEMINI_QUOTE_THINKING_LEVEL as ThinkingLevel } }
         : {}),
     },
   });

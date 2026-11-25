@@ -39,6 +39,7 @@ The short version of this list is the Progress section of [README.md](README.md)
 
 ### Fixed
 
+- AI quotes no longer give up as a rough estimate when Google is a little slow. With `GEMINI_MODEL` left blank, the app asks for `gemini-3.6-flash`. `gemini-3.5-flash` is deprecated, and Google was already routing it on, while the app still stopped at 20 seconds. That wait was sent to Google as the server deadline, so a slow reply came back as `http_504` and the guest demo used the rough estimate without saying the AI had failed in a way you could see. Generate, expand, and the guest demo now use the minimal thinking level (the lowest Gemini 3.6 Flash accepts) and wait 30 seconds. Those three routes can run for 60 seconds, which stays above that wait. A 404, 429, 503, 504, timeout, or unusable JSON still uses the rough estimate. Sentry titles the warning “AI quote fallback” with the route and the short code, and groups those together, instead of a minified name. No database migration. This does not change environment variables.
 - A day or hourly rate set in the calculator or Settings is no longer changed by saving a quote. Before, each saved quote moved it towards the prices on that quote.
 - Day rate calculator: the price rise note thanks the customer for their custom, and it is not offered when the new rate is not a rise. If days off use up the whole working year, the page asks you to correct them instead of showing a huge rate. Changing trade keeps costs you typed. The VAT check says materials count towards the £90,000. A rate card picture that fails to download now says so.
 - Next.js is 16.4.6 (was 16.4.2), with eslint-config-next to match, and Sentry is 11.14. 16.4.2 had two known Next.js advisories about cached data leaking between pages, and the build printed a security warning. No database migration.
@@ -117,7 +118,7 @@ The short version of this list is the Progress section of [README.md](README.md)
 - Accept and decline errors show inside the customer sign box.
 - Public quote lookup uses `get_public_quote`, which the anon key may call, because row security hides the quotes table from that key.
 - Save and WhatsApp send the lines on the screen. The quote editor fits a 360px-wide phone.
-- The shared Gemini model id lives in `builderbot-app/lib/gemini.mjs` (default `gemini-3.5-flash`). A 404, 429, 503, timeout, or unusable JSON falls back to the rough estimate.
+- The shared Gemini model id lives in `builderbot-app/lib/gemini.mjs` (this change set the default to `gemini-3.5-flash`; the default is now `gemini-3.6-flash`). A 404, 429, 503, timeout, or unusable JSON falls back to the rough estimate.
 - Fallback site URL uses `chuffedquotes.co.uk`.
 - `package-lock.json` includes the `qrcode` dependency.
 

@@ -47,7 +47,7 @@ New quotes get their own reference (`BB-` plus eight characters). An older share
 | Styling | Tailwind CSS 4 |
 | Icons | `lucide-react` |
 | Data and sign-in | Supabase (Postgres, Auth, Storage). The live project is in the EU (London). |
-| AI | Google Gemini through `@google/genai`. Default model `gemini-3.5-flash`, overridable with `GEMINI_MODEL`. |
+| AI | Google Gemini through `@google/genai`. Default model `gemini-3.6-flash`, overridable with `GEMINI_MODEL`. |
 | Hosting | Vercel |
 | Errors | Sentry, only when `NEXT_PUBLIC_SENTRY_DSN` is set |
 | Usage counts | PostHog, only after the visitor taps Accept on the cookie banner |
@@ -91,7 +91,7 @@ Copy names into `.env.local`. Put real values only in that file or in the host�
 | Name | Purpose |
 | --- | --- |
 | `GEMINI_API_KEY` | Optional. Blank keeps the app on rough estimates. |
-| `GEMINI_MODEL` | Optional model id. Default `gemini-3.5-flash`. |
+| `GEMINI_MODEL` | Optional model id. Default `gemini-3.6-flash`. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (browser). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only. Used for rate limits and the AI quota. |
@@ -115,7 +115,7 @@ Copy names into `.env.local`. Put real values only in that file or in the host�
 | `X_ACCESS_TOKEN` | Optional. Only for that script. |
 | `X_ACCESS_SECRET` | Optional. Only for that script. |
 
-AI quoting runs for signed-in users. Each account can run 30 quote builds and 30 scope rewrites in a rolling hour. A guest on `/try` can run 5 builds a day from one network address. Those counts live in Supabase. If that database check fails, the same limit is applied in the server’s memory for that address or account. The first requests in the window still go through. The limit still stops the next one. A stored “limit reached” answer still stops the build. It does not leave the helper open with no limit. If Gemini returns an error, times out (20 seconds), or sends unusable JSON, the quote uses the rough estimate.
+AI quoting runs for signed-in users. Each account can run 30 quote builds and 30 scope rewrites in a rolling hour. A guest on `/try` can run 5 builds a day from one network address. Those counts live in Supabase. If that database check fails, the same limit is applied in the server’s memory for that address or account. The first requests in the window still go through. The limit still stops the next one. A stored “limit reached” answer still stops the build. It does not leave the helper open with no limit. If Gemini returns an error (including 404, 429, 503, or 504), times out (30 seconds), or sends unusable JSON, the quote uses the rough estimate.
 
 An AI quote request, including photos, cannot be larger than about 1.8 MB. Each photo must be a real JPEG, PNG, GIF, or WebP, and each one must be smaller than about 350,000 characters. The quote builder shows the plain-English message if a photo is too big or is not a real image. The try-it page does not send photos.
 
@@ -161,6 +161,10 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 ## Progress / Changelog
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
+
+### 25 November 2026
+
+- AI quotes use Gemini 3.6 Flash when no model is set. The try-it page, the quote builder, and the scope rewrite ask for the shortest thinking level and wait 30 seconds. If Google is busy, times out, or sends a reply the app cannot use, the rough estimate is still used. A fallback shows in Sentry under a clear name for that route and reason. No database migration.
 
 ### 18 November 2026
 

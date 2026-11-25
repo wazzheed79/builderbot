@@ -1,11 +1,24 @@
 // Shared Gemini settings for the quote routes.
 // The model id is read once here so generate and expand cannot drift apart.
 
-export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 
-// gemini-3.5-flash usually answers in about a second. Twenty seconds covers a
-// quote with site photos, then the route falls back to the rough estimate.
-export const GEMINI_REQUEST_TIMEOUT_MS = 20_000;
+// Lowest thinking level Gemini 3.6 Flash accepts. Quote calls are one turn of
+// structured JSON, so this is the right level. The value matches
+// ThinkingLevel.MINIMAL in @google/genai 2.30 (thinkingConfig.thinkingLevel).
+export const GEMINI_QUOTE_THINKING_LEVEL = "MINIMAL";
+
+// The SDK sends this same limit to Google as X-Server-Timeout. Gemini 3 Flash
+// thinks at medium unless told otherwise, and a 20 second deadline was coming
+// back as http_504 before a quote finished. Thirty seconds covers a one-shot
+// quote at the minimal thinking level, then the route falls back to the rough
+// estimate. The quote routes set maxDuration above this.
+export const GEMINI_REQUEST_TIMEOUT_MS = 30_000;
+
+// Must stay above GEMINI_REQUEST_TIMEOUT_MS and inside the host function limit.
+// 60 seconds is the usual cap on a short plan, and it leaves room for the
+// rate-limit check around the 30 second Gemini call.
+export const GEMINI_ROUTE_MAX_DURATION_SECONDS = 60;
 
 const MODEL_ID = /^[A-Za-z0-9._-]{1,80}$/;
 
@@ -73,7 +86,7 @@ function readMessage(error) {
 
 /**
  * True when the quote routes should keep going with the rough estimate
- * instead of showing an error. Covers Google 404, 429, and 503, plus
+ * instead of showing an error. Covers Google 404, 429, 503, and 504, plus
  * timeouts, other HTTP failures, empty replies, and unreadable JSON.
  * @param {unknown} error
  */
