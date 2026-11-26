@@ -37,6 +37,7 @@ import { BusinessNamePrompt } from "@/components/BusinessNamePrompt";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
 import { useTodayIso } from "@/components/invoices/useTodayIso";
+import RebookPicker from "@/components/jobs/RebookPicker";
 import { canCreateInvoiceFromQuote, displayInvoiceStatus } from "@/lib/invoice-rules.mjs";
 import { captureEvent } from "@/lib/analytics";
 import {
@@ -704,6 +705,19 @@ export default function CustomerProfileClient({
                         <p className="text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
                           {job.notes}
                         </p>
+                      )}
+
+                      {(job.status === "Completed" || job.status === "Invoiced" || job.rebookDue) && (
+                        <RebookPicker
+                          compact
+                          rebookDue={job.rebookDue}
+                          rebookMonths={job.rebookMonths}
+                          onChange={(fields) => {
+                            saveJob({ ...job, ...fields });
+                            if (fields.rebookDue) captureEvent("rebook_reminder_set", { months: fields.rebookMonths ?? 0 });
+                            else captureEvent("rebook_reminder_cleared");
+                          }}
+                        />
                       )}
 
                       <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">

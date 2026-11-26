@@ -21,6 +21,10 @@ const EVENT_PROPERTIES = {
   demo_signup_clicked: [],
   day_rate_used: ["signed_in"],
   day_rate_card_made: [],
+  rebook_reminder_set: ["months"],
+  rebook_reminder_cleared: [],
+  rebook_message_opened: [],
+  rebook_marked_done: [],
 };
 
 /** The only words a failure event may carry. Job notes never qualify. */

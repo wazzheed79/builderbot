@@ -14,6 +14,7 @@ import {
 import { profileUpsertOptions } from "./profile-sync.mjs";
 import { chargesVat } from "./vat.mjs";
 import { londonDateOf, todayInLondon } from "./london-date.mjs";
+import { cleanRebookDate, cleanRebookMonths } from "./rebook-rules.mjs";
 
 export { roundMoney, recalculateQuoteTotals, validateStatusTransition };
 
@@ -160,6 +161,8 @@ export function mapRowToJob(row: Record<string, unknown>): Job {
     status: (row.status as Job["status"]) || "Quoted",
     notes: row.notes ? String(row.notes) : undefined,
     quoteId: row.quote_id ? String(row.quote_id) : undefined,
+    rebookDue: cleanRebookDate(row.rebook_due),
+    rebookMonths: cleanRebookMonths(row.rebook_months),
     createdAt: row.created_at ? londonDateOf(String(row.created_at)) || String(row.created_at).slice(0, 10) : todayInLondon(),
   };
 }
@@ -579,6 +582,9 @@ export async function deleteCloudQuote(id: string): Promise<boolean> {
 }
 
 // Jobs Cloud Sync
+// Added by 20261126120000_job_rebook_reminders.sql. Until that runs, jobs save without them.
+const OPTIONAL_JOB_COLUMNS = ["rebook_due", "rebook_months"];
+
 export async function syncJobToCloud(job: Job): Promise<CloudSyncResult> {
   const sb = getSupabase();
   if (!sb) return CLOUD_SKIPPED;
@@ -587,7 +593,7 @@ export async function syncJobToCloud(job: Job): Promise<CloudSyncResult> {
     const ownerId = userData.session?.user?.id;
     if (!ownerId) return CLOUD_SKIPPED;
 
-    const { error } = await sb.from("jobs").upsert({
+    const row = {
       id: job.id,
       owner_id: ownerId,
       customer_id: job.customerId,
@@ -596,8 +602,18 @@ export async function syncJobToCloud(job: Job): Promise<CloudSyncResult> {
       status: job.status,
       notes: job.notes || null,
       quote_id: job.quoteId || null,
+      rebook_due: cleanRebookDate(job.rebookDue) || null,
+      rebook_months: cleanRebookMonths(job.rebookMonths) ?? null,
       created_at: job.createdAt,
-    });
+    };
+    let { error } = await sb.from("jobs").upsert(row);
+    if (error && /rebook/i.test(error.message || "")) {
+      // 20261126120000_job_rebook_reminders.sql has not run yet. Save the job without the reminder.
+      const withoutExtras = Object.fromEntries(
+        Object.entries(row).filter(([key]) => !OPTIONAL_JOB_COLUMNS.includes(key))
+      );
+      ({ error } = await sb.from("jobs").upsert(withoutExtras));
+    }
     return error ? cloudFailed(error) : CLOUD_SAVED;
   } catch (caught) {
     return cloudFailed(caught);

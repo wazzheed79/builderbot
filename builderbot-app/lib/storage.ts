@@ -100,6 +100,10 @@ export interface Job {
   status: "Quoted" | "Scheduled" | "In Progress" | "Completed" | "Invoiced";
   notes?: string;
   quoteId?: string;
+  /** Rebooking reminder due date (YYYY-MM-DD, London). Absent means no reminder. */
+  rebookDue?: string;
+  /** Months between visits, used to set the next reminder after a rebook. */
+  rebookMonths?: number;
   createdAt: string;
 }
 
