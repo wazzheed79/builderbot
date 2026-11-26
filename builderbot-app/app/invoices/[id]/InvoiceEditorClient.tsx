@@ -15,15 +15,18 @@ import {
   getBusinessProfile,
   getPricingMemory,
   saveInvoice,
+  saveJob,
   type Invoice,
   type LineItem,
 } from "@/lib/storage";
-import { useClientReady, useInvoiceList, useSiteOrigin } from "@/lib/live-store";
+import { useClientReady, useInvoiceList, useJobList, useSiteOrigin } from "@/lib/live-store";
+import RebookPicker from "@/components/jobs/RebookPicker";
 import { captureEvent } from "@/lib/analytics";
 
 export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }) {
   const ready = useClientReady();
   const invoices = useInvoiceList();
+  const jobs = useJobList();
   const today = useTodayIso();
   const origin = useSiteOrigin();
   const router = useRouter();
@@ -49,6 +52,9 @@ export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }
 
   const statusLabel = today ? displayInvoiceStatus(draft.status, draft.dueDate, today) : draft.status;
   const locked = draft.status === "Paid";
+  const rebookJob =
+    jobs.find((job) => job.id === draft.jobId) ||
+    (draft.quoteId ? jobs.find((job) => job.quoteId === draft.quoteId) : undefined);
   const link = origin && draft.token ? `${origin}/i/${draft.token}` : "";
   const figures = invoiceTotals(draft.items, draft.vatEnabled, locked ? draft.total : 0);
   const shown: Invoice = {
@@ -199,6 +205,38 @@ export default function InvoiceEditorClient({ invoiceId }: { invoiceId: string }
             </button>
           )}
         </div>
+        {locked && draft.customerId && (
+          <RebookPicker
+            rebookDue={rebookJob?.rebookDue}
+            rebookMonths={rebookJob?.rebookMonths}
+            onChange={(fields) => {
+              // The reminder lives on the job. Use this invoice's job, or record the finished job now.
+              const savedJob = saveJob(
+                rebookJob
+                  ? { ...rebookJob, ...fields }
+                  : {
+                      customerId: draft.customerId || "",
+                      title: draft.title || "Job",
+                      address: draft.clientAddress || "",
+                      status: "Invoiced",
+                      quoteId: draft.quoteId,
+                      ...fields,
+                    }
+              );
+              if (!rebookJob && !draft.quoteId) {
+                // Link the new job so the next change updates it instead of adding another.
+                setDraft(saveInvoice({ ...draft, jobId: savedJob.id }));
+              }
+              if (fields.rebookDue) {
+                captureEvent("rebook_reminder_set", { months: fields.rebookMonths ?? 0 });
+                setNotice("Rebook reminder saved. It will show on your dashboard a month before.");
+              } else {
+                captureEvent("rebook_reminder_cleared");
+                setNotice("Rebook reminder removed.");
+              }
+            }}
+          />
+        )}
         <button
           type="button"
           disabled={locked}

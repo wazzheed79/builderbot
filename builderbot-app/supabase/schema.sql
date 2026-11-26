@@ -96,6 +96,9 @@ CREATE TABLE IF NOT EXISTS public.jobs (
   status TEXT NOT NULL DEFAULT 'Quoted' CHECK (status IN ('Quoted', 'Scheduled', 'In Progress', 'Completed', 'Invoiced')),
   notes TEXT,
   quote_id TEXT REFERENCES public.quotes(id) ON DELETE SET NULL,
+  -- Rebooking reminder (20261126120000_job_rebook_reminders.sql). Null means none.
+  rebook_due DATE,
+  rebook_months INT CHECK (rebook_months IS NULL OR (rebook_months >= 1 AND rebook_months <= 60)),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

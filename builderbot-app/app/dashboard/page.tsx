@@ -32,6 +32,7 @@ import { brand } from "@/lib/brand.mjs";
 import { QuoteFollowUp } from "@/components/quotes/QuoteFollowUp";
 import DeleteDraftQuote from "@/components/quotes/DeleteDraftQuote";
 import ExpiringSoon from "@/components/dashboard/ExpiringSoon";
+import RebookDue from "@/components/dashboard/RebookDue";
 
 export default function DashboardPage() {
   const ready = useClientReady();
@@ -130,6 +131,7 @@ export default function DashboardPage() {
       </div>
 
       <ExpiringSoon />
+      <RebookDue />
 
       <Link
         href="/day-rate-calculator"
