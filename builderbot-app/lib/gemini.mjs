@@ -8,17 +8,17 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 // ThinkingLevel.MINIMAL in @google/genai 2.30 (thinkingConfig.thinkingLevel).
 export const GEMINI_QUOTE_THINKING_LEVEL = "MINIMAL";
 
-// The SDK sends this same limit to Google as X-Server-Timeout. Gemini 3 Flash
-// thinks at medium unless told otherwise, and a 20 second deadline was coming
-// back as http_504 before a quote finished. Thirty seconds covers a one-shot
-// quote at the minimal thinking level, then the route falls back to the rough
-// estimate. The quote routes set maxDuration above this.
-export const GEMINI_REQUEST_TIMEOUT_MS = 30_000;
+// The SDK sends this same limit to Google as X-Server-Timeout. A 20 second
+// deadline, and later a 30 second one, came back as http_504 on a real quote
+// (Sentry CHUFFED-QUOTES-4), so the trade got the rough estimate. 55 seconds
+// is a safety net for a slow moment at Google. Most quotes finish well inside
+// it now that one-price quotes no longer ask for the tier bullets.
+export const GEMINI_REQUEST_TIMEOUT_MS = 55_000;
 
-// Must stay above GEMINI_REQUEST_TIMEOUT_MS and inside the host function limit.
-// 60 seconds is the usual cap on a short plan, and it leaves room for the
-// rate-limit check around the 30 second Gemini call.
-export const GEMINI_ROUTE_MAX_DURATION_SECONDS = 60;
+// Must stay above GEMINI_REQUEST_TIMEOUT_MS and inside the host function limit
+// (Vercel Functions allow 300 seconds by default). 90 seconds leaves room for
+// the rate-limit and quota checks around the 55 second Gemini call.
+export const GEMINI_ROUTE_MAX_DURATION_SECONDS = 90;
 
 const MODEL_ID = /^[A-Za-z0-9._-]{1,80}$/;
 

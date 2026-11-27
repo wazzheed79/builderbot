@@ -51,15 +51,15 @@ test("Quote calls use the SDK minimal thinking level", () => {
 });
 
 test("Gemini request timeout is thirty seconds and the route can outlast it", () => {
-  assert.equal(GEMINI_REQUEST_TIMEOUT_MS, 30_000);
-  assert.equal(GEMINI_ROUTE_MAX_DURATION_SECONDS, 60);
+  assert.equal(GEMINI_REQUEST_TIMEOUT_MS, 55_000);
+  assert.equal(GEMINI_ROUTE_MAX_DURATION_SECONDS, 90);
   assert.ok(GEMINI_ROUTE_MAX_DURATION_SECONDS * 1000 > GEMINI_REQUEST_TIMEOUT_MS);
   for (const route of ["generate", "expand", "demo"]) {
     const source = fs.readFileSync(
       new URL(`../app/api/quote/${route}/route.ts`, import.meta.url),
       "utf8"
     );
-    assert.match(source, /export const maxDuration = 60/);
+    assert.match(source, /export const maxDuration = 90/);
   }
 });
 

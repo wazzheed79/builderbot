@@ -26,8 +26,8 @@ import {
 } from "@/lib/guest-demo.mjs";
 import { MAX_TEXT_BODY_CHARS, NOTES_TOO_LONG, checkBodySize } from "@/lib/image-payload.mjs";
 
-// Above the 30 second Gemini wait, and within the usual function limit.
-export const maxDuration = 60;
+// Above the 55 second Gemini wait, and within the function limit.
+export const maxDuration = 90;
 
 let globalCapReported = false;
 
