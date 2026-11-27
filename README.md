@@ -162,6 +162,10 @@ A longer click-by-click list for a first deploy is in [BETA_SETUP.md](BETA_SETUP
 
 Dates are the dates on the commits. The same history, in [Keep a Changelog](https://keepachangelog.com/) form, is in [CHANGELOG.md](CHANGELOG.md).
 
+### 27 November 2026
+
+- AI quotes are quicker. A one-price quote no longer asks for the Standard, Better, and Premium bullets, and the scope of works is kept to a few sentences. Gemini gets 55 seconds instead of 30 before the rough estimate is used.
+
 ### 26 November 2026
 
 - Rebooking reminders. On a paid invoice or a finished job, choose 6 months, 1 year, or 2 years. A month before, the dashboard lists the customer under Due for a rebook, with a ready WhatsApp message, Booked (sets the next one), and Stop reminding. Nothing is sent by itself. Apply `builderbot-app/supabase/migrations/20261126120000_job_rebook_reminders.sql` in the Supabase SQL editor so reminders save online.

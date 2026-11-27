@@ -27,8 +27,8 @@ import {
   validateAiPhotos,
 } from "@/lib/image-payload.mjs";
 
-// Above the 30 second Gemini wait, and within the usual function limit.
-export const maxDuration = 60;
+// Above the 55 second Gemini wait, and within the function limit.
+export const maxDuration = 90;
 
 const GenerateRequestSchema = z.object({
   notes: z
@@ -177,8 +177,11 @@ export async function POST(request: NextRequest) {
           : "Materials at realistic trade supplier prices. ") +
         "Recommend a deposit % between 10 and 30 (default 20). " +
         "Every rate is the price before VAT. Do not add 20% VAT into the rate. " +
+        "Keep the scope of works short: 2 to 4 plain sentences. " +
         "CRITICAL: NEVER hallucinate or claim legal trade accreditations (such as Gas Safe or NICEIC) unless explicitly mentioned in the notes. " +
-        TIER_CHANGES_PROMPT;
+        // The Standard / Better / Premium bullets are only asked for when the trade chose
+        // that option. Writing them on every one-price quote made Gemini run past its deadline.
+        (tiers ? TIER_CHANGES_PROMPT : "");
 
       const customLabor = pricingMemory?.laborHourlyRate
         ? `£${pricingMemory.laborHourlyRate}/hr`
@@ -240,7 +243,7 @@ export async function POST(request: NextRequest) {
                 },
                 scopeOfWork: {
                   type: "string",
-                  description: "Detailed professional scope of works",
+                  description: "Short professional scope of works, 2 to 4 sentences",
                 },
                 suggestedDepositPercent: {
                   type: "integer",
@@ -276,9 +279,15 @@ export async function POST(request: NextRequest) {
                   },
                   description: "Itemized materials, labor tasks, and waste disposal services",
                 },
-                tierChanges: tierChangesSchema,
+                ...(tiers ? { tierChanges: tierChangesSchema } : {}),
               },
-              required: ["title", "scopeOfWork", "suggestedDepositPercent", "items", "tierChanges"],
+              required: [
+                "title",
+                "scopeOfWork",
+                "suggestedDepositPercent",
+                "items",
+                ...(tiers ? ["tierChanges"] : []),
+              ],
             },
           },
         });
